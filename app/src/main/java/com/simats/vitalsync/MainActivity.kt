@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
             VitalsyncTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
-                        name = "Android",
+                        name = "nitesh",
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
