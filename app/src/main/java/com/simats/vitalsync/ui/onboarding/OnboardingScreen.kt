@@ -92,6 +92,7 @@ val onboardingPages = listOf(
 @Composable
 fun OnboardingScreen(
     modifier: Modifier = Modifier,
+    onSkipClick: () -> Unit = {},
     onFinishOnboarding: () -> Unit = {}
 ) {
     var currentPageIndex by remember { mutableIntStateOf(0) }
@@ -120,7 +121,7 @@ fun OnboardingScreen(
             )
 
             TextButton(
-                onClick = onFinishOnboarding
+                onClick = onSkipClick
             ) {
                 Text(
                     text = "Skip",
