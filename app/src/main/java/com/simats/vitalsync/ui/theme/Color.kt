@@ -2,10 +2,17 @@ package com.simats.vitalsync.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+val SplashBgDark = Color(0xFF023B30)
+val SplashBgMid = Color(0xFF075947)
+val SplashBgLight = Color(0xFF0F9F7A)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val VitalTealPrimary = Color(0xFF0F9F7A)
+val VitalTealDark = Color(0xFF033B30)
+val VitalMintAccent = Color(0xFFA7F3D0)
+val VitalTextSubtitle = Color(0xFFB5EAD7)
+val VitalTextFooterTitle = Color(0xFF86EFAC)
+val VitalTextFooterBody = Color(0xFFE2F8F0)
+
+val DarkTealColorSchemePrimary = Color(0xFF34D399)
+val DarkTealColorSchemeSecondary = Color(0xFFA7F3D0)
+val DarkTealColorSchemeBackground = Color(0xFF023B30)
