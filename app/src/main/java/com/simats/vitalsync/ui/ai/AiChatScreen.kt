@@ -51,7 +51,8 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun AiChatScreen(
     modifier: Modifier = Modifier,
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onChatHistoryClick: () -> Unit = {}
 ) {
     var messageInput by remember { mutableStateOf("") }
 
@@ -100,12 +101,17 @@ fun AiChatScreen(
                     )
                 }
 
-                Text(
-                    text = "•••",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF6B7280)
-                )
+                IconButton(
+                    onClick = onChatHistoryClick,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Text(
+                        text = "•••",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF6B7280)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

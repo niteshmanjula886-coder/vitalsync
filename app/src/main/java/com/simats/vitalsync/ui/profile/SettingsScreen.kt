@@ -199,19 +199,7 @@ fun SettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
 
-        // PRIVACY Section
-        SettingsSectionHeader("PRIVACY")
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-        ) {
-            SettingsNavigationRow("🛡️ Data Management", onClick = onDataManagementClick)
-        }
 
         Spacer(modifier = Modifier.height(16.dp))
 

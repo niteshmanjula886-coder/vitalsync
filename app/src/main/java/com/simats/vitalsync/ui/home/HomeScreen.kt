@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -70,6 +71,12 @@ fun HomeScreen(
     onOpenNutritionTrackerClick: () -> Unit = {},
     onOpenProgressAnalyticsClick: () -> Unit = {},
     onViewWorkoutHistoryClick: () -> Unit = {},
+    userName: String = "Alex Morgan",
+    userInitials: String = "AM",
+    userAge: String = "28",
+    userHeight: String = "175",
+    userWeight: String = "68.5",
+    userPhotoBitmap: ImageBitmap? = null,
     onLogoutClick: () -> Unit = {}
 ) {
     var selectedBottomTab by remember(initialTab) { mutableIntStateOf(initialTab) }
@@ -108,6 +115,13 @@ fun HomeScreen(
                 )
                 2 -> AiScreen(onAskAiClick = onAskAiClick)
                 3 -> ProfileScreen(
+                    userName = userName,
+                    userInitials = userInitials,
+                    userAge = userAge,
+                    userHeight = userHeight,
+                    userWeight = userWeight,
+                    userPhotoBitmap = userPhotoBitmap,
+                    onEditProfileClick = onPersonalInformationClick,
                     onPersonalInformationClick = onPersonalInformationClick,
                     onHealthGoalsClick = onHealthGoalsClick,
                     onConnectedDevicesClick = onConnectedDevicesClick,
@@ -859,14 +873,14 @@ private fun UserPersonIcon(
         val w = size.width
         val h = size.height
 
-        drawCircle(color = color, radius = w * 0.22f, center = Offset(w * 0.5f, h * 0.30f), style = Stroke(width = 1.6.dp.toPx()))
+        drawCircle(color = Color(0xFF0F9F7A), radius = w * 0.25f, center = Offset(w * 0.5f, h * 0.30f), style = Stroke(width = 1.6.dp.toPx()))
 
         val bodyPath = Path().apply {
             moveTo(w * 0.15f, h * 0.85f)
             cubicTo(w * 0.15f, h * 0.60f, w * 0.85f, h * 0.60f, w * 0.85f, h * 0.85f)
         }
 
-        drawPath(path = bodyPath, color = color, style = Stroke(width = 1.6.dp.toPx()))
+        drawPath(path = bodyPath, color = Color(0xFF0F9F7A), style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 

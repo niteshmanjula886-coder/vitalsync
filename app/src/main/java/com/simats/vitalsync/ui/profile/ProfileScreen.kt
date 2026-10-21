@@ -1,6 +1,7 @@
 package com.simats.vitalsync.ui.profile
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,10 +32,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -45,6 +48,12 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
+    userName: String = "Alex Morgan",
+    userInitials: String = "AM",
+    userAge: String = "28",
+    userHeight: String = "175",
+    userWeight: String = "68.5",
+    userPhotoBitmap: ImageBitmap? = null,
     onEditProfileClick: () -> Unit = {},
     onPersonalInformationClick: () -> Unit = {},
     onHealthGoalsClick: () -> Unit = {},
@@ -90,31 +99,48 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Avatar Initial Circle
+        // Choosable/Editable Avatar Circle
         Box(
             modifier = Modifier
-                .size(80.dp)
+                .size(88.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFE6F4EA)),
+                .background(Color(0xFFE6F4EA))
+                .clickable { onPersonalInformationClick() },
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "AM",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = VitalTealDark
-            )
+            if (userPhotoBitmap != null) {
+                Image(
+                    bitmap = userPhotoBitmap,
+                    contentDescription = "User Profile Photo",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Text(
+                    text = userInitials,
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = VitalTealDark
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Name
-        Text(
-            text = "Alex Morgan",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF111827)
-        )
+        // Name (Clickable to Edit)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable { onPersonalInformationClick() }
+        ) {
+            Text(
+                text = userName,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111827)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            PencilEditIcon(modifier = Modifier.size(16.dp))
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -151,19 +177,19 @@ fun ProfileScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "Age", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "28 years", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(text = "$userAge years", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "Height", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "175 cm", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(text = "$userHeight cm", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "Weight", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "68.5 kg", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(text = "$userWeight kg", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                 }
             }
         }
@@ -288,7 +314,6 @@ private fun ProfileMenuItem(
 private fun PencilEditIcon(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val w = size.width
-        val h = size.height
 
         val path = Path().apply {
             moveTo(w * 0.7f, w * 0.1f)

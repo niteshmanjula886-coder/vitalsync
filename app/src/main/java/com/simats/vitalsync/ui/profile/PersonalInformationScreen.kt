@@ -1,7 +1,13 @@
 package com.simats.vitalsync.ui.profile
 
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,10 +22,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -33,31 +43,88 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import java.util.Locale
+
+fun calculateAgeFromDob(dobStr: String): Int {
+    if (dobStr.isBlank()) return 28
+    val currentYear = 2025
+    val yearRegex = Regex("""\b(19\d\d|20\d\d)\b""")
+    val match = yearRegex.find(dobStr)
+    if (match != null) {
+        val birthYear = match.value.toIntOrNull() ?: 1996
+        return (currentYear - birthYear).coerceIn(1, 120)
+    }
+    val numbersOnly = dobStr.filter { it.isDigit() }
+    if (numbersOnly.length >= 4) {
+        val last4 = numbersOnly.takeLast(4).toIntOrNull()
+        if (last4 != null && last4 in 1900..2024) {
+            return (currentYear - last4).coerceIn(1, 120)
+        }
+    }
+    return 28
+}
 
 @Composable
 fun PersonalInformationScreen(
     modifier: Modifier = Modifier,
+    currentName: String = "Alex Morgan",
+    currentInitials: String = "AM",
+    currentHeight: String = "175",
+    currentWeight: String = "68.5",
+    currentPhotoBitmap: ImageBitmap? = null,
     onBackClick: () -> Unit = {},
-    onSaveChangesClick: () -> Unit = {}
+    onSaveChangesClick: (newName: String, newInitials: String, newAge: String, newHeight: String, newWeight: String, newPhotoBitmap: ImageBitmap?) -> Unit = { _, _, _, _, _, _ -> }
 ) {
-    var name by remember { mutableStateOf("Alex Morgan") }
+    val context = LocalContext.current
+    var name by remember { mutableStateOf(currentName) }
+    var initials by remember { mutableStateOf(currentInitials) }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var profileImageBitmap by remember { mutableStateOf<ImageBitmap?>(currentPhotoBitmap) }
+
     var dob by remember { mutableStateOf("14 May 1996") }
     var gender by remember { mutableStateOf("Male") }
     var email by remember { mutableStateOf("alex.morgan@example.com") }
     var phone by remember { mutableStateOf("+1 (202) 555-0147") }
-    var height by remember { mutableStateOf("175") }
-    var weight by remember { mutableStateOf("68.5") }
+    var height by remember { mutableStateOf(currentHeight) }
+    var weight by remember { mutableStateOf(currentWeight) }
+
+    val calculatedAge = remember(dob) { calculateAgeFromDob(dob) }
+    val hCm = height.toFloatOrNull() ?: 175f
+    val wKg = weight.toFloatOrNull() ?: 68.5f
+    val calculatedBmi = if (hCm > 0) wKg / ((hCm / 100f) * (hCm / 100f)) else 22.4f
+
+    // Android Gallery Photo Picker Launcher
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            selectedImageUri = uri
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                profileImageBitmap = bitmap?.asImageBitmap()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     Column(
         modifier = modifier
@@ -73,7 +140,8 @@ fun PersonalInformationScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -109,168 +177,336 @@ fun PersonalInformationScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                text = "Keep your details up to date for a more personal wellness experience.",
-                fontSize = 13.sp,
-                color = Color(0xFF6B7280)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFFE6F4EA))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            // Profile Photo & Gallery Chooser Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
-                Text(
-                    text = "Sample profile",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F9F7A)
-                )
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Profile Photo Circle (Displays Gallery Photo if selected, or Avatar Initials)
+                    Box(
+                        modifier = Modifier
+                            .size(92.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE6F4EA))
+                            .clickable { galleryLauncher.launch("image/*") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (profileImageBitmap != null) {
+                            Image(
+                                bitmap = profileImageBitmap!!,
+                                contentDescription = "User Profile Photo",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(
+                                text = initials,
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = VitalTealDark
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Choose & Remove Photo Action Buttons Row
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFE8F6F0))
+                                .clickable { galleryLauncher.launch("image/*") }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "Choose Photo 📷",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F9F7A)
+                            )
+                        }
+
+                        if (profileImageBitmap != null) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFFEE2E2))
+                                    .clickable {
+                                        profileImageBitmap = null
+                                        selectedImageUri = null
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = "Remove Photo 🗑️",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFDC2626)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(text = "Or pick preset avatar:", fontSize = 11.sp, color = Color(0xFF6B7280))
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Choosable Avatar Preset Badges
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        listOf("AM", "JS", "JD", "SK", "AR").forEach { presetInitials ->
+                            val isSelected = initials == presetInitials && profileImageBitmap == null
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSelected) VitalTealDark else Color(0xFFF1F5F9))
+                                    .clickable {
+                                        initials = presetInitials
+                                        profileImageBitmap = null
+                                        selectedImageUri = null
+                                    }
+                                    .padding(4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = presetInitials,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color.White else Color(0xFF475569)
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Full Name Field
-            Text(text = "Full name", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-            Spacer(modifier = Modifier.height(6.dp))
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB)
-                ),
-                trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp)) }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Date of Birth
-            Text(text = "Date of birth", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-            Spacer(modifier = Modifier.height(6.dp))
-            OutlinedTextField(
-                value = dob,
-                onValueChange = { dob = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB)
-                ),
-                trailingIcon = { CalendarIcon(modifier = Modifier.size(16.dp)) }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Gender
-            Text(text = "Gender", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-            Spacer(modifier = Modifier.height(6.dp))
-            OutlinedTextField(
-                value = gender,
-                onValueChange = { gender = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB)
+            // Editable Input Fields Form
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Full Name
+                Text(text = "Full name", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { newName ->
+                        name = newName
+                        val parts = newName.trim().split(" ")
+                        if (parts.size >= 2) {
+                            initials = (parts[0].take(1) + parts[1].take(1)).uppercase()
+                        } else if (parts.isNotEmpty() && parts[0].isNotEmpty()) {
+                            initials = parts[0].take(2).uppercase()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedTextColor = Color(0xFF111827),
+                        unfocusedTextColor = Color(0xFF111827),
+                        focusedBorderColor = VitalTealPrimary,
+                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                    ),
+                    trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp)) }
                 )
-            )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Email
-            Text(text = "Email address", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-            Spacer(modifier = Modifier.height(6.dp))
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB)
-                ),
-                trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp)) }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Phone
-            Text(text = "Phone number", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-            Spacer(modifier = Modifier.height(6.dp))
-            OutlinedTextField(
-                value = phone,
-                onValueChange = { phone = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB)
-                ),
-                trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp)) }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Height & Weight
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Height (cm)", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-                    Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedTextField(
-                        value = height,
-                        onValueChange = { height = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            focusedBorderColor = VitalTealPrimary,
-                            unfocusedBorderColor = Color(0xFFE5E7EB)
+                // Date of Birth (Typable & Auto Calculated Age Badge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Date of birth", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFE8F6F0))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "⚡ Calculated Age: $calculatedAge yrs",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F9F7A)
                         )
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = dob,
+                    onValueChange = { dob = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("e.g. 14 May 1996 or 1996", fontSize = 13.sp, color = Color(0xFF9CA3AF)) },
+                    shape = RoundedCornerShape(14.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedTextColor = Color(0xFF111827),
+                        unfocusedTextColor = Color(0xFF111827),
+                        focusedBorderColor = VitalTealPrimary,
+                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                    ),
+                    trailingIcon = { CalendarIcon(modifier = Modifier.size(16.dp)) }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Gender (Typable)
+                Text(text = "Gender", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = gender,
+                    onValueChange = { gender = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedTextColor = Color(0xFF111827),
+                        unfocusedTextColor = Color(0xFF111827),
+                        focusedBorderColor = VitalTealPrimary,
+                        unfocusedBorderColor = Color(0xFFE5E7EB)
                     )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Email Address (Typable)
+                Text(text = "Email address", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedTextColor = Color(0xFF111827),
+                        unfocusedTextColor = Color(0xFF111827),
+                        focusedBorderColor = VitalTealPrimary,
+                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                    ),
+                    trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp)) }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Phone Number (Typable)
+                Text(text = "Phone number", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedTextColor = Color(0xFF111827),
+                        unfocusedTextColor = Color(0xFF111827),
+                        focusedBorderColor = VitalTealPrimary,
+                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                    ),
+                    trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp)) }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Height & Weight (Typable Numbers & Auto Calculated BMI Badge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Body Dimensions", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFE8F6F0))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "⚡ Calculated BMI: ${String.format(Locale.US, "%.1f", calculatedBmi)}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F9F7A)
+                        )
+                    }
                 }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Weight (kg)", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-                    Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedTextField(
-                        value = weight,
-                        onValueChange = { weight = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            focusedBorderColor = VitalTealPrimary,
-                            unfocusedBorderColor = Color(0xFFE5E7EB)
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "Height (cm)", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = height,
+                            onValueChange = { height = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White,
+                                focusedTextColor = Color(0xFF111827),
+                                unfocusedTextColor = Color(0xFF111827),
+                                focusedBorderColor = VitalTealPrimary,
+                                unfocusedBorderColor = Color(0xFFE5E7EB)
+                            )
                         )
-                    )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "Weight (kg)", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = weight,
+                            onValueChange = { weight = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White,
+                                focusedTextColor = Color(0xFF111827),
+                                unfocusedTextColor = Color(0xFF111827),
+                                focusedBorderColor = VitalTealPrimary,
+                                unfocusedBorderColor = Color(0xFFE5E7EB)
+                            )
+                        )
+                    }
                 }
             }
 
@@ -279,7 +515,7 @@ fun PersonalInformationScreen(
 
         // Save Changes Button
         Button(
-            onClick = onSaveChangesClick,
+            onClick = { onSaveChangesClick(name, initials, "$calculatedAge", height, weight, profileImageBitmap) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)

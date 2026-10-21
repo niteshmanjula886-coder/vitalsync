@@ -49,7 +49,9 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun PrivacySecurityScreen(
     modifier: Modifier = Modifier,
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onLoginSessionsClick: () -> Unit = {},
+    onPrivacyPolicyClick: () -> Unit = {}
 ) {
     var aiInsightsEnabled by remember { mutableStateOf(true) }
     var usageAnalyticsEnabled by remember { mutableStateOf(false) }
@@ -140,18 +142,18 @@ fun PrivacySecurityScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(vertical = 6.dp)) {
-                SecurityRow("Biometric Authentication", "Fingerprint unlock • Enabled")
-                HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(horizontal = 16.dp))
-                SecurityRow("Login Sessions", "2 active sample sessions")
-                HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(horizontal = 16.dp))
-                SecurityRow("Change Password", "Manage your sign-in password")
+                SecurityRow(
+                    title = "Login Sessions",
+                    subtitle = "2 active sample sessions",
+                    onClick = onLoginSessionsClick
+                )
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // YOUR DATA Section
-        SectionHeader("YOUR DATA")
+        // YOUR PRIVACY Section
+        SectionHeader("YOUR PRIVACY")
 
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -160,9 +162,11 @@ fun PrivacySecurityScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(vertical = 6.dp)) {
-                SecurityRow("Data Management", "Export or delete your data")
-                HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(horizontal = 16.dp))
-                SecurityRow("Privacy Policy", "Read our terms and policy")
+                SecurityRow(
+                    title = "Privacy Policy",
+                    subtitle = "Read our terms and policy",
+                    onClick = onPrivacyPolicyClick
+                )
             }
         }
 
@@ -236,11 +240,15 @@ private fun PrivacyToggleRow(
 }
 
 @Composable
-private fun SecurityRow(title: String, subtitle: String) {
+private fun SecurityRow(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit = {}
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { }
+            .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically

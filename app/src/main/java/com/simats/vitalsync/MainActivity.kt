@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.simats.vitalsync.data.Exercise
 import com.simats.vitalsync.data.FitnessRepository
@@ -24,6 +25,7 @@ import com.simats.vitalsync.ui.activity.StartActivityScreen
 import com.simats.vitalsync.ui.activity.ViewHistoryScreen
 import com.simats.vitalsync.ui.activity.WalkingTrackingScreen
 import com.simats.vitalsync.ui.activity.WorkoutTrackingScreen
+import com.simats.vitalsync.ui.ai.AiChatHistoryScreen
 import com.simats.vitalsync.ui.ai.AiChatScreen
 import com.simats.vitalsync.ui.ai.WeeklyHealthReportScreen
 import com.simats.vitalsync.ui.auth.ForgotPasswordScreen
@@ -51,8 +53,10 @@ import com.simats.vitalsync.ui.profile.DataManagementScreen
 import com.simats.vitalsync.ui.profile.HealthGoalsScreen
 import com.simats.vitalsync.ui.profile.HealthPermissionsScreen
 import com.simats.vitalsync.ui.profile.HelpSupportScreen
+import com.simats.vitalsync.ui.profile.LoginSessionsScreen
 import com.simats.vitalsync.ui.profile.NotificationsScreen
 import com.simats.vitalsync.ui.profile.PersonalInformationScreen
+import com.simats.vitalsync.ui.profile.PrivacyPolicyScreen
 import com.simats.vitalsync.ui.profile.PrivacySecurityScreen
 import com.simats.vitalsync.ui.profile.ProfileSetupScreen
 import com.simats.vitalsync.ui.profile.RemindersScreen
@@ -75,6 +79,7 @@ import com.simats.vitalsync.ui.vitals.StepCountDetailScreen
 import com.simats.vitalsync.ui.vitals.UpdateMetricsScreen
 import com.simats.vitalsync.ui.vitals.VitalReadingType
 import com.simats.vitalsync.ui.vitals.VitalSignsScreen
+import java.util.Locale
 
 enum class ScreenState {
     SPLASH,
@@ -85,6 +90,7 @@ enum class ScreenState {
     PROFILE_SETUP,
     MAIN,
     AI_CHAT,
+    AI_CHAT_HISTORY,
     WEEKLY_REPORT,
     REMINDERS,
     ADD_REMINDER,
@@ -112,6 +118,8 @@ enum class ScreenState {
     CONNECTED_DEVICES,
     NOTIFICATIONS,
     PRIVACY_SECURITY,
+    LOGIN_SESSIONS,
+    PRIVACY_POLICY,
     SETTINGS,
     CHANGE_PASSWORD,
     HEALTH_PERMISSIONS,
@@ -160,6 +168,11 @@ class MainActivity : ComponentActivity() {
                 var calculatedBmiCategory by remember { mutableStateOf("Healthy Range") }
                 var userHeightCm by remember { mutableStateOf("175") }
                 var userWeightKg by remember { mutableStateOf("68.5") }
+
+                var globalUserName by remember { mutableStateOf("Alex Morgan") }
+                var globalUserInitials by remember { mutableStateOf("AM") }
+                var globalUserAge by remember { mutableStateOf("28") }
+                var globalProfilePhotoBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
                 Crossfade(
                     targetState = currentScreen,
@@ -221,6 +234,12 @@ class MainActivity : ComponentActivity() {
                         ScreenState.MAIN -> {
                             HomeScreen(
                                 initialTab = homeInitialTab,
+                                userName = globalUserName,
+                                userInitials = globalUserInitials,
+                                userAge = globalUserAge,
+                                userHeight = userHeightCm,
+                                userWeight = userWeightKg,
+                                userPhotoBitmap = globalProfilePhotoBitmap,
                                 onVitalsClick = { currentScreen = ScreenState.VITAL_SIGNS },
                                 onHeartRateClick = { currentScreen = ScreenState.HEART_RATE_DETAIL },
                                 onBloodPressureClick = { currentScreen = ScreenState.BLOOD_PRESSURE_DETAIL },
@@ -396,7 +415,15 @@ class MainActivity : ComponentActivity() {
                                 onBackClick = {
                                     homeInitialTab = 2
                                     currentScreen = ScreenState.MAIN
-                                }
+                                },
+                                onChatHistoryClick = { currentScreen = ScreenState.AI_CHAT_HISTORY }
+                            )
+                        }
+                        ScreenState.AI_CHAT_HISTORY -> {
+                            AiChatHistoryScreen(
+                                onBackClick = { currentScreen = ScreenState.AI_CHAT },
+                                onSelectConversation = { currentScreen = ScreenState.AI_CHAT },
+                                onNewChatClick = { currentScreen = ScreenState.AI_CHAT }
                             )
                         }
                         ScreenState.WEEKLY_REPORT -> {
@@ -424,11 +451,34 @@ class MainActivity : ComponentActivity() {
                         }
                         ScreenState.PERSONAL_INFORMATION -> {
                             PersonalInformationScreen(
+                                currentName = globalUserName,
+                                currentInitials = globalUserInitials,
+                                currentHeight = userHeightCm,
+                                currentWeight = userWeightKg,
+                                currentPhotoBitmap = globalProfilePhotoBitmap,
                                 onBackClick = {
                                     homeInitialTab = 3
                                     currentScreen = ScreenState.MAIN
                                 },
-                                onSaveChangesClick = {
+                                onSaveChangesClick = { newName, newInitials, newAge, newHeight, newWeight, newPhotoBitmap ->
+                                    globalUserName = newName
+                                    globalUserInitials = newInitials
+                                    globalUserAge = newAge
+                                    userHeightCm = newHeight
+                                    userWeightKg = newWeight
+                                    globalProfilePhotoBitmap = newPhotoBitmap
+
+                                    val h = newHeight.toFloatOrNull() ?: 175f
+                                    val w = newWeight.toFloatOrNull() ?: 68.5f
+                                    val bmiVal = if (h > 0) w / ((h / 100f) * (h / 100f)) else 22.4f
+                                    calculatedBmiValue = String.format(Locale.US, "%.1f", bmiVal)
+                                    calculatedBmiCategory = when {
+                                        bmiVal < 18.5f -> "Underweight"
+                                        bmiVal < 25.0f -> "Healthy Range"
+                                        bmiVal < 30.0f -> "Overweight"
+                                        else -> "Obese"
+                                    }
+
                                     homeInitialTab = 3
                                     currentScreen = ScreenState.MAIN
                                 }
@@ -467,7 +517,19 @@ class MainActivity : ComponentActivity() {
                                 onBackClick = {
                                     homeInitialTab = 3
                                     currentScreen = ScreenState.MAIN
-                                }
+                                },
+                                onLoginSessionsClick = { currentScreen = ScreenState.LOGIN_SESSIONS },
+                                onPrivacyPolicyClick = { currentScreen = ScreenState.PRIVACY_POLICY }
+                            )
+                        }
+                        ScreenState.LOGIN_SESSIONS -> {
+                            LoginSessionsScreen(
+                                onBackClick = { currentScreen = ScreenState.PRIVACY_SECURITY }
+                            )
+                        }
+                        ScreenState.PRIVACY_POLICY -> {
+                            PrivacyPolicyScreen(
+                                onBackClick = { currentScreen = ScreenState.PRIVACY_SECURITY }
                             )
                         }
                         ScreenState.SETTINGS -> {
