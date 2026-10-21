@@ -1,0 +1,256 @@
+package com.simats.vitalsync.ui.gym
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.theme.VitalsyncTheme
+
+@Composable
+fun FitnessProgressDashboardScreen(
+    modifier: Modifier = Modifier,
+    onBackClick: () -> Unit = {}
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFFFAFCFB))
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 20.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Header Bar
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier.size(36.dp)
+            ) {
+                BackArrowIcon(
+                    modifier = Modifier.size(20.dp),
+                    color = Color(0xFF111827)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = "Fitness & Nutrition Analytics 📈",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111827)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Weekly Summary Stats Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            ProgressMiniCard("Workouts", "4", "this week", Color(0xFF0F9F7A), Modifier.weight(1f))
+            ProgressMiniCard("Volume", "18.5k", "total kg", Color(0xFF38BDF8), Modifier.weight(1f))
+            ProgressMiniCard("Avg Protein", "128g", "/ day", Color(0xFF7C3AED), Modifier.weight(1f))
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Weekly Workout Frequency Chart Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(text = "Weekly Workout Frequency", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "4 sessions completed", fontSize = 12.sp, color = Color(0xFF6B7280))
+                    }
+                    Text(text = "80% Goal", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Bar Chart
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp)
+                ) {
+                    val barWidth = 24.dp.toPx()
+                    val heights = listOf(0.80f, 0.0f, 0.90f, 0.0f, 0.85f, 0.95f, 0.0f) // Mon, Tue, Wed, Thu, Fri, Sat, Sun
+                    val totalWidth = size.width
+                    val spacing = (totalWidth - (barWidth * 7)) / 8f
+
+                    heights.forEachIndexed { i, ratio ->
+                        val x = spacing + i * (barWidth + spacing)
+                        val barHeight = size.height * ratio
+                        val y = size.height - barHeight
+                        val barColor = if (ratio > 0) Color(0xFF0F9F7A) else Color(0xFFE2E8F0)
+
+                        drawRoundRect(
+                            color = barColor,
+                            topLeft = Offset(x, y),
+                            size = Size(barWidth, if (ratio > 0) barHeight else size.height * 0.1f),
+                            cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    listOf("M", "T", "W", "T", "F", "S", "S").forEach { day ->
+                        Text(text = day, fontSize = 11.sp, color = Color(0xFF9CA3AF), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Volume Progress Line Chart Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "Training Volume Trend", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(text = "↑ 14% vs last week", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(90.dp)
+                ) {
+                    val w = size.width
+                    val h = size.height
+
+                    val path = Path().apply {
+                        moveTo(0f, h * 0.8f)
+                        lineTo(w * 0.2f, h * 0.6f)
+                        lineTo(w * 0.4f, h * 0.4f)
+                        lineTo(w * 0.6f, h * 0.5f)
+                        lineTo(w * 0.8f, h * 0.2f)
+                        lineTo(w, h * 0.25f)
+                    }
+
+                    drawPath(
+                        path = path,
+                        color = Color(0xFF38BDF8),
+                        style = Stroke(width = 2.4.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+    }
+}
+
+@Composable
+private fun ProgressMiniCard(
+    title: String,
+    value: String,
+    subtitle: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(text = title, fontSize = 11.sp, color = Color(0xFF6B7280), fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            Text(text = subtitle, fontSize = 10.sp, color = color, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun BackArrowIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color.Black
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val path = Path().apply {
+            moveTo(w * 0.75f, h * 0.5f)
+            lineTo(w * 0.25f, h * 0.5f)
+            moveTo(w * 0.45f, h * 0.25f)
+            lineTo(w * 0.25f, h * 0.5f)
+            lineTo(w * 0.45f, h * 0.75f)
+        }
+
+        drawPath(path = path, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Preview(showBackground = true, widthDp = 360, heightDp = 800)
+@Composable
+fun FitnessProgressDashboardScreenPreview() {
+    VitalsyncTheme {
+        FitnessProgressDashboardScreen()
+    }
+}

@@ -2,7 +2,6 @@ package com.simats.vitalsync.ui.auth
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +24,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -61,8 +59,7 @@ fun SignUpScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
     onSignUpSuccess: () -> Unit = {},
-    onNavigateToLogin: () -> Unit = {},
-    onGoogleSignUpClick: () -> Unit = {}
+    onNavigateToLogin: () -> Unit = {}
 ) {
     var name by remember { mutableStateOf("Alex Morgan") }
     var email by remember { mutableStateOf("alex.morgan@email.com") }
@@ -358,58 +355,6 @@ fun SignUpScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Divider "or sign up with"
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                HorizontalDivider(
-                    modifier = Modifier.weight(1f),
-                    color = Color(0xFFE5E7EB)
-                )
-                Text(
-                    text = "or sign up with",
-                    fontSize = 12.sp,
-                    color = Color(0xFF9CA3AF),
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
-                HorizontalDivider(
-                    modifier = Modifier.weight(1f),
-                    color = Color(0xFFE5E7EB)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Google Sign Up Button
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White)
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(16.dp))
-                    .clickable { onGoogleSignUpClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    GoogleGLogo(modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "Google Sign Up",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF1F2937)
-                    )
-                }
-            }
         }
 
         // Already have an account? Login
@@ -649,50 +594,6 @@ private fun EyeVisibilityIcon(
                 cap = StrokeCap.Round
             )
         }
-    }
-}
-
-@Composable
-private fun GoogleGLogo(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        drawArc(
-            color = Color(0xFF4285F4), // Blue
-            startAngle = -30f,
-            sweepAngle = 100f,
-            useCenter = false,
-            style = Stroke(width = w * 0.22f, cap = StrokeCap.Round)
-        )
-        drawArc(
-            color = Color(0xFF34A853), // Green
-            startAngle = 70f,
-            sweepAngle = 100f,
-            useCenter = false,
-            style = Stroke(width = w * 0.22f, cap = StrokeCap.Round)
-        )
-        drawArc(
-            color = Color(0xFFFBBC05), // Yellow
-            startAngle = 170f,
-            sweepAngle = 80f,
-            useCenter = false,
-            style = Stroke(width = w * 0.22f, cap = StrokeCap.Round)
-        )
-        drawArc(
-            color = Color(0xFFEA4335), // Red
-            startAngle = 250f,
-            sweepAngle = 80f,
-            useCenter = false,
-            style = Stroke(width = w * 0.22f, cap = StrokeCap.Round)
-        )
-        drawLine(
-            color = Color(0xFF4285F4),
-            start = Offset(w * 0.5f, h * 0.5f),
-            end = Offset(w * 0.85f, h * 0.5f),
-            strokeWidth = w * 0.22f,
-            cap = StrokeCap.Round
-        )
     }
 }
 

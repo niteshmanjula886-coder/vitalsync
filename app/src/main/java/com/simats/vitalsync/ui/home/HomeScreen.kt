@@ -30,7 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -43,12 +42,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.ai.AiScreen
+import com.simats.vitalsync.ui.gym.GymModeScreen
 import com.simats.vitalsync.ui.profile.ProfileScreen
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
+    initialTab: Int = 0,
     onVitalsClick: () -> Unit = {},
     onHeartRateClick: () -> Unit = {},
     onBloodPressureClick: () -> Unit = {},
@@ -64,9 +65,14 @@ fun HomeScreen(
     onPrivacySecurityClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onHelpSupportClick: () -> Unit = {},
+    onAskAiClick: () -> Unit = {},
+    onStartWorkoutSplitClick: () -> Unit = {},
+    onOpenNutritionTrackerClick: () -> Unit = {},
+    onOpenProgressAnalyticsClick: () -> Unit = {},
+    onViewWorkoutHistoryClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
-    var selectedBottomTab by remember { mutableIntStateOf(0) }
+    var selectedBottomTab by remember(initialTab) { mutableIntStateOf(initialTab) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -100,7 +106,7 @@ fun HomeScreen(
                     onSleepClick = onSleepClick,
                     onHydrationClick = onHydrationClick
                 )
-                2 -> AiScreen()
+                2 -> AiScreen(onAskAiClick = onAskAiClick)
                 3 -> ProfileScreen(
                     onPersonalInformationClick = onPersonalInformationClick,
                     onHealthGoalsClick = onHealthGoalsClick,
@@ -110,6 +116,13 @@ fun HomeScreen(
                     onSettingsClick = onSettingsClick,
                     onHelpSupportClick = onHelpSupportClick,
                     onLogoutClick = onLogoutClick
+                )
+                4 -> GymModeScreen(
+                    onStartWorkoutSplitClick = onStartWorkoutSplitClick,
+                    onOpenNutritionTrackerClick = onOpenNutritionTrackerClick,
+                    onOpenProgressAnalyticsClick = onOpenProgressAnalyticsClick,
+                    onViewWorkoutHistoryClick = onViewWorkoutHistoryClick,
+                    onFinishGymSession = { selectedBottomTab = 0 }
                 )
             }
         }
@@ -249,23 +262,30 @@ private fun HomeDashboardContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Your Vitals Section Header
+        // Your Vitals Section Header (4 Key Stats Overview)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Your vitals",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
-            )
+            Column {
+                Text(
+                    text = "Your vitals",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
+                Text(
+                    text = "4 key health stats",
+                    fontSize = 12.sp,
+                    color = Color(0xFF6B7280)
+                )
+            }
 
             Text(
-                text = "View all",
+                text = "View all →",
                 fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 color = Color(0xFF0F9F7A),
                 modifier = Modifier.clickable { onVitalsClick() }
             )
@@ -594,7 +614,7 @@ private fun HomeBottomNavigationBar(
         tonalElevation = 8.dp,
         modifier = Modifier.height(72.dp)
     ) {
-        val items = listOf("Home", "Vitals", "AI", "Profile")
+        val items = listOf("Home", "Vitals", "AI", "Profile", "Gym")
 
         items.forEachIndexed { index, label ->
             val isSelected = selectedTab == index
@@ -608,6 +628,7 @@ private fun HomeBottomNavigationBar(
                         1 -> HeartPulseIcon(modifier = Modifier.size(22.dp), color = if (isSelected) Color(0xFF0F9F7A) else Color(0xFF9CA3AF))
                         2 -> SparkleIconPurple(modifier = Modifier.size(22.dp), color = if (isSelected) Color(0xFF0F9F7A) else Color(0xFF9CA3AF))
                         3 -> UserPersonIcon(modifier = Modifier.size(22.dp), color = if (isSelected) Color(0xFF0F9F7A) else Color(0xFF9CA3AF))
+                        4 -> DumbbellIcon(modifier = Modifier.size(22.dp), color = if (isSelected) Color(0xFF0F9F7A) else Color(0xFF9CA3AF))
                     }
                 },
                 label = {
@@ -627,6 +648,26 @@ private fun HomeBottomNavigationBar(
 }
 
 // Icons
+@Composable
+private fun DumbbellIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color.Gray
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val bar = Path().apply {
+            moveTo(w * 0.15f, h * 0.5f)
+            lineTo(w * 0.85f, h * 0.5f)
+        }
+
+        drawPath(path = bar, color = color, style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round))
+        drawCircle(color = color, radius = w * 0.15f, center = Offset(w * 0.20f, h * 0.5f))
+        drawCircle(color = color, radius = w * 0.15f, center = Offset(w * 0.80f, h * 0.5f))
+    }
+}
+
 @Composable
 private fun HeartPulseIcon(
     modifier: Modifier = Modifier,

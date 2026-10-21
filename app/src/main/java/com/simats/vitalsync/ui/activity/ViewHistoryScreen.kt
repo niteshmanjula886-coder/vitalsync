@@ -2,6 +2,7 @@ package com.simats.vitalsync.ui.activity
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,14 +43,60 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.theme.VitalTealDark
+import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+
+data class HistoryItem(
+    val id: String,
+    val category: String,
+    val dateGroup: String, // "Today · Oct 15", "Yesterday · Oct 14"
+    val dayTag: String, // "Oct 15", "Oct 14"
+    val icon: String,
+    val title: String,
+    val value: String,
+    val unit: String,
+    val status: String,
+    val time: String
+)
+
+private val sampleHistoryData = listOf(
+    // Oct 15
+    HistoryItem("1", "Heart Rate", "Today · Oct 15", "Oct 15", "💗", "Heart Rate", "78", "bpm", "Normal", "9:30 AM · Health Connect"),
+    HistoryItem("2", "Heart Rate", "Today · Oct 15", "Oct 15", "💗", "Heart Rate", "82", "bpm", "Normal", "7:15 AM · VitalSync Watch"),
+    HistoryItem("3", "Blood Pressure", "Today · Oct 15", "Oct 15", "🩺", "Blood Pressure", "120/80", "mmHg", "Normal", "9:30 AM · Saved"),
+    HistoryItem("4", "SpO₂", "Today · Oct 15", "Oct 15", "🫀", "SpO₂", "98", "%", "Optimal", "9:30 AM · Saved"),
+    // Oct 14
+    HistoryItem("5", "Heart Rate", "Yesterday · Oct 14", "Oct 14", "💗", "Heart Rate", "74", "bpm", "Normal", "10:00 PM · VitalSync Watch"),
+    HistoryItem("6", "Blood Pressure", "Yesterday · Oct 14", "Oct 14", "🩺", "Blood Pressure", "118/78", "mmHg", "Normal", "8:30 AM · Saved"),
+    HistoryItem("7", "SpO₂", "Yesterday · Oct 14", "Oct 14", "🫀", "SpO₂", "99", "%", "Optimal", "8:30 AM · Saved"),
+    HistoryItem("8", "Temperature", "Yesterday · Oct 14", "Oct 14", "🌡️", "Temperature", "36.7", "°C", "Normal", "8:15 PM · Saved"),
+    HistoryItem("9", "Weight", "Yesterday · Oct 14", "Oct 14", "⚖️", "Weight", "68.5", "kg", "Normal", "8:00 AM · Saved"),
+    // Oct 13
+    HistoryItem("10", "Heart Rate", "Oct 13, 2025", "Oct 13", "💗", "Heart Rate", "76", "bpm", "Normal", "6:00 PM · VitalSync Watch")
+)
 
 @Composable
 fun ViewHistoryScreen(
     modifier: Modifier = Modifier,
+    initialFilter: String = "All",
     onBackClick: () -> Unit = {}
 ) {
-    var selectedFilter by remember { mutableStateOf("All") }
+    var selectedFilter by remember { mutableStateOf(initialFilter) }
+    var selectedDateRange by remember { mutableStateOf("Oct 14–15, 2025") }
+    var isDatePickerExpanded by remember { mutableStateOf(false) }
+    var selectedDayTag by remember { mutableStateOf("All Days") }
+
+    val filteredItems = remember(selectedFilter, selectedDayTag) {
+        sampleHistoryData.filter { item ->
+            val matchesFilter = selectedFilter == "All" || item.category.equals(selectedFilter, ignoreCase = true)
+            val matchesDay = selectedDayTag == "All Days" || item.dayTag == selectedDayTag
+            matchesFilter && matchesDay
+        }
+    }
+
+    val groupedItems = remember(filteredItems) {
+        filteredItems.groupBy { it.dateGroup }
+    }
 
     Column(
         modifier = modifier
@@ -93,7 +140,8 @@ fun ViewHistoryScreen(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF1F5F9)),
+                    .background(Color(0xFFF1F5F9))
+                    .clickable { isDatePickerExpanded = !isDatePickerExpanded },
                 contentAlignment = Alignment.Center
             ) {
                 Text(text = "📅", fontSize = 16.sp)
@@ -102,9 +150,11 @@ fun ViewHistoryScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Date Banner Card
+        // Interactive Date Banner Card
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isDatePickerExpanded = !isDatePickerExpanded },
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -119,22 +169,101 @@ fun ViewHistoryScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "🗓️", fontSize = 16.sp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Oct 14–15, 2025", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Column {
+                        Text(text = selectedDateRange, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = if (selectedDayTag == "All Days") "All dates in range" else "Filtered: $selectedDayTag", fontSize = 11.sp, color = Color(0xFF0F9F7A))
+                    }
                 }
 
                 ChevronDownIcon(modifier = Modifier.size(16.dp))
             }
         }
 
+        // Expandable Date & Timeframe Chooser Modal Card
+        if (isDatePickerExpanded) {
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F6F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = "SELECT TIMEFRAME & DAY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A), letterSpacing = 0.8.sp)
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Date Range Preset Chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("Oct 14–15, 2025", "Past 7 Days", "October 2025").forEach { range ->
+                            val isRangeSelected = selectedDateRange == range
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isRangeSelected) VitalTealPrimary else Color.White)
+                                    .clickable {
+                                        selectedDateRange = range
+                                        selectedDayTag = "All Days"
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = range,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isRangeSelected) Color.White else Color(0xFF374151)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(text = "Filter by specific day:", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Specific Day Selector Chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("All Days", "Oct 15", "Oct 14", "Oct 13").forEach { day ->
+                            val isDaySelected = selectedDayTag == day
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(if (isDaySelected) VitalTealDark else Color.White)
+                                    .border(1.dp, if (isDaySelected) Color.Transparent else Color(0xFFD1D5DB), RoundedCornerShape(20.dp))
+                                    .clickable { selectedDayTag = day }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = day,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDaySelected) Color.White else Color(0xFF4B5563)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Filter Chips Row
+        // Health Category Filter Chips Row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             listOf("All", "Heart Rate", "Blood Pressure", "SpO₂").forEach { filter ->
-                val isSelected = selectedFilter == filter
+                val isSelected = selectedFilter.equals(filter, ignoreCase = true)
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
@@ -169,8 +298,17 @@ fun ViewHistoryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(text = "5 readings across 2 days", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                    Text(text = "Your health topic readings timeline", fontSize = 12.sp, color = Color(0xFF6B7280))
+                    Text(
+                        text = "${filteredItems.size} readings shown",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
+                    Text(
+                        text = "${selectedDateRange} · ${if (selectedFilter == "All") "All Categories" else selectedFilter}",
+                        fontSize = 12.sp,
+                        color = Color(0xFF6B7280)
+                    )
                 }
 
                 Box(
@@ -179,32 +317,58 @@ fun ViewHistoryScreen(
                         .background(Color.White)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text(text = "Sample readings", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                    Text(
+                        text = selectedDayTag,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F9F7A)
+                    )
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Today - Oct 15
-        Text(text = "Today · Oct 15", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-        Spacer(modifier = Modifier.height(10.dp))
+        // Render Dynamic Grouped History Cards
+        if (groupedItems.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 40.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No readings found for $selectedFilter on $selectedDayTag",
+                    fontSize = 14.sp,
+                    color = Color(0xFF9CA3AF)
+                )
+            }
+        } else {
+            groupedItems.forEach { (dateHeader, items) ->
+                Text(
+                    text = dateHeader,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
 
-        HistoryCard(icon = "💗", title = "Heart Rate", value = "78", unit = "bpm", status = "Normal", time = "9:30 AM · Health Connect")
-        Spacer(modifier = Modifier.height(10.dp))
-        HistoryCard(icon = "🩺", title = "Blood Pressure", value = "120/80", unit = "mmHg", status = "Normal", time = "9:30 AM · Saved")
-        Spacer(modifier = Modifier.height(10.dp))
-        HistoryCard(icon = "🫀", title = "SpO₂", value = "98", unit = "%", status = "Normal", time = "9:30 AM · Saved")
+                Spacer(modifier = Modifier.height(10.dp))
 
-        Spacer(modifier = Modifier.height(20.dp))
+                items.forEach { item ->
+                    HistoryCard(
+                        icon = item.icon,
+                        title = item.title,
+                        value = item.value,
+                        unit = item.unit,
+                        status = item.status,
+                        time = item.time
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
 
-        // Yesterday - Oct 14
-        Text(text = "Yesterday · Oct 14", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-        Spacer(modifier = Modifier.height(10.dp))
-
-        HistoryCard(icon = "🌡️", title = "Temperature", value = "36.7", unit = "°C", status = "Normal", time = "8:15 PM · Saved")
-        Spacer(modifier = Modifier.height(10.dp))
-        HistoryCard(icon = "⚖️", title = "Weight", value = "68.5", unit = "kg", status = "Normal", time = "8:00 AM · Saved")
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+        }
 
         Spacer(modifier = Modifier.height(28.dp))
     }

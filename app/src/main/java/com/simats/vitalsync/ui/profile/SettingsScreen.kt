@@ -53,6 +53,7 @@ fun SettingsScreen(
     onBackClick: () -> Unit = {},
     onChangePasswordClick: () -> Unit = {},
     onHealthPermissionsClick: () -> Unit = {},
+    onRemindersClick: () -> Unit = {},
     onDataManagementClick: () -> Unit = {},
     onAboutClick: () -> Unit = {},
     onVersionClick: () -> Unit = {}
@@ -140,7 +141,41 @@ fun SettingsScreen(
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
                 SettingsSwitchRow("🔔 Push Notifications", pushNotifications) { pushNotifications = it }
                 HorizontalDivider(color = Color(0xFFF8FAFC))
-                SettingsSwitchRow("⏰ Reminders", reminders) { reminders = it }
+                
+                // Reminders row with Edit button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { onRemindersClick() }
+                    ) {
+                        Text(text = "⏰ Reminders", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFE6F4EA))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(text = "Edit ✏️", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                        }
+                    }
+
+                    Switch(
+                        checked = reminders,
+                        onCheckedChange = { reminders = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = VitalTealPrimary
+                        )
+                    )
+                }
+
                 HorizontalDivider(color = Color(0xFFF8FAFC))
                 SettingsSwitchRow("✨ AI Insights", aiInsights) { aiInsights = it }
             }

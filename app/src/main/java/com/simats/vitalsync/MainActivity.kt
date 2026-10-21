@@ -8,10 +8,15 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.simats.vitalsync.data.Exercise
+import com.simats.vitalsync.data.FitnessRepository
+import com.simats.vitalsync.data.MealCategory
+import com.simats.vitalsync.data.WorkoutSplit
 import com.simats.vitalsync.ui.activity.ActivityType
 import com.simats.vitalsync.ui.activity.CyclingTrackingScreen
 import com.simats.vitalsync.ui.activity.RunningTrackingScreen
@@ -19,15 +24,27 @@ import com.simats.vitalsync.ui.activity.StartActivityScreen
 import com.simats.vitalsync.ui.activity.ViewHistoryScreen
 import com.simats.vitalsync.ui.activity.WalkingTrackingScreen
 import com.simats.vitalsync.ui.activity.WorkoutTrackingScreen
-import com.simats.vitalsync.ui.auth.AddGoogleAccountScreen
+import com.simats.vitalsync.ui.ai.AiChatScreen
+import com.simats.vitalsync.ui.ai.WeeklyHealthReportScreen
 import com.simats.vitalsync.ui.auth.ForgotPasswordScreen
-import com.simats.vitalsync.ui.auth.GoogleAccountChooserBottomSheet
 import com.simats.vitalsync.ui.auth.LoginScreen
 import com.simats.vitalsync.ui.auth.SignUpScreen
-import com.simats.vitalsync.ui.auth.VerificationScreen
+import com.simats.vitalsync.ui.gym.ActiveWorkoutSessionScreen
+import com.simats.vitalsync.ui.gym.AddCustomExerciseScreen
+import com.simats.vitalsync.ui.gym.ExerciseLibraryScreen
+import com.simats.vitalsync.ui.gym.FitnessProgressDashboardScreen
+import com.simats.vitalsync.ui.gym.WorkoutHistoryScreen
+import com.simats.vitalsync.ui.gym.WorkoutSplitSelectionScreen
 import com.simats.vitalsync.ui.home.HomeScreen
+import com.simats.vitalsync.ui.nutrition.AddCustomFoodScreen
+import com.simats.vitalsync.ui.nutrition.DailyMealHistoryScreen
+import com.simats.vitalsync.ui.nutrition.FoodDetailsScreen
+import com.simats.vitalsync.ui.nutrition.FoodSearchScreen
+import com.simats.vitalsync.ui.nutrition.NutritionDashboardScreen
+import com.simats.vitalsync.ui.nutrition.NutritionSettingsScreen
 import com.simats.vitalsync.ui.onboarding.OnboardingScreen
 import com.simats.vitalsync.ui.profile.AboutVitalSyncScreen
+import com.simats.vitalsync.ui.profile.AddReminderScreen
 import com.simats.vitalsync.ui.profile.ChangePasswordScreen
 import com.simats.vitalsync.ui.profile.ConnectedDevicesScreen
 import com.simats.vitalsync.ui.profile.DataManagementScreen
@@ -38,6 +55,7 @@ import com.simats.vitalsync.ui.profile.NotificationsScreen
 import com.simats.vitalsync.ui.profile.PersonalInformationScreen
 import com.simats.vitalsync.ui.profile.PrivacySecurityScreen
 import com.simats.vitalsync.ui.profile.ProfileSetupScreen
+import com.simats.vitalsync.ui.profile.RemindersScreen
 import com.simats.vitalsync.ui.profile.SettingsScreen
 import com.simats.vitalsync.ui.profile.VersionScreen
 import com.simats.vitalsync.ui.splash.SplashScreen
@@ -47,8 +65,10 @@ import com.simats.vitalsync.ui.vitals.AddReadingScreen
 import com.simats.vitalsync.ui.vitals.BloodPressureDetailScreen
 import com.simats.vitalsync.ui.vitals.BmiDetailScreen
 import com.simats.vitalsync.ui.vitals.BmiResultScreen
+import com.simats.vitalsync.ui.vitals.EditStepGoalScreen
 import com.simats.vitalsync.ui.vitals.HeartRateDetailScreen
 import com.simats.vitalsync.ui.vitals.HydrationDetailScreen
+import com.simats.vitalsync.ui.vitals.ReadingReviewScreen
 import com.simats.vitalsync.ui.vitals.SleepDetailScreen
 import com.simats.vitalsync.ui.vitals.Spo2DetailScreen
 import com.simats.vitalsync.ui.vitals.StepCountDetailScreen
@@ -62,12 +82,15 @@ enum class ScreenState {
     LOGIN,
     SIGNUP,
     FORGOT_PASSWORD,
-    ADD_GOOGLE_ACCOUNT,
-    GOOGLE_VERIFY,
     PROFILE_SETUP,
     MAIN,
+    AI_CHAT,
+    WEEKLY_REPORT,
+    REMINDERS,
+    ADD_REMINDER,
     VITAL_SIGNS,
     HEART_RATE_DETAIL,
+    READING_REVIEW,
     ACTIVITY_DETAIL,
     START_ACTIVITY,
     WALKING_TRACKING,
@@ -80,6 +103,7 @@ enum class ScreenState {
     BLOOD_PRESSURE_DETAIL,
     SPO2_DETAIL,
     STEP_COUNT_DETAIL,
+    EDIT_STEP_GOAL,
     BMI_DETAIL,
     UPDATE_METRICS,
     BMI_RESULT,
@@ -95,7 +119,19 @@ enum class ScreenState {
     ABOUT_VITALSINC,
     VERSION,
     HELP_SUPPORT,
-    ADD_READING
+    ADD_READING,
+    GYM_SPLIT_SELECT,
+    EXERCISE_LIBRARY,
+    CREATE_CUSTOM_EXERCISE,
+    ACTIVE_WORKOUT,
+    WORKOUT_HISTORY,
+    NUTRITION_DASHBOARD,
+    FOOD_SEARCH,
+    CREATE_CUSTOM_FOOD,
+    FOOD_DETAILS,
+    DAILY_MEAL_HISTORY,
+    NUTRITION_SETTINGS,
+    FITNESS_PROGRESS
 }
 
 class MainActivity : ComponentActivity() {
@@ -105,13 +141,20 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val repository = FitnessRepository.getInstance(applicationContext)
+
         setContent {
             VitalsyncTheme {
                 var currentScreen by remember { mutableStateOf(ScreenState.SPLASH) }
-                var showGoogleAccountChooser by remember { mutableStateOf(false) }
-                var selectedGoogleEmail by remember { mutableStateOf("alex.morgan@gmail.com") }
                 var isNewUser by remember { mutableStateOf(false) }
                 var activeReadingType by remember { mutableStateOf(VitalReadingType.HEART_RATE) }
+                var homeInitialTab by remember { mutableIntStateOf(0) }
+                var viewHistoryPreviousScreen by remember { mutableStateOf(ScreenState.ACTIVITY_DETAIL) }
+
+                var activeWorkoutSplit by remember { mutableStateOf(WorkoutSplit.PUSH) }
+                var selectedMealCategory by remember { mutableStateOf(MealCategory.BREAKFAST) }
+                var activeFoodItem by remember { mutableStateOf(repository.initialIndianFoodDatabase[0]) }
+                var activeWorkoutExercises by remember { mutableStateOf<List<Exercise>>(emptyList()) }
 
                 var calculatedBmiValue by remember { mutableStateOf("22.4") }
                 var calculatedBmiCategory by remember { mutableStateOf("Healthy Range") }
@@ -132,7 +175,10 @@ class MainActivity : ComponentActivity() {
                         }
                         ScreenState.ONBOARDING -> {
                             OnboardingScreen(
-                                onSkipClick = { currentScreen = ScreenState.MAIN },
+                                onSkipClick = {
+                                    homeInitialTab = 0
+                                    currentScreen = ScreenState.MAIN
+                                },
                                 onFinishOnboarding = { currentScreen = ScreenState.LOGIN }
                             )
                         }
@@ -140,9 +186,9 @@ class MainActivity : ComponentActivity() {
                             LoginScreen(
                                 onLoginSuccess = {
                                     isNewUser = false
+                                    homeInitialTab = 0
                                     currentScreen = ScreenState.MAIN
                                 },
-                                onGoogleLoginClick = { showGoogleAccountChooser = true },
                                 onNavigateToSignUp = { currentScreen = ScreenState.SIGNUP },
                                 onForgotPasswordClick = { currentScreen = ScreenState.FORGOT_PASSWORD }
                             )
@@ -154,8 +200,7 @@ class MainActivity : ComponentActivity() {
                                     isNewUser = true
                                     currentScreen = ScreenState.PROFILE_SETUP
                                 },
-                                onNavigateToLogin = { currentScreen = ScreenState.LOGIN },
-                                onGoogleSignUpClick = { showGoogleAccountChooser = true }
+                                onNavigateToLogin = { currentScreen = ScreenState.LOGIN }
                             )
                         }
                         ScreenState.FORGOT_PASSWORD -> {
@@ -164,37 +209,18 @@ class MainActivity : ComponentActivity() {
                                 onResetLinkSent = { }
                             )
                         }
-                        ScreenState.ADD_GOOGLE_ACCOUNT -> {
-                            AddGoogleAccountScreen(
-                                onBackClick = { currentScreen = ScreenState.LOGIN },
-                                onAccountAdded = { email ->
-                                    isNewUser = true
-                                    selectedGoogleEmail = email
-                                    currentScreen = ScreenState.GOOGLE_VERIFY
-                                }
-                            )
-                        }
-                        ScreenState.GOOGLE_VERIFY -> {
-                            VerificationScreen(
-                                email = selectedGoogleEmail,
-                                onBackClick = { currentScreen = ScreenState.LOGIN },
-                                onVerifySuccess = {
-                                    if (isNewUser) {
-                                        currentScreen = ScreenState.PROFILE_SETUP
-                                    } else {
-                                        currentScreen = ScreenState.MAIN
-                                    }
-                                }
-                            )
-                        }
                         ScreenState.PROFILE_SETUP -> {
                             ProfileSetupScreen(
                                 onBackClick = { currentScreen = ScreenState.LOGIN },
-                                onSaveAndContinue = { currentScreen = ScreenState.MAIN }
+                                onSaveAndContinue = {
+                                    homeInitialTab = 0
+                                    currentScreen = ScreenState.MAIN
+                                }
                             )
                         }
                         ScreenState.MAIN -> {
                             HomeScreen(
+                                initialTab = homeInitialTab,
                                 onVitalsClick = { currentScreen = ScreenState.VITAL_SIGNS },
                                 onHeartRateClick = { currentScreen = ScreenState.HEART_RATE_DETAIL },
                                 onBloodPressureClick = { currentScreen = ScreenState.BLOOD_PRESSURE_DETAIL },
@@ -210,41 +236,249 @@ class MainActivity : ComponentActivity() {
                                 onPrivacySecurityClick = { currentScreen = ScreenState.PRIVACY_SECURITY },
                                 onSettingsClick = { currentScreen = ScreenState.SETTINGS },
                                 onHelpSupportClick = { currentScreen = ScreenState.HELP_SUPPORT },
+                                onAskAiClick = { currentScreen = ScreenState.AI_CHAT },
+                                onStartWorkoutSplitClick = { currentScreen = ScreenState.GYM_SPLIT_SELECT },
+                                onOpenNutritionTrackerClick = { currentScreen = ScreenState.NUTRITION_DASHBOARD },
+                                onOpenProgressAnalyticsClick = { currentScreen = ScreenState.FITNESS_PROGRESS },
+                                onViewWorkoutHistoryClick = { currentScreen = ScreenState.WORKOUT_HISTORY },
                                 onLogoutClick = { currentScreen = ScreenState.LOGIN }
+                            )
+                        }
+                        ScreenState.GYM_SPLIT_SELECT -> {
+                            WorkoutSplitSelectionScreen(
+                                onBackClick = {
+                                    homeInitialTab = 4
+                                    currentScreen = ScreenState.MAIN
+                                },
+                                onStartSplitWorkout = { split ->
+                                    activeWorkoutSplit = split
+                                    activeWorkoutExercises = emptyList()
+                                    currentScreen = ScreenState.ACTIVE_WORKOUT
+                                }
+                            )
+                        }
+                        ScreenState.EXERCISE_LIBRARY -> {
+                            ExerciseLibraryScreen(
+                                exerciseList = repository.getExerciseLibrary(),
+                                onBackClick = { currentScreen = ScreenState.ACTIVE_WORKOUT },
+                                onExerciseSelected = { ex ->
+                                    activeWorkoutExercises = activeWorkoutExercises + ex
+                                    currentScreen = ScreenState.ACTIVE_WORKOUT
+                                },
+                                onCreateCustomExerciseClick = { currentScreen = ScreenState.CREATE_CUSTOM_EXERCISE }
+                            )
+                        }
+                        ScreenState.CREATE_CUSTOM_EXERCISE -> {
+                            AddCustomExerciseScreen(
+                                onBackClick = { currentScreen = ScreenState.EXERCISE_LIBRARY },
+                                onSaveCustomExerciseSuccess = { customEx ->
+                                    repository.addCustomExercise(customEx)
+                                    activeWorkoutExercises = activeWorkoutExercises + customEx
+                                    currentScreen = ScreenState.ACTIVE_WORKOUT
+                                }
+                            )
+                        }
+                        ScreenState.ACTIVE_WORKOUT -> {
+                            ActiveWorkoutSessionScreen(
+                                split = activeWorkoutSplit,
+                                initialExercises = activeWorkoutExercises,
+                                onBackClick = {
+                                    homeInitialTab = 4
+                                    currentScreen = ScreenState.MAIN
+                                },
+                                onAddExerciseClick = { currentScreen = ScreenState.EXERCISE_LIBRARY },
+                                onFinishSession = { session ->
+                                    repository.saveWorkoutSession(session)
+                                    homeInitialTab = 4
+                                    currentScreen = ScreenState.MAIN
+                                }
+                            )
+                        }
+                        ScreenState.WORKOUT_HISTORY -> {
+                            WorkoutHistoryScreen(
+                                workoutSessions = repository.getAllWorkoutSessions(),
+                                onBackClick = {
+                                    homeInitialTab = 4
+                                    currentScreen = ScreenState.MAIN
+                                },
+                                onReuseTemplate = { session ->
+                                    activeWorkoutSplit = session.split
+                                    activeWorkoutExercises = session.exercises.map { it.exercise }
+                                    currentScreen = ScreenState.ACTIVE_WORKOUT
+                                }
+                            )
+                        }
+                        ScreenState.NUTRITION_DASHBOARD -> {
+                            val today = repository.getTodayDateString()
+                            NutritionDashboardScreen(
+                                dateString = "Today · $today",
+                                goal = repository.getNutritionGoal(),
+                                loggedMeals = repository.getMealEntriesForDate(today),
+                                onBackClick = {
+                                    homeInitialTab = 4
+                                    currentScreen = ScreenState.MAIN
+                                },
+                                onAddMealClick = { category ->
+                                    selectedMealCategory = category
+                                    currentScreen = ScreenState.FOOD_SEARCH
+                                },
+                                onViewMealHistoryClick = { currentScreen = ScreenState.DAILY_MEAL_HISTORY },
+                                onNutritionSettingsClick = { currentScreen = ScreenState.NUTRITION_SETTINGS }
+                            )
+                        }
+                        ScreenState.FOOD_SEARCH -> {
+                            FoodSearchScreen(
+                                mealCategory = selectedMealCategory,
+                                foodDatabase = repository.getFoodDatabase(),
+                                onBackClick = { currentScreen = ScreenState.NUTRITION_DASHBOARD },
+                                onFoodSelected = { food ->
+                                    activeFoodItem = food
+                                    currentScreen = ScreenState.FOOD_DETAILS
+                                },
+                                onCreateCustomFoodClick = { currentScreen = ScreenState.CREATE_CUSTOM_FOOD }
+                            )
+                        }
+                        ScreenState.CREATE_CUSTOM_FOOD -> {
+                            AddCustomFoodScreen(
+                                onBackClick = { currentScreen = ScreenState.FOOD_SEARCH },
+                                onSaveCustomFoodSuccess = { newFood ->
+                                    repository.addCustomFoodItem(newFood)
+                                    activeFoodItem = newFood
+                                    currentScreen = ScreenState.FOOD_DETAILS
+                                }
+                            )
+                        }
+                        ScreenState.FOOD_DETAILS -> {
+                            val today = repository.getTodayDateString()
+                            FoodDetailsScreen(
+                                foodItem = activeFoodItem,
+                                initialMealCategory = selectedMealCategory,
+                                dateString = today,
+                                onBackClick = { currentScreen = ScreenState.FOOD_SEARCH },
+                                onLogMealSuccess = { mealEntry ->
+                                    repository.saveMealEntry(mealEntry)
+                                    currentScreen = ScreenState.NUTRITION_DASHBOARD
+                                }
+                            )
+                        }
+                        ScreenState.DAILY_MEAL_HISTORY -> {
+                            val today = repository.getTodayDateString()
+                            DailyMealHistoryScreen(
+                                dateString = "Today · $today",
+                                loggedMeals = repository.getMealEntriesForDate(today),
+                                onBackClick = { currentScreen = ScreenState.NUTRITION_DASHBOARD },
+                                onDeleteMealEntry = { id ->
+                                    repository.deleteMealEntry(id, today)
+                                    currentScreen = ScreenState.NUTRITION_DASHBOARD
+                                }
+                            )
+                        }
+                        ScreenState.NUTRITION_SETTINGS -> {
+                            NutritionSettingsScreen(
+                                initialGoal = repository.getNutritionGoal(),
+                                onBackClick = { currentScreen = ScreenState.NUTRITION_DASHBOARD },
+                                onSaveGoalsSuccess = { updatedGoal ->
+                                    repository.saveNutritionGoal(updatedGoal)
+                                    currentScreen = ScreenState.NUTRITION_DASHBOARD
+                                }
+                            )
+                        }
+                        ScreenState.FITNESS_PROGRESS -> {
+                            FitnessProgressDashboardScreen(
+                                onBackClick = {
+                                    homeInitialTab = 4
+                                    currentScreen = ScreenState.MAIN
+                                }
+                            )
+                        }
+                        ScreenState.AI_CHAT -> {
+                            AiChatScreen(
+                                onBackClick = {
+                                    homeInitialTab = 2
+                                    currentScreen = ScreenState.MAIN
+                                }
+                            )
+                        }
+                        ScreenState.WEEKLY_REPORT -> {
+                            WeeklyHealthReportScreen(
+                                onBackClick = {
+                                    homeInitialTab = 2
+                                    currentScreen = ScreenState.MAIN
+                                }
+                            )
+                        }
+                        ScreenState.REMINDERS -> {
+                            RemindersScreen(
+                                onBackClick = {
+                                    homeInitialTab = 3
+                                    currentScreen = ScreenState.MAIN
+                                },
+                                onAddReminderClick = { currentScreen = ScreenState.ADD_REMINDER }
+                            )
+                        }
+                        ScreenState.ADD_REMINDER -> {
+                            AddReminderScreen(
+                                onBackClick = { currentScreen = ScreenState.REMINDERS },
+                                onSaveReminderSuccess = { currentScreen = ScreenState.REMINDERS }
                             )
                         }
                         ScreenState.PERSONAL_INFORMATION -> {
                             PersonalInformationScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN },
-                                onSaveChangesClick = { currentScreen = ScreenState.MAIN }
+                                onBackClick = {
+                                    homeInitialTab = 3
+                                    currentScreen = ScreenState.MAIN
+                                },
+                                onSaveChangesClick = {
+                                    homeInitialTab = 3
+                                    currentScreen = ScreenState.MAIN
+                                }
                             )
                         }
                         ScreenState.HEALTH_GOALS -> {
                             HealthGoalsScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN },
-                                onSaveGoalClick = { currentScreen = ScreenState.MAIN }
+                                onBackClick = {
+                                    homeInitialTab = 3
+                                    currentScreen = ScreenState.MAIN
+                                },
+                                onSaveGoalClick = {
+                                    homeInitialTab = 3
+                                    currentScreen = ScreenState.MAIN
+                                }
                             )
                         }
                         ScreenState.CONNECTED_DEVICES -> {
                             ConnectedDevicesScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN }
+                                onBackClick = {
+                                    homeInitialTab = 3
+                                    currentScreen = ScreenState.MAIN
+                                }
                             )
                         }
                         ScreenState.NOTIFICATIONS -> {
                             NotificationsScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN }
+                                onBackClick = {
+                                    homeInitialTab = 3
+                                    currentScreen = ScreenState.MAIN
+                                }
                             )
                         }
                         ScreenState.PRIVACY_SECURITY -> {
                             PrivacySecurityScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN }
+                                onBackClick = {
+                                    homeInitialTab = 3
+                                    currentScreen = ScreenState.MAIN
+                                }
                             )
                         }
                         ScreenState.SETTINGS -> {
                             SettingsScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN },
+                                onBackClick = {
+                                    homeInitialTab = 3
+                                    currentScreen = ScreenState.MAIN
+                                },
                                 onChangePasswordClick = { currentScreen = ScreenState.CHANGE_PASSWORD },
                                 onHealthPermissionsClick = { currentScreen = ScreenState.HEALTH_PERMISSIONS },
+                                onRemindersClick = { currentScreen = ScreenState.REMINDERS },
                                 onDataManagementClick = { currentScreen = ScreenState.DATA_MANAGEMENT },
                                 onAboutClick = { currentScreen = ScreenState.ABOUT_VITALSINC },
                                 onVersionClick = { currentScreen = ScreenState.VERSION }
@@ -279,12 +513,18 @@ class MainActivity : ComponentActivity() {
                         }
                         ScreenState.HELP_SUPPORT -> {
                             HelpSupportScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN }
+                                onBackClick = {
+                                    homeInitialTab = 3
+                                    currentScreen = ScreenState.MAIN
+                                }
                             )
                         }
                         ScreenState.VITAL_SIGNS -> {
                             VitalSignsScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN },
+                                onBackClick = {
+                                    homeInitialTab = 0
+                                    currentScreen = ScreenState.MAIN
+                                },
                                 onHeartRateClick = { currentScreen = ScreenState.HEART_RATE_DETAIL },
                                 onBloodPressureClick = { currentScreen = ScreenState.BLOOD_PRESSURE_DETAIL },
                                 onSpO2Click = { currentScreen = ScreenState.SPO2_DETAIL },
@@ -297,14 +537,48 @@ class MainActivity : ComponentActivity() {
                         }
                         ScreenState.HEART_RATE_DETAIL -> {
                             HeartRateDetailScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN }
+                                onBackClick = {
+                                    homeInitialTab = 0
+                                    currentScreen = ScreenState.MAIN
+                                },
+                                onReadingReviewClick = { currentScreen = ScreenState.READING_REVIEW }
+                            )
+                        }
+                        ScreenState.READING_REVIEW -> {
+                            val (metricName, valStr, rangeStr) = when (activeReadingType) {
+                                VitalReadingType.HEART_RATE -> Triple("Heart rate", "104 BPM", "60–90 BPM")
+                                VitalReadingType.BLOOD_PRESSURE -> Triple("Blood pressure", "140/90 mmHg", "120/80 mmHg")
+                                VitalReadingType.SPO2 -> Triple("SpO₂", "92%", "95–100%")
+                                else -> Triple("Heart rate", "104 BPM", "60–90 BPM")
+                            }
+                            ReadingReviewScreen(
+                                metricName = metricName,
+                                currentValue = valStr,
+                                usualRange = rangeStr,
+                                onBackClick = {
+                                    homeInitialTab = 0
+                                    currentScreen = ScreenState.MAIN
+                                },
+                                onRecheckClick = {
+                                    currentScreen = ScreenState.ADD_READING
+                                },
+                                onViewHistoryClick = {
+                                    viewHistoryPreviousScreen = ScreenState.READING_REVIEW
+                                    currentScreen = ScreenState.VIEW_HISTORY
+                                }
                             )
                         }
                         ScreenState.ACTIVITY_DETAIL -> {
                             ActivityDetailScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN },
+                                onBackClick = {
+                                    homeInitialTab = 0
+                                    currentScreen = ScreenState.MAIN
+                                },
                                 onStartActivityClick = { currentScreen = ScreenState.START_ACTIVITY },
-                                onViewHistoryClick = { currentScreen = ScreenState.VIEW_HISTORY }
+                                onViewHistoryClick = {
+                                    viewHistoryPreviousScreen = ScreenState.ACTIVITY_DETAIL
+                                    currentScreen = ScreenState.VIEW_HISTORY
+                                }
                             )
                         }
                         ScreenState.START_ACTIVITY -> {
@@ -346,22 +620,31 @@ class MainActivity : ComponentActivity() {
                         }
                         ScreenState.VIEW_HISTORY -> {
                             ViewHistoryScreen(
-                                onBackClick = { currentScreen = ScreenState.ACTIVITY_DETAIL }
+                                onBackClick = { currentScreen = viewHistoryPreviousScreen }
                             )
                         }
                         ScreenState.SLEEP_DETAIL -> {
                             SleepDetailScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN }
+                                onBackClick = {
+                                    homeInitialTab = 0
+                                    currentScreen = ScreenState.MAIN
+                                }
                             )
                         }
                         ScreenState.HYDRATION_DETAIL -> {
                             HydrationDetailScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN }
+                                onBackClick = {
+                                    homeInitialTab = 0
+                                    currentScreen = ScreenState.MAIN
+                                }
                             )
                         }
                         ScreenState.BLOOD_PRESSURE_DETAIL -> {
                             BloodPressureDetailScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN },
+                                onBackClick = {
+                                    homeInitialTab = 0
+                                    currentScreen = ScreenState.MAIN
+                                },
                                 onAddReadingClick = {
                                     activeReadingType = VitalReadingType.BLOOD_PRESSURE
                                     currentScreen = ScreenState.ADD_READING
@@ -370,7 +653,10 @@ class MainActivity : ComponentActivity() {
                         }
                         ScreenState.SPO2_DETAIL -> {
                             Spo2DetailScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN },
+                                onBackClick = {
+                                    homeInitialTab = 0
+                                    currentScreen = ScreenState.MAIN
+                                },
                                 onAddReadingClick = {
                                     activeReadingType = VitalReadingType.SPO2
                                     currentScreen = ScreenState.ADD_READING
@@ -379,13 +665,25 @@ class MainActivity : ComponentActivity() {
                         }
                         ScreenState.STEP_COUNT_DETAIL -> {
                             StepCountDetailScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN },
-                                onEditGoalClick = { /* Handle Edit Goal */ }
+                                onBackClick = {
+                                    homeInitialTab = 0
+                                    currentScreen = ScreenState.MAIN
+                                },
+                                onEditGoalClick = { currentScreen = ScreenState.EDIT_STEP_GOAL }
+                            )
+                        }
+                        ScreenState.EDIT_STEP_GOAL -> {
+                            EditStepGoalScreen(
+                                onBackClick = { currentScreen = ScreenState.STEP_COUNT_DETAIL },
+                                onSaveGoalSuccess = { currentScreen = ScreenState.STEP_COUNT_DETAIL }
                             )
                         }
                         ScreenState.BMI_DETAIL -> {
                             BmiDetailScreen(
-                                onBackClick = { currentScreen = ScreenState.MAIN },
+                                onBackClick = {
+                                    homeInitialTab = 0
+                                    currentScreen = ScreenState.MAIN
+                                },
                                 onUpdateMetricsClick = { currentScreen = ScreenState.UPDATE_METRICS }
                             )
                         }
@@ -414,29 +712,16 @@ class MainActivity : ComponentActivity() {
                         ScreenState.ADD_READING -> {
                             AddReadingScreen(
                                 readingType = activeReadingType,
-                                onBackClick = { currentScreen = ScreenState.MAIN },
-                                onDoneClick = { currentScreen = ScreenState.MAIN }
+                                onBackClick = {
+                                    homeInitialTab = 0
+                                    currentScreen = ScreenState.MAIN
+                                },
+                                onDoneClick = {
+                                    currentScreen = ScreenState.READING_REVIEW
+                                }
                             )
                         }
                     }
-                }
-
-                // Modal Bottom Sheet for Google Account Chooser
-                if (showGoogleAccountChooser) {
-                    GoogleAccountChooserBottomSheet(
-                        onDismissRequest = { showGoogleAccountChooser = false },
-                        onAccountSelected = { account ->
-                            isNewUser = false
-                            selectedGoogleEmail = account.email
-                            showGoogleAccountChooser = false
-                            currentScreen = ScreenState.GOOGLE_VERIFY
-                        },
-                        onAddAnotherAccount = {
-                            isNewUser = true
-                            showGoogleAccountChooser = false
-                            currentScreen = ScreenState.ADD_GOOGLE_ACCOUNT
-                        }
-                    )
                 }
             }
         }

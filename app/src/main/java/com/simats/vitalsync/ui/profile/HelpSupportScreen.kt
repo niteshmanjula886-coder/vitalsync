@@ -1,5 +1,8 @@
 package com.simats.vitalsync.ui.profile
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -101,7 +104,7 @@ fun HelpSupportScreen(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "Find a quick answer or reach out to our support team.",
+            text = "Tap any topic or guide below to view detailed descriptions.",
             fontSize = 13.sp,
             color = Color(0xFF6B7280)
         )
@@ -136,12 +139,21 @@ fun HelpSupportScreen(
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
-            Column(modifier = Modifier.padding(vertical = 6.dp)) {
-                SupportRow("💗 Wellness Tracking")
+            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                ExpandableSupportRow(
+                    title = "💗 Wellness Tracking",
+                    description = "Track your daily vitals including Heart Rate, Blood Pressure, SpO₂, Step Count, Activity, Sleep, and Hydration. VitalSync automatically analyzes your trends over time to give you a personalized Wellness Score out of 100."
+                )
                 HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(horizontal = 16.dp))
-                SupportRow("📱 Devices & Synchronization")
+                ExpandableSupportRow(
+                    title = "📱 Devices & Synchronization",
+                    description = "Seamlessly sync with your Smart Watch, Fitness Band, Pulse Oximeter, or Health Connect. Your readings update automatically in real-time so your health profile is always up to date."
+                )
                 HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(horizontal = 16.dp))
-                SupportRow("🛡️ Account & Privacy")
+                ExpandableSupportRow(
+                    title = "🛡️ Account & Privacy",
+                    description = "Your health data is encrypted and stored securely on your device. You have full control over data sharing, biometric security, and account management from your Privacy & Security settings."
+                )
             }
         }
 
@@ -156,41 +168,23 @@ fun HelpSupportScreen(
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
-            Column(modifier = Modifier.padding(vertical = 6.dp)) {
-                SupportRow("📖 Getting Started with VitalSync")
+            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                ExpandableSupportRow(
+                    title = "📖 Getting Started with VitalSync",
+                    description = "Welcome to VitalSync! Start by completing your profile setup, logging your first reading or workout session, setting up daily reminders, and asking VitalSync AI for personalized health insights."
+                )
                 HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(horizontal = 16.dp))
-                SupportRow("⌚ Connect Your First Device")
+                ExpandableSupportRow(
+                    title = "⌚ Connect Your First Device",
+                    description = "Go to Connected Devices under Profile settings, ensure Bluetooth is turned on, tap Connect next to your wearable device, and follow the simple pairing prompt to sync your health data."
+                )
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Contact Support Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { }
-                    .padding(18.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(text = "💬 Contact Support", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "We're here to help with app questions", fontSize = 12.sp, color = Color(0xFF6B7280))
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Mon-Fri, 9 AM - 6 PM • Typical reply: 1-2 days", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                }
-
-                ChevronRightIcon(modifier = Modifier.size(16.dp))
-            }
-        }
+        // Contact Support Expandable Card
+        ExpandableContactSupportCard()
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -219,6 +213,122 @@ fun HelpSupportScreen(
 }
 
 @Composable
+private fun ExpandableSupportRow(
+    title: String,
+    description: String
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { isExpanded = !isExpanded }
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1F2937)
+            )
+            ChevronIcon(
+                isExpanded = isExpanded,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFF8FAFC))
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = description,
+                        fontSize = 13.sp,
+                        color = Color(0xFF4B5563),
+                        lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExpandableContactSupportCard() {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { isExpanded = !isExpanded },
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(text = "💬 Contact Support", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "We're here to help with app questions", fontSize = 12.sp, color = Color(0xFF6B7280))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = "Mon-Fri, 9 AM - 6 PM • Typical reply: 1-2 days", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                }
+
+                ChevronIcon(isExpanded = isExpanded, modifier = Modifier.size(16.dp))
+            }
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFFE8F6F0))
+                            .padding(14.dp)
+                    ) {
+                        Column {
+                            Text(text = "📧 Email: support@vitalsync.com", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(text = "💬 In-App Helpdesk: Active 24/7", fontSize = 12.sp, color = Color(0xFF0F9F7A), fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(text = "Response Time: Under 24 hours. Our dedicated health-tech support team is ready to assist you!", fontSize = 12.sp, color = Color(0xFF4B5563))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun SectionHeader(title: String) {
     Text(
         text = title,
@@ -231,30 +341,24 @@ private fun SectionHeader(title: String) {
 }
 
 @Composable
-private fun SupportRow(title: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
-        ChevronRightIcon(modifier = Modifier.size(16.dp))
-    }
-}
-
-@Composable
-private fun ChevronRightIcon(modifier: Modifier = Modifier) {
+private fun ChevronIcon(
+    isExpanded: Boolean,
+    modifier: Modifier = Modifier
+) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
 
         val path = Path().apply {
-            moveTo(w * 0.3f, h * 0.2f)
-            lineTo(w * 0.7f, h * 0.5f)
-            lineTo(w * 0.3f, h * 0.8f)
+            if (isExpanded) {
+                moveTo(w * 0.2f, h * 0.7f)
+                lineTo(w * 0.5f, h * 0.3f)
+                lineTo(w * 0.8f, h * 0.7f)
+            } else {
+                moveTo(w * 0.3f, h * 0.2f)
+                lineTo(w * 0.7f, h * 0.5f)
+                lineTo(w * 0.3f, h * 0.8f)
+            }
         }
 
         drawPath(path = path, color = Color(0xFF9CA3AF), style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))

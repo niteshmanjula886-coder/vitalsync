@@ -2,6 +2,7 @@ package com.simats.vitalsync.ui.vitals
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -204,7 +205,9 @@ fun StepCountDetailScreen(
                             Text(
                                 text = "Goal: 8,000 steps ✏️",
                                 fontSize = 12.sp,
-                                color = Color(0xFF6B7280)
+                                color = Color(0xFF0F9F7A),
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clickable { onEditGoalClick() }
                             )
                             Text(
                                 text = "1,755 steps remaining",
