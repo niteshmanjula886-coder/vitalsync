@@ -129,6 +129,8 @@ fun AddCustomFoodScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White,
+                    focusedTextColor = Color(0xFF111827),
+                    unfocusedTextColor = Color(0xFF111827),
                     focusedBorderColor = VitalTealPrimary,
                     unfocusedBorderColor = Color(0xFFE5E7EB)
                 )
@@ -185,6 +187,8 @@ fun AddCustomFoodScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White,
+                    focusedTextColor = Color(0xFF111827),
+                    unfocusedTextColor = Color(0xFF111827),
                     focusedBorderColor = VitalTealPrimary,
                     unfocusedBorderColor = Color(0xFFE5E7EB)
                 )
@@ -252,7 +256,14 @@ fun AddCustomFoodScreen(
                                 singleLine = true,
                                 shape = RoundedCornerShape(10.dp),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = VitalTealPrimary)
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White,
+                                    focusedTextColor = Color(0xFF111827),
+                                    unfocusedTextColor = Color(0xFF111827),
+                                    focusedBorderColor = VitalTealPrimary,
+                                    unfocusedBorderColor = Color(0xFFE5E7EB)
+                                )
                             )
                         }
 
@@ -266,7 +277,14 @@ fun AddCustomFoodScreen(
                                 singleLine = true,
                                 shape = RoundedCornerShape(10.dp),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = VitalTealPrimary)
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White,
+                                    focusedTextColor = Color(0xFF111827),
+                                    unfocusedTextColor = Color(0xFF111827),
+                                    focusedBorderColor = VitalTealPrimary,
+                                    unfocusedBorderColor = Color(0xFFE5E7EB)
+                                )
                             )
                         }
 
@@ -280,7 +298,14 @@ fun AddCustomFoodScreen(
                                 singleLine = true,
                                 shape = RoundedCornerShape(10.dp),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = VitalTealPrimary)
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White,
+                                    focusedTextColor = Color(0xFF111827),
+                                    unfocusedTextColor = Color(0xFF111827),
+                                    focusedBorderColor = VitalTealPrimary,
+                                    unfocusedBorderColor = Color(0xFFE5E7EB)
+                                )
                             )
                         }
                     }

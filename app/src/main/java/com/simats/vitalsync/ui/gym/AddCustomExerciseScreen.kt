@@ -120,6 +120,8 @@ fun AddCustomExerciseScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White,
+                    focusedTextColor = Color(0xFF111827),
+                    unfocusedTextColor = Color(0xFF111827),
                     focusedBorderColor = VitalTealPrimary,
                     unfocusedBorderColor = Color(0xFFE5E7EB)
                 )
@@ -173,7 +175,14 @@ fun AddCustomExerciseScreen(
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = VitalTealPrimary)
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedTextColor = Color(0xFF111827),
+                            unfocusedTextColor = Color(0xFF111827),
+                            focusedBorderColor = VitalTealPrimary,
+                            unfocusedBorderColor = Color(0xFFE5E7EB)
+                        )
                     )
                 }
 
@@ -187,7 +196,14 @@ fun AddCustomExerciseScreen(
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = VitalTealPrimary)
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedTextColor = Color(0xFF111827),
+                            unfocusedTextColor = Color(0xFF111827),
+                            focusedBorderColor = VitalTealPrimary,
+                            unfocusedBorderColor = Color(0xFFE5E7EB)
+                        )
                     )
                 }
             }
@@ -203,7 +219,14 @@ fun AddCustomExerciseScreen(
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("e.g. Squeeze at top contraction for 1 sec", fontSize = 14.sp, color = Color(0xFF9CA3AF)) },
                 shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = VitalTealPrimary)
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    focusedTextColor = Color(0xFF111827),
+                    unfocusedTextColor = Color(0xFF111827),
+                    focusedBorderColor = VitalTealPrimary,
+                    unfocusedBorderColor = Color(0xFFE5E7EB)
+                )
             )
 
             Spacer(modifier = Modifier.height(28.dp))

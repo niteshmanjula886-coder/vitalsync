@@ -346,7 +346,14 @@ fun ActiveWorkoutSessionScreen(
                                     modifier = Modifier.width(70.dp).height(48.dp),
                                     singleLine = true,
                                     shape = RoundedCornerShape(10.dp),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White,
+                                        focusedTextColor = Color(0xFF111827),
+                                        unfocusedTextColor = Color(0xFF111827),
+                                        focusedBorderColor = VitalTealPrimary
+                                    )
                                 )
 
                                 // Editable Reps
@@ -363,7 +370,14 @@ fun ActiveWorkoutSessionScreen(
                                     modifier = Modifier.width(70.dp).height(48.dp),
                                     singleLine = true,
                                     shape = RoundedCornerShape(10.dp),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White,
+                                        focusedTextColor = Color(0xFF111827),
+                                        unfocusedTextColor = Color(0xFF111827),
+                                        focusedBorderColor = VitalTealPrimary
+                                    )
                                 )
 
                                 Checkbox(

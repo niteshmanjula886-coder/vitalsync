@@ -125,7 +125,13 @@ fun NutritionSettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = VitalTealPrimary)
+                        colors = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = Color.White,
+    unfocusedContainerColor = Color.White,
+    focusedTextColor = Color(0xFF111827),
+    unfocusedTextColor = Color(0xFF111827),
+    focusedBorderColor = VitalTealPrimary
+)
                     )
                 }
 
@@ -138,7 +144,13 @@ fun NutritionSettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = VitalTealPrimary)
+                        colors = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = Color.White,
+    unfocusedContainerColor = Color.White,
+    focusedTextColor = Color(0xFF111827),
+    unfocusedTextColor = Color(0xFF111827),
+    focusedBorderColor = VitalTealPrimary
+)
                     )
                 }
 
@@ -151,7 +163,13 @@ fun NutritionSettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = VitalTealPrimary)
+                        colors = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = Color.White,
+    unfocusedContainerColor = Color.White,
+    focusedTextColor = Color(0xFF111827),
+    unfocusedTextColor = Color(0xFF111827),
+    focusedBorderColor = VitalTealPrimary
+)
                     )
                 }
             }
@@ -175,7 +193,13 @@ fun NutritionSettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = VitalTealPrimary)
+                        colors = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = Color.White,
+    unfocusedContainerColor = Color.White,
+    focusedTextColor = Color(0xFF111827),
+    unfocusedTextColor = Color(0xFF111827),
+    focusedBorderColor = VitalTealPrimary
+)
                     )
                 }
 

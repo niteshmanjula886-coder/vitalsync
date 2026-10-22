@@ -129,9 +129,11 @@ fun AddReminderScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White,
+                    focusedTextColor = Color(0xFF111827),
+                    unfocusedTextColor = Color(0xFF111827),
                     focusedBorderColor = VitalTealPrimary,
                     unfocusedBorderColor = Color(0xFFE5E7EB)
-                )
+                ),
             )
 
             Spacer(modifier = Modifier.height(14.dp))

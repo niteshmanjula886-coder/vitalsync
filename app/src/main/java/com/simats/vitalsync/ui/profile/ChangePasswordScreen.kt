@@ -140,11 +140,13 @@ fun ChangePasswordScreen(
                 shape = RoundedCornerShape(14.dp),
                 visualTransformation = if (isCurrentVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB)
-                ),
+    focusedContainerColor = Color.White,
+    unfocusedContainerColor = Color.White,
+    focusedTextColor = Color(0xFF111827),
+    unfocusedTextColor = Color(0xFF111827),
+    focusedBorderColor = VitalTealPrimary,
+    unfocusedBorderColor = Color(0xFFE5E7EB)
+),
                 trailingIcon = {
                     IconButton(onClick = { isCurrentVisible = !isCurrentVisible }) {
                         EyeIcon(isVisible = isCurrentVisible, modifier = Modifier.size(18.dp))
@@ -181,11 +183,13 @@ fun ChangePasswordScreen(
                 shape = RoundedCornerShape(14.dp),
                 visualTransformation = if (isNewVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB)
-                ),
+    focusedContainerColor = Color.White,
+    unfocusedContainerColor = Color.White,
+    focusedTextColor = Color(0xFF111827),
+    unfocusedTextColor = Color(0xFF111827),
+    focusedBorderColor = VitalTealPrimary,
+    unfocusedBorderColor = Color(0xFFE5E7EB)
+),
                 trailingIcon = {
                     IconButton(onClick = { isNewVisible = !isNewVisible }) {
                         EyeIcon(isVisible = isNewVisible, modifier = Modifier.size(18.dp))
