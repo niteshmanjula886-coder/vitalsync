@@ -50,6 +50,8 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
+    isDarkTheme: Boolean = false,
+    onDarkThemeToggle: (Boolean) -> Unit = {},
     onBackClick: () -> Unit = {},
     onChangePasswordClick: () -> Unit = {},
     onHealthPermissionsClick: () -> Unit = {},
@@ -61,7 +63,6 @@ fun SettingsScreen(
     var pushNotifications by remember { mutableStateOf(true) }
     var reminders by remember { mutableStateOf(true) }
     var aiInsights by remember { mutableStateOf(true) }
-    var isDarkTheme by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -141,7 +142,7 @@ fun SettingsScreen(
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
                 SettingsSwitchRow("🔔 Push Notifications", pushNotifications) { pushNotifications = it }
                 HorizontalDivider(color = Color(0xFFF8FAFC))
-                
+
                 // Reminders row with Edit button
                 Row(
                     modifier = Modifier
@@ -193,13 +194,11 @@ fun SettingsScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                SettingsRadioRow("☀️ Light Mode", isSelected = !isDarkTheme) { isDarkTheme = false }
+                SettingsRadioRow("☀️ Light Mode", isSelected = !isDarkTheme) { onDarkThemeToggle(false) }
                 HorizontalDivider(color = Color(0xFFF8FAFC))
-                SettingsRadioRow("🌙 Dark Mode", isSelected = isDarkTheme) { isDarkTheme = true }
+                SettingsRadioRow("🌙 Dark Mode", isSelected = isDarkTheme) { onDarkThemeToggle(true) }
             }
         }
-
-
 
         Spacer(modifier = Modifier.height(16.dp))
 

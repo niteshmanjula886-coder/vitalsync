@@ -1,5 +1,8 @@
 package com.simats.vitalsync.ui.ai
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -27,11 +30,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -181,6 +191,17 @@ fun WeeklyHealthReportScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Smoothly Animated Trend Line
+                    var targetProgress by remember { mutableFloatStateOf(0f) }
+                    LaunchedEffect(Unit) {
+                        targetProgress = 1f
+                    }
+                    val chartProgress by animateFloatAsState(
+                        targetValue = targetProgress,
+                        animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
+                        label = "WellnessTrendLineAnimation"
+                    )
+
                     Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -189,7 +210,7 @@ fun WeeklyHealthReportScreen(
                         val w = size.width
                         val h = size.height
 
-                        val path = Path().apply {
+                        val fullPath = Path().apply {
                             moveTo(0f, h * 0.7f)
                             lineTo(w * 0.15f, h * 0.4f)
                             lineTo(w * 0.30f, h * 0.5f)
@@ -199,11 +220,32 @@ fun WeeklyHealthReportScreen(
                             lineTo(w, h * 0.30f)
                         }
 
-                        drawPath(
-                            path = path,
-                            color = Color(0xFF0F9F7A),
-                            style = Stroke(width = 2.4.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                        )
+                        val pathMeasure = PathMeasure()
+                        pathMeasure.setPath(fullPath, false)
+                        val animatedPath = Path()
+                        pathMeasure.getSegment(0f, pathMeasure.length * chartProgress, animatedPath, true)
+
+                        if (chartProgress > 0f) {
+                            val fillPath = Path().apply {
+                                addPath(animatedPath)
+                                lineTo(w * chartProgress, h)
+                                lineTo(0f, h)
+                                close()
+                            }
+
+                            drawPath(
+                                path = fillPath,
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(Color(0x350F9F7A), Color(0x000F9F7A))
+                                )
+                            )
+
+                            drawPath(
+                                path = animatedPath,
+                                color = Color(0xFF0F9F7A),
+                                style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                            )
+                        }
                     }
                 }
             }
@@ -329,6 +371,16 @@ private fun ReportMetricCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            var targetProgress by remember { mutableFloatStateOf(0f) }
+            LaunchedEffect(Unit) {
+                targetProgress = 1f
+            }
+            val chartProgress by animateFloatAsState(
+                targetValue = targetProgress,
+                animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+                label = "MetricCardTrendAnimation"
+            )
+
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -337,13 +389,20 @@ private fun ReportMetricCard(
                 val w = size.width
                 val h = size.height
 
-                val path = Path().apply {
+                val fullPath = Path().apply {
                     moveTo(0f, h * 0.7f)
                     quadraticTo(w * 0.25f, h * 0.2f, w * 0.5f, h * 0.6f)
                     quadraticTo(w * 0.75f, h * 0.9f, w, h * 0.3f)
                 }
 
-                drawPath(path = path, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                val pathMeasure = PathMeasure()
+                pathMeasure.setPath(fullPath, false)
+                val animatedPath = Path()
+                pathMeasure.getSegment(0f, pathMeasure.length * chartProgress, animatedPath, true)
+
+                if (chartProgress > 0f) {
+                    drawPath(path = animatedPath, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                }
             }
         }
     }

@@ -2,6 +2,7 @@ package com.simats.vitalsync.ui.ai
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -78,7 +79,7 @@ fun AiScreen(
                 )
 
                 IconButton(
-                    onClick = { },
+                    onClick = onAskAiClick,
                     modifier = Modifier.size(36.dp)
                 ) {
                     ChatBubbleIcon(modifier = Modifier.size(20.dp))
@@ -89,7 +90,9 @@ fun AiScreen(
 
             // Hero Wellness Card (Soft Lavender)
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onAskAiClick() },
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)

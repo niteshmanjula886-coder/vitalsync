@@ -14,13 +14,13 @@ import androidx.compose.ui.platform.LocalContext
 private val DarkColorScheme = darkColorScheme(
     primary = VitalTealPrimary,
     secondary = VitalMintAccent,
-    tertiary = VitalTextFooterTitle,
-    background = VitalTealDark,
-    surface = VitalTealDark,
+    tertiary = Color(0xFFA7F3D0),
+    background = Color(0xFF0F172A),
+    surface = Color(0xFF1E293B),
     onPrimary = Color.White,
-    onSecondary = VitalTealDark,
-    onBackground = Color.White,
-    onSurface = Color.White
+    onSecondary = Color.White,
+    onBackground = Color(0xFFF8FAFC),
+    onSurface = Color(0xFFF8FAFC)
 )
 
 private val LightColorScheme = lightColorScheme(

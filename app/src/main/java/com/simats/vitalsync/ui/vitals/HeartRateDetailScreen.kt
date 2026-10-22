@@ -1,5 +1,8 @@
 package com.simats.vitalsync.ui.vitals
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,11 +28,21 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -39,12 +52,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
+// Dark Classification Colors
+private val DarkGreenClassification = Color(0xFF047857) // Dark Emerald Green
+private val DarkYellowClassification = Color(0xFFB45309) // Dark Amber / Yellow
+private val DarkRedClassification = Color(0xFFB91C1C) // Dark Red
+
 @Composable
 fun HeartRateDetailScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
     onReadingReviewClick: () -> Unit = {}
 ) {
+    var heartRateBpm by remember { mutableIntStateOf(76) }
+
+    // Dynamic Level Color Mapping
+    val (statusLabel, statusColor, statusBgColor) = when {
+        heartRateBpm < 60 -> Triple("Low Rate", DarkRedClassification, Color(0xFFFEE2E2))
+        heartRateBpm in 60..70 -> Triple("Moderate", DarkYellowClassification, Color(0xFFFEF3C7))
+        heartRateBpm in 71..90 -> Triple("Normal (High Optimal)", DarkGreenClassification, Color(0xFFE6F4EA))
+        else -> Triple("High Rate", DarkRedClassification, Color(0xFFFEE2E2))
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -110,7 +138,7 @@ fun HeartRateDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        HeartIconSmall(modifier = Modifier.size(18.dp))
+                        HeartIconSmall(modifier = Modifier.size(18.dp), color = statusColor)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Latest Reading - 9:00 AM",
@@ -131,23 +159,7 @@ fun HeartRateDetailScreen(
                                 text = "Review ⚠️",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFD97706)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(6.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFE6F4EA))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = "Normal",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F9F7A)
+                                color = DarkYellowClassification
                             )
                         }
                     }
@@ -157,7 +169,7 @@ fun HeartRateDetailScreen(
 
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        text = "76",
+                        text = "$heartRateBpm",
                         fontSize = 38.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF111827)
@@ -175,10 +187,10 @@ fun HeartRateDetailScreen(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Within your normal range",
+                    text = "Status: $statusLabel",
                     fontSize = 13.sp,
-                    color = Color(0xFF0F9F7A),
-                    fontWeight = FontWeight.Medium
+                    color = statusColor,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -209,44 +221,108 @@ fun HeartRateDetailScreen(
                         text = "7 days",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF0F9F7A)
+                        color = statusColor
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                Text(
-                    text = "Duration: 24h · Beats per minute",
-                    fontSize = 12.sp,
-                    color = Color(0xFF9CA3AF)
+                // Color Classification Legend Row (Dark Yellow, Dark Green, Dark Red)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFF8FAFC))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "● High (>90)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = DarkYellowClassification)
+                    Text(text = "● Normal (60-90)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = DarkGreenClassification)
+                    Text(text = "● Low (<60)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = DarkRedClassification)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Smooth Animated Heart Rate Trend Line Chart Canvas with Dark Classification Zones
+                var targetProgress by remember { mutableFloatStateOf(0f) }
+                LaunchedEffect(Unit) {
+                    targetProgress = 1f
+                }
+                val chartProgress by animateFloatAsState(
+                    targetValue = targetProgress,
+                    animationSpec = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
+                    label = "HeartRateTrendLineAnimation"
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Chart Canvas
                 Canvas(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp)
+                        .height(130.dp)
+                        .clip(RoundedCornerShape(12.dp))
                 ) {
                     val w = size.width
                     val h = size.height
 
-                    val path = Path().apply {
-                        moveTo(0f, h * 0.7f)
-                        lineTo(w * 0.16f, h * 0.5f)
-                        lineTo(w * 0.32f, h * 0.2f)
-                        lineTo(w * 0.48f, h * 0.4f)
-                        lineTo(w * 0.64f, h * 0.1f)
-                        lineTo(w * 0.80f, h * 0.3f)
-                        lineTo(w, h * 0.5f)
+                    // 1. Draw 3 Dark Color Classification Background Range Bands
+                    // High Zone (Top 33%) -> Dark Yellow / Amber Band
+                    drawRect(
+                        color = DarkYellowClassification.copy(alpha = 0.15f),
+                        topLeft = Offset(0f, 0f),
+                        size = Size(w, h * 0.33f)
+                    )
+                    // Normal Zone (Middle 34%) -> Dark Green Band
+                    drawRect(
+                        color = DarkGreenClassification.copy(alpha = 0.18f),
+                        topLeft = Offset(0f, h * 0.33f),
+                        size = Size(w, h * 0.34f)
+                    )
+                    // Low Zone (Bottom 33%) -> Dark Red Band
+                    drawRect(
+                        color = DarkRedClassification.copy(alpha = 0.15f),
+                        topLeft = Offset(0f, h * 0.67f),
+                        size = Size(w, h * 0.33f)
+                    )
+
+                    // 2. Trend Line Path
+                    val fullPath = Path().apply {
+                        moveTo(0f, h * 0.70f)
+                        cubicTo(w * 0.08f, h * 0.60f, w * 0.12f, h * 0.50f, w * 0.16f, h * 0.50f)
+                        cubicTo(w * 0.24f, h * 0.30f, w * 0.28f, h * 0.20f, w * 0.32f, h * 0.20f)
+                        cubicTo(w * 0.40f, h * 0.30f, w * 0.44f, h * 0.40f, w * 0.48f, h * 0.40f)
+                        cubicTo(w * 0.56f, h * 0.20f, w * 0.60f, h * 0.10f, w * 0.64f, h * 0.10f)
+                        cubicTo(w * 0.72f, h * 0.20f, w * 0.76f, h * 0.30f, w * 0.80f, h * 0.30f)
+                        cubicTo(w * 0.90f, h * 0.40f, w * 0.95f, h * 0.50f, w, h * 0.50f)
                     }
 
-                    drawPath(
-                        path = path,
-                        color = Color(0xFF0F9F7A),
-                        style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                    )
+                    val pathMeasure = PathMeasure()
+                    pathMeasure.setPath(fullPath, false)
+                    val animatedPath = Path()
+                    pathMeasure.getSegment(0f, pathMeasure.length * chartProgress, animatedPath, true)
+
+                    if (chartProgress > 0f) {
+                        // Smooth Gradient Fill under the trend line
+                        val fillPath = Path().apply {
+                            addPath(animatedPath)
+                            lineTo(w * chartProgress, h)
+                            lineTo(0f, h)
+                            close()
+                        }
+
+                        drawPath(
+                            path = fillPath,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(statusColor.copy(alpha = 0.35f), statusColor.copy(alpha = 0.0f))
+                            )
+                        )
+
+                        // Glowing Animated Heart Rate Line Path
+                        drawPath(
+                            path = animatedPath,
+                            color = statusColor,
+                            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -290,7 +366,7 @@ fun HeartRateDetailScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = "Highest", fontSize = 12.sp, color = Color(0xFF6B7280))
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "92 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "92 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkRedClassification)
                     }
                 }
 
@@ -303,7 +379,7 @@ fun HeartRateDetailScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = "Lowest", fontSize = 12.sp, color = Color(0xFF6B7280))
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "61 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "61 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkYellowClassification)
                     }
 
                     Column(modifier = Modifier.weight(1f)) {
@@ -384,7 +460,10 @@ private fun CalendarIcon(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun HeartIconSmall(modifier: Modifier = Modifier) {
+private fun HeartIconSmall(
+    modifier: Modifier = Modifier,
+    color: Color = DarkGreenClassification
+) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -395,7 +474,7 @@ private fun HeartIconSmall(modifier: Modifier = Modifier) {
             cubicTo(w * 0.9f, h * 0.2f, w * 0.9f, h * 0.5f, w * 0.5f, h * 0.8f)
             close()
         }
-        drawPath(path = path, color = Color(0xFF0F9F7A), style = Stroke(width = 1.6.dp.toPx()))
+        drawPath(path = path, color = color, style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 

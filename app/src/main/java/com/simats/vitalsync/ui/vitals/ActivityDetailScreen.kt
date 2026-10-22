@@ -1,5 +1,8 @@
 package com.simats.vitalsync.ui.vitals
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,6 +30,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -123,7 +131,17 @@ fun ActivityDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Ring Gauge
+                        // Animated Ring Gauge
+                        var targetGaugeAngle by remember { mutableFloatStateOf(0f) }
+                        LaunchedEffect(Unit) {
+                            targetGaugeAngle = 280f
+                        }
+                        val animatedGaugeAngle by animateFloatAsState(
+                            targetValue = targetGaugeAngle,
+                            animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
+                            label = "ActivityGaugeAnimation"
+                        )
+
                         Box(
                             modifier = Modifier.size(90.dp),
                             contentAlignment = Alignment.Center
@@ -145,7 +163,7 @@ fun ActivityDetailScreen(
                                 drawArc(
                                     color = Color(0xFF0F9F7A),
                                     startAngle = -90f,
-                                    sweepAngle = 280f,
+                                    sweepAngle = animatedGaugeAngle,
                                     useCenter = false,
                                     topLeft = topLeft,
                                     size = arcSize,
@@ -254,7 +272,17 @@ fun ActivityDetailScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Bar Chart
+                    // Animated Activity Bar Chart
+                    var targetChartProgress by remember { mutableFloatStateOf(0f) }
+                    LaunchedEffect(Unit) {
+                        targetChartProgress = 1f
+                    }
+                    val chartProgress by animateFloatAsState(
+                        targetValue = targetChartProgress,
+                        animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
+                        label = "ActivityBarChartAnimation"
+                    )
+
                     Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -267,7 +295,7 @@ fun ActivityDetailScreen(
 
                         heights.forEachIndexed { i, ratio ->
                             val x = spacing + i * (barWidth + spacing)
-                            val barHeight = size.height * ratio
+                            val barHeight = size.height * ratio * chartProgress
                             val y = size.height - barHeight
 
                             val barColor = if (i == 6) Color(0xFF0F9F7A) else Color(0xFFA7F3D0)

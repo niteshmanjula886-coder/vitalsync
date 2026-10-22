@@ -2,6 +2,7 @@ package com.simats.vitalsync.ui.activity
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,9 +26,14 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import kotlinx.coroutines.delay
+import java.util.Locale
 
 @Composable
 fun WorkoutTrackingScreen(
@@ -49,6 +57,35 @@ fun WorkoutTrackingScreen(
     onBackClick: () -> Unit = {},
     onFinishTracking: () -> Unit = {}
 ) {
+    // Executable Live Workout Timer State
+    var workoutSeconds by remember { mutableIntStateOf(0) }
+    var isTimerRunning by remember { mutableStateOf(true) }
+
+    LaunchedEffect(isTimerRunning) {
+        while (isTimerRunning) {
+            delay(1000L)
+            workoutSeconds++
+        }
+    }
+
+    val timerMinutes = workoutSeconds / 60
+    val timerSecs = workoutSeconds % 60
+    val formattedTime = String.format(Locale.US, "%02d:%02d", timerMinutes, timerSecs)
+
+    // Executable Rest Countdown Timer
+    var restCountdownSecs by remember { mutableIntStateOf(30) }
+    var isResting by remember { mutableStateOf(false) } // Strictly manual Play/Pause control
+
+    LaunchedEffect(isResting, restCountdownSecs) {
+        if (isResting && restCountdownSecs > 0) {
+            delay(1000L)
+            restCountdownSecs--
+            if (restCountdownSecs == 0) {
+                isResting = false
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -94,17 +131,19 @@ fun WorkoutTrackingScreen(
                     )
                 }
 
+                // Interactive Status / Pause Toggle Badge
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFE6F4EA))
+                        .background(if (isTimerRunning) Color(0xFFE6F4EA) else Color(0xFFFEF3C7))
+                        .clickable { isTimerRunning = !isTimerRunning }
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "• In progress",
+                        text = if (isTimerRunning) "• In progress" else "⏸ Paused",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F9F7A)
+                        color = if (isTimerRunning) Color(0xFF0F9F7A) else Color(0xFFD97706)
                     )
                 }
             }
@@ -118,7 +157,7 @@ fun WorkoutTrackingScreen(
             ) {
                 Text(text = "🏋️ Strength training", fontSize = 13.sp, color = Color(0xFF6B7280))
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(text = "30:00", fontSize = 52.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                Text(text = formattedTime, fontSize = 52.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                 Text(text = "Elapsed time", fontSize = 12.sp, color = Color(0xFF9CA3AF))
             }
 
@@ -178,10 +217,16 @@ fun WorkoutTrackingScreen(
                             modifier = Modifier
                                 .size(42.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF0F9F7A)),
+                                .background(Color(0xFF0F9F7A))
+                                .clickable {
+                                    if (!isResting && restCountdownSecs == 0) {
+                                        restCountdownSecs = 30
+                                    }
+                                    isResting = !isResting
+                                },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "⏱️", fontSize = 18.sp)
+                            Text(text = if (isResting) "⏸" else "▶", fontSize = 18.sp, color = Color.White)
                         }
 
                         Spacer(modifier = Modifier.width(12.dp))
@@ -192,44 +237,60 @@ fun WorkoutTrackingScreen(
                         }
                     }
 
-                    Text(text = "0:30", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (restCountdownSecs > 0) "0:${String.format(Locale.US, "%02d", restCountdownSecs)}" else "Ready!",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F9F7A)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isResting) Color(0xFFDCFCE7) else Color(0xFFFEF3C7))
+                                .clickable {
+                                    if (!isResting && restCountdownSecs == 0) {
+                                        restCountdownSecs = 30
+                                    }
+                                    isResting = !isResting
+                                }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = if (isResting) "Pause" else "Play",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isResting) Color(0xFF15803D) else Color(0xFFD97706)
+                            )
+                        }
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(28.dp))
         }
 
-        // Action Buttons Row (Pause | Finish)
-        Row(
+        // Single Primary Finish Button at Bottom
+        Button(
+            onClick = onFinishTracking,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(vertical = 16.dp)
+                .height(54.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = VitalTealDark,
+                contentColor = Color.White
+            )
         ) {
-            OutlinedButton(
-                onClick = { },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(54.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = VitalTealDark)
-            ) {
-                Text(text = "⏸ Pause", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Button(
-                onClick = onFinishTracking,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(54.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = VitalTealDark,
-                    contentColor = Color.White
-                )
-            ) {
-                Text(text = "⏹ Finish", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            }
+            Text(
+                text = "Finish Workout Session",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

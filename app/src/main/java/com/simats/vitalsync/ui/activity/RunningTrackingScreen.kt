@@ -1,7 +1,11 @@
 package com.simats.vitalsync.ui.activity
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,14 +28,22 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -41,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import kotlinx.coroutines.delay
+import java.util.Locale
 
 @Composable
 fun RunningTrackingScreen(
@@ -48,6 +62,32 @@ fun RunningTrackingScreen(
     onBackClick: () -> Unit = {},
     onFinishTracking: () -> Unit = {}
 ) {
+    // Executable Live Timer State
+    var trackingSeconds by remember { mutableIntStateOf(0) }
+    var isTimerRunning by remember { mutableStateOf(true) }
+
+    LaunchedEffect(isTimerRunning) {
+        while (isTimerRunning) {
+            delay(1000L)
+            trackingSeconds++
+        }
+    }
+
+    val timerMinutes = trackingSeconds / 60
+    val timerSecs = trackingSeconds % 60
+    val formattedTime = String.format(Locale.US, "%02d:%02d", timerMinutes, timerSecs)
+
+    // Animated Run Goal Fill State
+    var targetRunGoalRatio by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        targetRunGoalRatio = 0.85f
+    }
+    val animatedRunGoalRatio by animateFloatAsState(
+        targetValue = targetRunGoalRatio,
+        animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+        label = "RunGoalAnimation"
+    )
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -93,17 +133,19 @@ fun RunningTrackingScreen(
                     )
                 }
 
+                // Interactive Status / Pause Toggle Badge
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFE6F4EA))
+                        .background(if (isTimerRunning) Color(0xFFE6F4EA) else Color(0xFFFEF3C7))
+                        .clickable { isTimerRunning = !isTimerRunning }
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "• In progress",
+                        text = if (isTimerRunning) "• In progress" else "⏸ Paused",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F9F7A)
+                        color = if (isTimerRunning) Color(0xFF0F9F7A) else Color(0xFFD97706)
                     )
                 }
             }
@@ -117,7 +159,7 @@ fun RunningTrackingScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "30:00", fontSize = 38.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(text = formattedTime, fontSize = 38.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                     Text(text = "Elapsed time", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                 }
 
@@ -170,6 +212,17 @@ fun RunningTrackingScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Animated Pace Trend Line
+                    var targetTrendProgress by remember { mutableFloatStateOf(0f) }
+                    LaunchedEffect(Unit) {
+                        targetTrendProgress = 1f
+                    }
+                    val trendProgress by animateFloatAsState(
+                        targetValue = targetTrendProgress,
+                        animationSpec = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
+                        label = "PaceTrendAnimation"
+                    )
+
                     Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -178,21 +231,87 @@ fun RunningTrackingScreen(
                         val w = size.width
                         val h = size.height
 
-                        val path = Path().apply {
+                        val fullPath = Path().apply {
                             moveTo(0f, h * 0.6f)
-                            lineTo(w * 0.2f, h * 0.4f)
-                            lineTo(w * 0.4f, h * 0.3f)
-                            lineTo(w * 0.6f, h * 0.5f)
-                            lineTo(w * 0.8f, h * 0.35f)
-                            lineTo(w, h * 0.45f)
+                            cubicTo(w * 0.1f, h * 0.5f, w * 0.15f, h * 0.4f, w * 0.2f, h * 0.4f)
+                            cubicTo(w * 0.3f, h * 0.35f, w * 0.35f, h * 0.3f, w * 0.4f, h * 0.3f)
+                            cubicTo(w * 0.5f, h * 0.4f, w * 0.55f, h * 0.5f, w * 0.6f, h * 0.5f)
+                            cubicTo(w * 0.7f, h * 0.4f, w * 0.75f, h * 0.35f, w * 0.8f, h * 0.35f)
+                            cubicTo(w * 0.9f, h * 0.4f, w * 0.95f, h * 0.45f, w, h * 0.45f)
                         }
 
-                        drawPath(
-                            path = path,
-                            color = Color(0xFF0F9F7A),
-                            style = Stroke(width = 2.4.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                        val pathMeasure = PathMeasure().apply { setPath(fullPath, false) }
+                        val animatedPath = Path()
+                        pathMeasure.getSegment(0f, pathMeasure.length * trendProgress, animatedPath, true)
+
+                        if (trendProgress > 0f) {
+                            val fillPath = Path().apply {
+                                addPath(animatedPath)
+                                lineTo(w * trendProgress, h)
+                                lineTo(0f, h)
+                                close()
+                            }
+
+                            drawPath(
+                                path = fillPath,
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(Color(0x350F9F7A), Color(0x000F9F7A))
+                                )
+                            )
+
+                            drawPath(
+                                path = animatedPath,
+                                color = Color(0xFF0F9F7A),
+                                style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Animated Run Distance Goal Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "Run distance goal", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "${(animatedRunGoalRatio * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFFE5E7EB))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(animatedRunGoalRatio)
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFF0F9F7A))
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "5.0 / 6.0 km · 1.0 km remaining",
+                        fontSize = 12.sp,
+                        color = Color(0xFF6B7280)
+                    )
                 }
             }
 
@@ -223,37 +342,24 @@ fun RunningTrackingScreen(
             Spacer(modifier = Modifier.height(28.dp))
         }
 
-        // Action Buttons Row (Pause | Finish)
-        Row(
+        // Single Primary Finish Button at Bottom
+        Button(
+            onClick = onFinishTracking,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(vertical = 16.dp)
+                .height(54.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = VitalTealDark,
+                contentColor = Color.White
+            )
         ) {
-            OutlinedButton(
-                onClick = { },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(54.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = VitalTealDark)
-            ) {
-                Text(text = "⏸ Pause", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Button(
-                onClick = onFinishTracking,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(54.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = VitalTealDark,
-                    contentColor = Color.White
-                )
-            ) {
-                Text(text = "⏹ Finish", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            }
+            Text(
+                text = "Finish Running Session",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

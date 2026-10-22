@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -31,7 +32,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -59,6 +62,8 @@ import com.simats.vitalsync.data.WorkoutSplit
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import kotlinx.coroutines.delay
+import java.util.Locale
 
 @Composable
 fun ActiveWorkoutSessionScreen(
@@ -70,8 +75,39 @@ fun ActiveWorkoutSessionScreen(
     onFinishSession: (WorkoutSession) -> Unit = {}
 ) {
     var workoutName by remember { mutableStateOf("${split.displayName} Workout") }
+
+    // Live Executable Workout Timer (Count Up & Play/Pause Controls)
+    var sessionElapsedSeconds by remember { mutableIntStateOf(0) }
+    var isSessionTimerRunning by remember { mutableStateOf(true) }
+
+    LaunchedEffect(isSessionTimerRunning) {
+        while (isSessionTimerRunning) {
+            delay(1000L)
+            sessionElapsedSeconds++
+        }
+    }
+
+    val timerMinutes = sessionElapsedSeconds / 60
+    val timerSecs = sessionElapsedSeconds % 60
+    val formattedWorkoutTimer = String.format(Locale.US, "%02d:%02d", timerMinutes, timerSecs)
+
+    // Customizable Rest Countdown Timer State (Strictly manual Play/Pause, no auto-start)
+    var restTimerConfigSeconds by remember { mutableIntStateOf(60) } // Default 60s configurable
     var restTimerSeconds by remember { mutableIntStateOf(60) }
     var isRestTimerActive by remember { mutableStateOf(false) }
+
+    var showCustomRestDialog by remember { mutableStateOf(false) }
+    var customRestInputText by remember { mutableStateOf("45") }
+
+    LaunchedEffect(isRestTimerActive, restTimerSeconds) {
+        if (isRestTimerActive && restTimerSeconds > 0) {
+            delay(1000L)
+            restTimerSeconds--
+            if (restTimerSeconds == 0) {
+                isRestTimerActive = false
+            }
+        }
+    }
 
     // Exercises with mutable sets state
     val activeExercises = remember {
@@ -146,18 +182,27 @@ fun ActiveWorkoutSessionScreen(
                     )
                 }
 
+                // Play / Pause Session Timer Button
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFDCFCE7))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSessionTimerRunning) Color(0xFFDCFCE7) else Color(0xFFFEF3C7))
+                        .clickable { isSessionTimerRunning = !isSessionTimerRunning }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(
-                        text = "• Live",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF15803D)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (isSessionTimerRunning) "⏸" else "▶",
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                        Text(
+                            text = if (isSessionTimerRunning) "⏱️ $formattedWorkoutTimer" else "Paused ($formattedWorkoutTimer)",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSessionTimerRunning) Color(0xFF15803D) else Color(0xFFD97706)
+                        )
+                    }
                 }
             }
 
@@ -210,41 +255,89 @@ fun ActiveWorkoutSessionScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(text = "REST TIMER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA7F3D0))
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(text = "${restTimerSeconds}s", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
+                        Text(
+                            text = if (restTimerSeconds > 0) "${restTimerSeconds}s" else "Ready!",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF38BDF8)
+                        )
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Rest Timer Preset Controls
+            // Customizable Rest & Recover Controls Card with Strict Play/Pause Toggle
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F6F0)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = "⏱️ Rest:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "⏱️ Rest & Recover", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Spacer(modifier = Modifier.width(8.dp))
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(30, 60, 90, 120).forEach { sec ->
-                            val isSecSelected = restTimerSeconds == sec
+                            // Strict Manual Play / Pause Rest Button
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isRestTimerActive) Color(0xFFDCFCE7) else Color(0xFFFEF3C7))
+                                    .clickable {
+                                        if (!isRestTimerActive && restTimerSeconds == 0) {
+                                            restTimerSeconds = restTimerConfigSeconds
+                                        }
+                                        isRestTimerActive = !isRestTimerActive
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = if (isRestTimerActive) "⏸ Pause" else "▶ Play",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isRestTimerActive) Color(0xFF15803D) else Color(0xFFD97706)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "Custom ✏️",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F9F7A),
+                            modifier = Modifier.clickable {
+                                customRestInputText = restTimerConfigSeconds.toString()
+                                showCustomRestDialog = true
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(30, 45, 60, 90, 120).forEach { sec ->
+                            val isSecSelected = restTimerConfigSeconds == sec
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
                                     .background(if (isSecSelected) VitalTealPrimary else Color.White)
                                     .clickable {
+                                        restTimerConfigSeconds = sec
                                         restTimerSeconds = sec
-                                        isRestTimerActive = true
+                                        isRestTimerActive = false // Selected duration preset; tap Play to start
                                     }
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = "${sec}s",
@@ -440,7 +533,7 @@ fun ActiveWorkoutSessionScreen(
                     split = split,
                     dateString = "2025-10-15",
                     timestampFormatted = "Oct 15, 2025 at 9:30 AM",
-                    durationMinutes = 45,
+                    durationMinutes = (sessionElapsedSeconds / 60).coerceAtLeast(1),
                     exercises = activeExercises.toList(),
                     totalVolumeKg = totalVolumeKg,
                     estimatedCaloriesBurned = (totalVolumeKg * 0.05f + 150).toInt()
@@ -463,6 +556,55 @@ fun ActiveWorkoutSessionScreen(
                 fontWeight = FontWeight.Bold
             )
         }
+    }
+
+    // Custom Rest Seconds Dialog
+    if (showCustomRestDialog) {
+        AlertDialog(
+            onDismissRequest = { showCustomRestDialog = false },
+            title = {
+                Text(text = "Custom Rest Duration", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column {
+                    Text(text = "Set custom rest duration in seconds:", fontSize = 13.sp, color = Color(0xFF6B7280))
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = customRestInputText,
+                        onValueChange = { customRestInputText = it.filter { c -> c.isDigit() } },
+                        label = { Text("Rest Duration (seconds)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = VitalTealPrimary,
+                            focusedLabelColor = VitalTealPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val sec = customRestInputText.toIntOrNull() ?: 60
+                        if (sec > 0) {
+                            restTimerConfigSeconds = sec
+                            restTimerSeconds = sec
+                            isRestTimerActive = false // Strict Play/Pause control
+                        }
+                        showCustomRestDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = VitalTealDark)
+                ) {
+                    Text("Set Rest Timer")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomRestDialog = false }) {
+                    Text("Cancel", color = Color(0xFF6B7280))
+                }
+            }
+        )
     }
 }
 

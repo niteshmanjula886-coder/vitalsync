@@ -1,5 +1,8 @@
 package com.simats.vitalsync.ui.vitals
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +27,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -188,7 +196,17 @@ fun SleepDetailScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // Stacked Bar Stages Chart
+                // Smoothly Animated Stacked Bar Stages Chart
+                var targetProgress by remember { mutableFloatStateOf(0f) }
+                LaunchedEffect(Unit) {
+                    targetProgress = 1f
+                }
+                val chartProgress by animateFloatAsState(
+                    targetValue = targetProgress,
+                    animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
+                    label = "SleepBarChartAnimation"
+                )
+
                 Canvas(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -200,9 +218,9 @@ fun SleepDetailScreen(
 
                     repeat(12) { i ->
                         val x = spacing + i * (barWidth + spacing)
-                        val hDeep = size.height * (0.2f + (i % 3) * 0.1f)
-                        val hLight = size.height * (0.35f + (i % 2) * 0.1f)
-                        val hRem = size.height * (0.2f)
+                        val hDeep = size.height * (0.2f + (i % 3) * 0.1f) * chartProgress
+                        val hLight = size.height * (0.35f + (i % 2) * 0.1f) * chartProgress
+                        val hRem = size.height * (0.2f) * chartProgress
 
                         // Deep
                         drawRoundRect(

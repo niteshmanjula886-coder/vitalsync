@@ -1,5 +1,8 @@
 package com.simats.vitalsync.ui.vitals
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +31,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -137,6 +145,17 @@ fun StepCountDetailScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Animated Progress Ring Gauge
+                    var targetGaugeAngle by remember { mutableFloatStateOf(0f) }
+                    LaunchedEffect(Unit) {
+                        targetGaugeAngle = 280f
+                    }
+                    val animatedGaugeAngle by animateFloatAsState(
+                        targetValue = targetGaugeAngle,
+                        animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
+                        label = "StepGaugeAnimation"
+                    )
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -163,7 +182,7 @@ fun StepCountDetailScreen(
                                 drawArc(
                                     color = Color(0xFF0F9F7A),
                                     startAngle = -90f,
-                                    sweepAngle = 280f,
+                                    sweepAngle = animatedGaugeAngle,
                                     useCenter = false,
                                     topLeft = topLeft,
                                     size = arcSize,
@@ -245,7 +264,7 @@ fun StepCountDetailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Bar Chart Card ("This week")
+            // Bar Chart Card ("This week") with Level Color-Coding (Low = Red, Med = Yellow, High = Green)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -264,12 +283,11 @@ fun StepCountDetailScreen(
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF111827)
                         )
-                        Text(
-                            text = "Daily steps",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF0F9F7A)
-                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(text = "● High", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                            Text(text = "● Med", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
+                            Text(text = "● Low", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEF4444))
+                        }
                     }
 
                     Text(
@@ -281,7 +299,17 @@ fun StepCountDetailScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Bar Chart
+                    // Animated Step Bar Chart
+                    var targetChartProgress by remember { mutableFloatStateOf(0f) }
+                    LaunchedEffect(Unit) {
+                        targetChartProgress = 1f
+                    }
+                    val chartProgress by animateFloatAsState(
+                        targetValue = targetChartProgress,
+                        animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
+                        label = "StepBarChartAnimation"
+                    )
+
                     Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -294,10 +322,15 @@ fun StepCountDetailScreen(
 
                         heights.forEachIndexed { i, ratio ->
                             val x = spacing + i * (barWidth + spacing)
-                            val barHeight = size.height * ratio
+                            val barHeight = size.height * ratio * chartProgress
                             val y = size.height - barHeight
 
-                            val barColor = if (i == 6) Color(0xFF0F9F7A) else Color(0xFFA7F3D0)
+                            // Color Coding: Low (<0.50) -> Red, Med (0.50-0.75) -> Yellow, High (>=0.76) -> Green
+                            val barColor = when {
+                                ratio < 0.50f -> Color(0xFFEF4444)
+                                ratio < 0.76f -> Color(0xFFF59E0B)
+                                else -> Color(0xFF0F9F7A)
+                            }
 
                             drawRoundRect(
                                 color = barColor,
@@ -353,11 +386,11 @@ fun StepCountDetailScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    StepHistoryRow(dateStr = "Today · Oct 15", valStr = "6,245", subStr = "78% of goal")
+                    StepHistoryRow(dateStr = "Today · Oct 15", valStr = "6,245", subStr = "78% (Med)", statusColor = Color(0xFFF59E0B))
                     HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-                    StepHistoryRow(dateStr = "Yesterday · Oct 14", valStr = "7,520", subStr = "94% of goal")
+                    StepHistoryRow(dateStr = "Yesterday · Oct 14", valStr = "7,520", subStr = "94% (High)", statusColor = Color(0xFF0F9F7A))
                     HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-                    StepHistoryRow(dateStr = "Tuesday · Oct 13", valStr = "5,600", subStr = "70% of goal")
+                    StepHistoryRow(dateStr = "Tuesday · Oct 13", valStr = "3,600", subStr = "45% (Low)", statusColor = Color(0xFFEF4444))
                 }
             }
 
@@ -405,7 +438,8 @@ fun StepCountDetailScreen(
 private fun StepHistoryRow(
     dateStr: String,
     valStr: String,
-    subStr: String
+    subStr: String,
+    statusColor: Color = Color(0xFF0F9F7A)
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -417,7 +451,7 @@ private fun StepHistoryRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(text = valStr, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
             Spacer(modifier = Modifier.width(8.dp))
-            Text(text = subStr, fontSize = 11.sp, color = Color(0xFF9CA3AF))
+            Text(text = subStr, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = statusColor)
         }
     }
 }

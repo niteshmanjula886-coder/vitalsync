@@ -1,5 +1,8 @@
 package com.simats.vitalsync.ui.vitals
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -27,9 +29,16 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -99,18 +108,50 @@ fun BmiResultScreen(
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            // Circular BMI Gauge Ring
+            // Animated Circular BMI Gauge Ring
+            var targetGaugeAngle by remember { mutableFloatStateOf(0f) }
+            LaunchedEffect(Unit) {
+                targetGaugeAngle = 260f
+            }
+            val animatedGaugeAngle by animateFloatAsState(
+                targetValue = targetGaugeAngle,
+                animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
+                label = "BmiResultGaugeAnimation"
+            )
+
             Box(
-                modifier = Modifier
-                    .size(150.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFE6F4EA)),
+                modifier = Modifier.size(150.dp),
                 contentAlignment = Alignment.Center
             ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val strokePx = 10.dp.toPx()
+                    val arcSize = Size(size.width - strokePx, size.height - strokePx)
+                    val topLeft = Offset(strokePx / 2f, strokePx / 2f)
+
+                    drawArc(
+                        color = Color(0xFFE5E7EB),
+                        startAngle = -220f,
+                        sweepAngle = 260f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                    )
+                    drawArc(
+                        color = Color(0xFF0F9F7A),
+                        startAngle = -220f,
+                        sweepAngle = animatedGaugeAngle,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                    )
+                }
+
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = bmiValue,
-                        fontSize = 42.sp,
+                        fontSize = 38.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF111827)
                     )

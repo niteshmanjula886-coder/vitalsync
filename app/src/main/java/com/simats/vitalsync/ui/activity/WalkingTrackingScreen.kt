@@ -1,7 +1,11 @@
 package com.simats.vitalsync.ui.activity
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,15 +27,22 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -41,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import kotlinx.coroutines.delay
+import java.util.Locale
 
 @Composable
 fun WalkingTrackingScreen(
@@ -48,6 +61,32 @@ fun WalkingTrackingScreen(
     onBackClick: () -> Unit = {},
     onFinishTracking: () -> Unit = {}
 ) {
+    // Executable Live Timer State
+    var trackingSeconds by remember { mutableIntStateOf(0) }
+    var isTimerRunning by remember { mutableStateOf(true) }
+
+    LaunchedEffect(isTimerRunning) {
+        while (isTimerRunning) {
+            delay(1000L)
+            trackingSeconds++
+        }
+    }
+
+    val timerMinutes = trackingSeconds / 60
+    val timerSecs = trackingSeconds % 60
+    val formattedTime = String.format(Locale.US, "%02d:%02d", timerMinutes, timerSecs)
+
+    // Animated Session Step Goal Fill State
+    var targetStepGoalRatio by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        targetStepGoalRatio = 0.85f
+    }
+    val animatedStepGoalRatio by animateFloatAsState(
+        targetValue = targetStepGoalRatio,
+        animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+        label = "WalkingStepGoalAnimation"
+    )
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -93,22 +132,24 @@ fun WalkingTrackingScreen(
                     )
                 }
 
+                // Interactive Status / Pause Toggle Badge
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFE6F4EA))
+                        .background(if (isTimerRunning) Color(0xFFE6F4EA) else Color(0xFFFEF3C7))
+                        .clickable { isTimerRunning = !isTimerRunning }
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "• In progress",
+                        text = if (isTimerRunning) "• In progress" else "⏸ Paused",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F9F7A)
+                        color = if (isTimerRunning) Color(0xFF0F9F7A) else Color(0xFFD97706)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Live Timer Banner
             Column(
@@ -122,7 +163,7 @@ fun WalkingTrackingScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "40:00",
+                    text = formattedTime,
                     fontSize = 54.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
@@ -194,6 +235,17 @@ fun WalkingTrackingScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
+                    // Smooth Animated Route GPS Path
+                    var targetRouteProgress by remember { mutableFloatStateOf(0f) }
+                    LaunchedEffect(Unit) {
+                        targetRouteProgress = 1f
+                    }
+                    val routeProgress by animateFloatAsState(
+                        targetValue = targetRouteProgress,
+                        animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
+                        label = "WalkingRouteAnimation"
+                    )
+
                     Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -204,7 +256,7 @@ fun WalkingTrackingScreen(
                         val w = size.width
                         val h = size.height
 
-                        val routePath = Path().apply {
+                        val fullRoutePath = Path().apply {
                             moveTo(w * 0.2f, h * 0.8f)
                             lineTo(w * 0.8f, h * 0.8f)
                             lineTo(w * 0.8f, h * 0.3f)
@@ -212,19 +264,25 @@ fun WalkingTrackingScreen(
                             lineTo(w * 0.3f, h * 0.6f)
                         }
 
-                        drawPath(
-                            path = routePath,
-                            color = Color(0xFF0F9F7A),
-                            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                        )
-                        drawCircle(color = Color(0xFF0F9F7A), radius = 6.dp.toPx(), center = Offset(w * 0.3f, h * 0.6f))
+                        val pathMeasure = PathMeasure().apply { setPath(fullRoutePath, false) }
+                        val animatedRoutePath = Path()
+                        pathMeasure.getSegment(0f, pathMeasure.length * routeProgress, animatedRoutePath, true)
+
+                        if (routeProgress > 0f) {
+                            drawPath(
+                                path = animatedRoutePath,
+                                color = Color(0xFF0F9F7A),
+                                style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                            )
+                            drawCircle(color = Color(0xFF0F9F7A), radius = 6.dp.toPx(), center = Offset(w * 0.3f, h * 0.6f))
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Step Goal Progress Bar Card
+            // Animated Step Goal Progress Bar Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -237,7 +295,7 @@ fun WalkingTrackingScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(text = "Session step-goal", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Text(text = "85%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                        Text(text = "${(animatedStepGoalRatio * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -251,7 +309,7 @@ fun WalkingTrackingScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(0.85f)
+                                .fillMaxWidth(animatedStepGoalRatio)
                                 .height(8.dp)
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(Color(0xFF0F9F7A))
@@ -271,37 +329,24 @@ fun WalkingTrackingScreen(
             Spacer(modifier = Modifier.height(28.dp))
         }
 
-        // Action Buttons Row (Pause | Finish)
-        Row(
+        // Single Primary Finish Button at Bottom
+        Button(
+            onClick = onFinishTracking,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(vertical = 16.dp)
+                .height(54.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = VitalTealDark,
+                contentColor = Color.White
+            )
         ) {
-            OutlinedButton(
-                onClick = { },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(54.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = VitalTealDark)
-            ) {
-                Text(text = "⏸ Pause", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Button(
-                onClick = onFinishTracking,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(54.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = VitalTealDark,
-                    contentColor = Color.White
-                )
-            ) {
-                Text(text = "⏹ Finish", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            }
+            Text(
+                text = "Finish Walking Session",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

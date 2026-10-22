@@ -1,5 +1,8 @@
 package com.simats.vitalsync.ui.vitals
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -27,11 +30,18 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -201,15 +211,27 @@ fun BloodPressureDetailScreen(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    Text(
-                        text = "Systolic / Diastolic (mmHg)",
-                        fontSize = 12.sp,
-                        color = Color(0xFF9CA3AF)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(text = "● Systolic (High/Med)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                        Text(text = "● Diastolic", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
+                    }
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Dual Trend Lines Chart
+                    // Animated Dual Trend Lines Chart
+                    var targetProgress by remember { mutableFloatStateOf(0f) }
+                    LaunchedEffect(Unit) {
+                        targetProgress = 1f
+                    }
+                    val chartProgress by animateFloatAsState(
+                        targetValue = targetProgress,
+                        animationSpec = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
+                        label = "BpTrendLinesAnimation"
+                    )
+
                     Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -218,26 +240,62 @@ fun BloodPressureDetailScreen(
                         val w = size.width
                         val h = size.height
 
-                        // Systolic Line
-                        val sysPath = Path().apply {
+                        // Systolic Full Path
+                        val sysFullPath = Path().apply {
                             moveTo(0f, h * 0.25f)
-                            lineTo(w * 0.25f, h * 0.22f)
-                            lineTo(w * 0.50f, h * 0.30f)
-                            lineTo(w * 0.75f, h * 0.20f)
-                            lineTo(w, h * 0.25f)
+                            cubicTo(w * 0.12f, h * 0.22f, w * 0.20f, h * 0.22f, w * 0.25f, h * 0.22f)
+                            cubicTo(w * 0.38f, h * 0.30f, w * 0.42f, h * 0.30f, w * 0.50f, h * 0.30f)
+                            cubicTo(w * 0.62f, h * 0.20f, w * 0.68f, h * 0.20f, w * 0.75f, h * 0.20f)
+                            cubicTo(w * 0.88f, h * 0.25f, w * 0.95f, h * 0.25f, w, h * 0.25f)
                         }
 
-                        // Diastolic Line
-                        val diaPath = Path().apply {
+                        // Diastolic Full Path
+                        val diaFullPath = Path().apply {
                             moveTo(0f, h * 0.70f)
-                            lineTo(w * 0.25f, h * 0.68f)
-                            lineTo(w * 0.50f, h * 0.75f)
-                            lineTo(w * 0.75f, h * 0.65f)
-                            lineTo(w, h * 0.70f)
+                            cubicTo(w * 0.12f, h * 0.68f, w * 0.20f, h * 0.68f, w * 0.25f, h * 0.68f)
+                            cubicTo(w * 0.38f, h * 0.75f, w * 0.42f, h * 0.75f, w * 0.50f, h * 0.75f)
+                            cubicTo(w * 0.62f, h * 0.65f, w * 0.68f, h * 0.65f, w * 0.75f, h * 0.65f)
+                            cubicTo(w * 0.88f, h * 0.70f, w * 0.95f, h * 0.70f, w, h * 0.70f)
                         }
 
-                        drawPath(path = sysPath, color = Color(0xFF0F9F7A), style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-                        drawPath(path = diaPath, color = Color(0xFF38BDF8), style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                        val sysMeasure = PathMeasure().apply { setPath(sysFullPath, false) }
+                        val diaMeasure = PathMeasure().apply { setPath(diaFullPath, false) }
+
+                        val sysAnimatedPath = Path()
+                        val diaAnimatedPath = Path()
+
+                        sysMeasure.getSegment(0f, sysMeasure.length * chartProgress, sysAnimatedPath, true)
+                        diaMeasure.getSegment(0f, diaMeasure.length * chartProgress, diaAnimatedPath, true)
+
+                        if (chartProgress > 0f) {
+                            // Systolic Area Fill
+                            val sysFill = Path().apply {
+                                addPath(sysAnimatedPath)
+                                lineTo(w * chartProgress, h)
+                                lineTo(0f, h)
+                                close()
+                            }
+                            drawPath(
+                                path = sysFill,
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(Color(0x300F9F7A), Color(0x000F9F7A))
+                                )
+                            )
+
+                            // Animated Systolic Line (Normal - Green)
+                            drawPath(
+                                path = sysAnimatedPath,
+                                color = Color(0xFF0F9F7A),
+                                style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                            )
+
+                            // Animated Diastolic Line (Optimal - Cyan)
+                            drawPath(
+                                path = diaAnimatedPath,
+                                color = Color(0xFF38BDF8),
+                                style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -255,7 +313,7 @@ fun BloodPressureDetailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Recent Readings History
+            // Recent Readings History (With Color-Coded Normal - Green, Med - Yellow, High - Red)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -272,11 +330,11 @@ fun BloodPressureDetailScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    BpHistoryRow("120/80 mmHg", "Oct 15 - 9:00 AM", "Normal")
+                    BpHistoryRow("120/80 mmHg", "Oct 15 - 9:00 AM", "Normal", Color(0xFF0F9F7A), Color(0xFFE6F4EA))
                     HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-                    BpHistoryRow("123/83 mmHg", "Oct 14 - 9:15 AM", "Elevated")
+                    BpHistoryRow("128/83 mmHg", "Oct 14 - 9:15 AM", "Elevated (Med)", Color(0xFFF59E0B), Color(0xFFFEF3C7))
                     HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-                    BpHistoryRow("117/77 mmHg", "Oct 13 - 8:45 AM", "Normal")
+                    BpHistoryRow("142/92 mmHg", "Oct 12 - 8:10 AM", "High (Alert)", Color(0xFFEF4444), Color(0xFFFEE2E2))
                 }
             }
 
@@ -309,7 +367,9 @@ fun BloodPressureDetailScreen(
 private fun BpHistoryRow(
     reading: String,
     time: String,
-    status: String
+    status: String,
+    textColor: Color,
+    bgColor: Color
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -324,14 +384,14 @@ private fun BpHistoryRow(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(6.dp))
-                .background(if (status == "Normal") Color(0xFFE6F4EA) else Color(0xFFFEF3C7))
+                .background(bgColor)
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
             Text(
                 text = status,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (status == "Normal") Color(0xFF0F9F7A) else Color(0xFFD97706)
+                color = textColor
             )
         }
     }
