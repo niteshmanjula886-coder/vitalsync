@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -143,6 +144,7 @@ fun AiChatScreen(
             .background(Color(0xFFFAFCFB))
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
     ) {
         // Main Chat Conversation Content (Blurred when AI Voice Animation is Active)
         Column(
@@ -321,11 +323,12 @@ fun AiChatScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // Bottom Message Input Bar
+            // Bottom Message Input Bar (Slide up smoothly above soft keyboard)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .imePadding()
                     .padding(vertical = 12.dp)
             ) {
                 OutlinedTextField(
@@ -519,6 +522,9 @@ fun AiVoiceSphereAnimation(
         label = "WavePhase"
     )
 
+    // Reusable Path to prevent allocations during 120 FPS draw phase
+    val ribbonPath = remember { Path() }
+
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -526,14 +532,14 @@ fun AiVoiceSphereAnimation(
         val centerY = h / 2f
         val baseRadius = (minOf(w, h) / 2.2f) * (if (isListening) pulseScale else 1f)
 
-        // 1. Hyper-Glow Outer Background Radial Gradient (Vivid Neon Violet + Electric Cyan + Core Glow)
+        // 1. Hyper-Glow Outer Background Radial Gradient
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    Color(0xFFE086D3).copy(alpha = 0.75f), // Glowing Pink-Violet Nucleus
-                    Color(0xFFC084FC).copy(alpha = 0.50f), // Neon Purple
-                    Color(0xFF8B5CF6).copy(alpha = 0.30f), // Deep Violet
-                    Color(0xFF38BDF8).copy(alpha = 0.15f), // Cyan Edge Accent
+                    Color(0xFFE086D3).copy(alpha = 0.75f),
+                    Color(0xFFC084FC).copy(alpha = 0.50f),
+                    Color(0xFF8B5CF6).copy(alpha = 0.30f),
+                    Color(0xFF38BDF8).copy(alpha = 0.15f),
                     Color.Transparent
                 ),
                 center = Offset(centerX, centerY),
@@ -568,23 +574,21 @@ fun AiVoiceSphereAnimation(
 
         repeat(3) { ribbonIndex ->
             val angleOffset = ribbonIndex * (Math.PI.toFloat() * 2f / 3f) + (if (ribbonIndex % 2 == 0) rotationAngle else counterRotationAngle) * (Math.PI.toFloat() / 180f)
-            val ribbonPath = Path().apply {
-                val steps = 40
-                for (step in 0..steps) {
-                    val t = step.toFloat() / steps
-                    val angle = t * 2f * Math.PI.toFloat()
-                    val waveDistort = sin(angle * 3f + wavePhase + ribbonIndex) * 0.18f
-                    val r = baseRadius * (1f + waveDistort)
+            ribbonPath.reset()
+            val steps = 40
+            for (step in 0..steps) {
+                val t = step.toFloat() / steps
+                val angle = t * 2f * Math.PI.toFloat()
+                val waveDistort = sin(angle * 3f + wavePhase + ribbonIndex) * 0.18f
+                val r = baseRadius * (1f + waveDistort)
 
-                    // 3D Rotated Ellipse coordinates
-                    val tiltScale = if (ribbonIndex == 0) 0.65f else if (ribbonIndex == 1) 0.45f else 0.85f
-                    val x = centerX + r * cos(angle + angleOffset)
-                    val y = centerY + r * sin(angle + angleOffset) * tiltScale
+                val tiltScale = if (ribbonIndex == 0) 0.65f else if (ribbonIndex == 1) 0.45f else 0.85f
+                val x = centerX + r * cos(angle + angleOffset)
+                val y = centerY + r * sin(angle + angleOffset) * tiltScale
 
-                    if (step == 0) moveTo(x, y) else lineTo(x, y)
-                }
-                close()
+                if (step == 0) ribbonPath.moveTo(x, y) else ribbonPath.lineTo(x, y)
             }
+            ribbonPath.close()
 
             drawPath(
                 path = ribbonPath,
@@ -596,10 +600,10 @@ fun AiVoiceSphereAnimation(
             )
         }
 
-        // 4. Spherical Particle Lattice Mesh Nodes (Latitude Rings)
+        // 4. Spherical Particle Lattice Mesh Nodes
         val latitudeRings = 13
         for (i in 0 until latitudeRings) {
-            val normI = (i.toFloat() / (latitudeRings - 1)) * 2f - 1f // -1 to 1
+            val normI = (i.toFloat() / (latitudeRings - 1)) * 2f - 1f
             val ringRadiusY = sqrt((1f - normI * normI).coerceAtLeast(0f)) * baseRadius
             val ringCenterY = centerY + normI * baseRadius * 0.85f
 
@@ -607,7 +611,7 @@ fun AiVoiceSphereAnimation(
             for (j in 0 until dotsCount) {
                 val dotAngle = (j.toFloat() / dotsCount) * 2f * Math.PI.toFloat() + (rotationAngle * Math.PI.toFloat() / 180f) * (if (i % 2 == 0) 1.2f else -1.2f)
                 val dotX = centerX + ringRadiusY * cos(dotAngle)
-                val dotY = ringCenterY + ringRadiusY * sin(dotAngle) * 0.35f // 3D Perspective Tilt
+                val dotY = ringCenterY + ringRadiusY * sin(dotAngle) * 0.38f
 
                 val waveDistort = sin(wavePhase * 2.2f + dotAngle * 2.5f + i) * 4.0.dp.toPx()
                 val dotAlpha = ((sin(dotAngle + wavePhase) + 1f) / 2f * 0.75f + 0.30f).coerceIn(0.15f, 1f)

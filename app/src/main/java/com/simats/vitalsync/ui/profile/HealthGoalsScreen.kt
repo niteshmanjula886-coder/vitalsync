@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,7 +58,7 @@ fun HealthGoalsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp),
@@ -83,7 +84,7 @@ fun HealthGoalsScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -93,7 +94,7 @@ fun HealthGoalsScreen(
                     text = "Health Goals",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -103,7 +104,7 @@ fun HealthGoalsScreen(
                 text = "What would you like to focus on?",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -111,7 +112,7 @@ fun HealthGoalsScreen(
             Text(
                 text = "Choose your main goal. You can change it whenever your priorities shift.",
                 fontSize = 13.sp,
-                color = Color(0xFF6B7280)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -132,7 +133,7 @@ fun HealthGoalsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFFE6F4EA))
+                    .background(MaterialTheme.colorScheme.secondary)
                     .padding(16.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -142,7 +143,7 @@ fun HealthGoalsScreen(
                         text = "Selected goal: Improve Fitness. Start small and choose a pace that works for you.",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF065F46)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -186,8 +187,8 @@ private fun GoalRadioCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (isSelected) Color(0xFFE6F4EA) else Color.White)
-            .border(1.dp, if (isSelected) VitalTealPrimary else Color(0xFFE5E7EB), RoundedCornerShape(16.dp))
+            .background(if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface)
+            .border(1.dp, if (isSelected) VitalTealPrimary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
             .clickable { onSelect() }
             .padding(16.dp)
     ) {
@@ -197,9 +198,9 @@ private fun GoalRadioCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = desc, fontSize = 12.sp, color = Color(0xFF6B7280))
+                Text(text = desc, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -209,7 +210,7 @@ private fun GoalRadioCard(
                     .size(22.dp)
                     .clip(CircleShape)
                     .background(if (isSelected) VitalTealPrimary else Color.Transparent)
-                    .border(if (isSelected) 0.dp else 1.5.dp, if (isSelected) Color.Transparent else Color(0xFF9CA3AF), CircleShape),
+                    .border(if (isSelected) 0.dp else 1.5.dp, if (isSelected) Color.Transparent else MaterialTheme.colorScheme.onSurfaceVariant, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 if (isSelected) {

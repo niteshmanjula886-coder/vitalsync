@@ -1,17 +1,18 @@
-package com.simats.vitalsync
+package com.simats/vitalsync
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,6 +42,7 @@ import com.simats.vitalsync.ui.ai.WeeklyHealthReportScreen
 import com.simats.vitalsync.ui.auth.ForgotPasswordScreen
 import com.simats.vitalsync.ui.auth.LoginScreen
 import com.simats.vitalsync.ui.auth.SignUpScreen
+import com.simats.vitalsync.ui.auth.WelcomeScreen
 import com.simats.vitalsync.ui.gym.ActiveWorkoutSessionScreen
 import com.simats.vitalsync.ui.gym.AddCustomExerciseScreen
 import com.simats.vitalsync.ui.gym.ExerciseLibraryScreen
@@ -94,6 +96,7 @@ import java.util.Locale
 enum class ScreenState {
     SPLASH,
     ONBOARDING,
+    WELCOME,
     LOGIN,
     SIGNUP,
     FORGOT_PASSWORD,
@@ -162,7 +165,9 @@ class MainActivity : ComponentActivity() {
         val repository = FitnessRepository.getInstance(applicationContext)
 
         setContent {
-            VitalsyncTheme {
+            var isDarkModeEnabled by remember { mutableStateOf(false) }
+
+            VitalsyncTheme(darkTheme = isDarkModeEnabled) {
                 var currentScreen by remember { mutableStateOf(ScreenState.SPLASH) }
                 var isNewUser by remember { mutableStateOf(false) }
                 var activeReadingType by remember { mutableStateOf(VitalReadingType.HEART_RATE) }
@@ -188,23 +193,40 @@ class MainActivity : ComponentActivity() {
                     AnimatedContent(
                         targetState = currentScreen,
                         transitionSpec = {
-                            (fadeIn(animationSpec = tween(320)) +
-                                slideInHorizontally(
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioLowBouncy,
-                                        stiffness = Spring.StiffnessLow
-                                    ),
-                                    initialOffsetX = { width -> width / 3 }
-                                ))
-                                .togetherWith(
-                                    fadeOut(animationSpec = tween(250)) +
-                                        slideOutHorizontally(
-                                            animationSpec = tween(250),
-                                            targetOffsetX = { width -> -width / 3 }
-                                        )
-                                )
+                            if (initialState == ScreenState.SPLASH && targetState == ScreenState.ONBOARDING) {
+                                // Modern Apple / Material 3 Shared Axis Scale-Dissolve Transition
+                                (fadeIn(animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing)) +
+                                    scaleIn(
+                                        animationSpec = spring(
+                                            dampingRatio = 0.72f,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        ),
+                                        initialScale = 0.92f
+                                    ))
+                                    .togetherWith(
+                                        fadeOut(animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)) +
+                                            scaleOut(animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing), targetScale = 1.05f)
+                                    )
+                            } else {
+                                // Premium Apple iOS-inspired Spring Pop Screen Transition (92% -> 100% Scale + Subtle Fade)
+                                (fadeIn(animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)) +
+                                    scaleIn(
+                                        animationSpec = spring(
+                                            dampingRatio = 0.72f,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        ),
+                                        initialScale = 0.92f
+                                    ))
+                                    .togetherWith(
+                                        fadeOut(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)) +
+                                            scaleOut(
+                                                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                                                targetScale = 1.05f
+                                            )
+                                    )
+                            }
                         },
-                        label = "ModernScreenNavigationTransition"
+                        label = "AppleSpringPopScreenTransition"
                     ) { screen ->
                         when (screen) {
                             ScreenState.SPLASH -> {
@@ -220,6 +242,19 @@ class MainActivity : ComponentActivity() {
                                         currentScreen = ScreenState.MAIN
                                     },
                                     onFinishOnboarding = { currentScreen = ScreenState.LOGIN }
+                                )
+                            }
+                            ScreenState.WELCOME -> {
+                                WelcomeScreen(
+                                    userName = globalUserName.split(" ").firstOrNull() ?: "Alex",
+                                    onSetUpProfileClick = {
+                                        homeInitialTab = 0
+                                        currentScreen = ScreenState.MAIN
+                                    },
+                                    onSkipToDashboardClick = {
+                                        homeInitialTab = 0
+                                        currentScreen = ScreenState.MAIN
+                                    }
                                 )
                             }
                             ScreenState.LOGIN -> {
@@ -251,10 +286,22 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.PROFILE_SETUP -> {
                                 ProfileSetupScreen(
-                                    onBackClick = { currentScreen = ScreenState.LOGIN },
-                                    onSaveAndContinue = {
-                                        homeInitialTab = 0
-                                        currentScreen = ScreenState.MAIN
+                                    onBackClick = { currentScreen = ScreenState.SIGNUP },
+                                    onSaveAndContinue = { newName, newAge, newHeight, newWeight ->
+                                        if (newName.isNotBlank()) {
+                                            globalUserName = newName
+                                            val parts = newName.trim().split(" ")
+                                            globalUserInitials = if (parts.size >= 2) {
+                                                (parts[0].take(1) + parts[1].take(1)).uppercase()
+                                            } else {
+                                                parts[0].take(2).uppercase()
+                                            }
+                                        }
+                                        if (newAge.isNotBlank()) globalUserAge = newAge.filter { it.isDigit() }
+                                        if (newHeight.isNotBlank()) userHeightCm = newHeight.filter { it.isDigit() }
+                                        if (newWeight.isNotBlank()) userWeightKg = newWeight.filter { it.isDigit() || it == '.' }
+
+                                        currentScreen = ScreenState.WELCOME
                                     }
                                 )
                             }
@@ -561,6 +608,8 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.SETTINGS -> {
                                 SettingsScreen(
+                                    isDarkTheme = isDarkModeEnabled,
+                                    onDarkThemeToggle = { isDarkModeEnabled = it },
                                     onBackClick = {
                                         homeInitialTab = 3
                                         currentScreen = ScreenState.MAIN

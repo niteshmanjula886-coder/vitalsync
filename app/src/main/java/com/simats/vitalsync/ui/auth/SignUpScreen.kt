@@ -58,7 +58,7 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 fun SignUpScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
-    onSignUpSuccess: () -> Unit = {},
+    onSignUpSuccess: (name: String) -> Unit = {},
     onNavigateToLogin: () -> Unit = {}
 ) {
     var name by remember { mutableStateOf("Alex Morgan") }
@@ -337,9 +337,9 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Create Account Button
+            // Create Account Button (Triggers Welcome Screen for New User)
             Button(
-                onClick = onSignUpSuccess,
+                onClick = { onSignUpSuccess(name) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),

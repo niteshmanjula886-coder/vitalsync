@@ -2,34 +2,45 @@ package com.simats.vitalsync.ui.home
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +52,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -57,12 +71,21 @@ import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.ai.AiScreen
 import com.simats.vitalsync.ui.gym.GymModeScreen
 import com.simats.vitalsync.ui.profile.ProfileScreen
+import com.simats.vitalsync.ui.theme.VitalCardBg
+import com.simats.vitalsync.ui.theme.VitalPrimaryMint
+import com.simats.vitalsync.ui.theme.VitalSoftBorder
+import com.simats.vitalsync.ui.theme.VitalTextPrimary
+import com.simats.vitalsync.ui.theme.VitalTextSecondary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
     initialTab: Int = 0,
+    onWellnessScoreClick: () -> Unit = {},
     onVitalsClick: () -> Unit = {},
     onHeartRateClick: () -> Unit = {},
     onBloodPressureClick: () -> Unit = {},
@@ -95,7 +118,7 @@ fun HomeScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = Color(0xFFFAFCFB),
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             HomeBottomNavigationBar(
                 selectedTab = selectedBottomTab,
@@ -117,20 +140,28 @@ fun HomeScreen(
             AnimatedContent(
                 targetState = selectedBottomTab,
                 transitionSpec = {
-                    val duration = 220
-                    if (targetState > initialState) {
-                        (slideInHorizontally(animationSpec = tween(duration, easing = FastOutSlowInEasing), initialOffsetX = { width -> (width * 0.08f).toInt() }) + fadeIn(animationSpec = tween(duration, easing = FastOutSlowInEasing)))
-                            .togetherWith(slideOutHorizontally(animationSpec = tween(duration, easing = FastOutSlowInEasing), targetOffsetX = { width -> -(width * 0.08f).toInt() }) + fadeOut(animationSpec = tween(duration, easing = FastOutSlowInEasing)))
-                    } else {
-                        (slideInHorizontally(animationSpec = tween(duration, easing = FastOutSlowInEasing), initialOffsetX = { width -> -(width * 0.08f).toInt() }) + fadeIn(animationSpec = tween(duration, easing = FastOutSlowInEasing)))
-                            .togetherWith(slideOutHorizontally(animationSpec = tween(duration, easing = FastOutSlowInEasing), targetOffsetX = { width -> (width * 0.08f).toInt() }) + fadeOut(animationSpec = tween(duration, easing = FastOutSlowInEasing)))
-                    }
+                    (fadeIn(animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)) +
+                        scaleIn(
+                            animationSpec = spring(
+                                dampingRatio = 0.72f,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            initialScale = 0.92f
+                        ))
+                        .togetherWith(
+                            fadeOut(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)) +
+                                scaleOut(
+                                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                                    targetScale = 1.05f
+                                )
+                        )
                 },
-                label = "SmoothTabNavigationTransition"
+                label = "AppleSpringPopTabTransition"
             ) { tabIndex ->
                 when (tabIndex) {
                     0 -> HomeDashboardContent(
                         userName = userName,
+                        onWellnessScoreClick = onWellnessScoreClick,
                         onVitalsClick = onVitalsClick,
                         onHeartRateClick = onHeartRateClick,
                         onBloodPressureClick = onBloodPressureClick,
@@ -174,6 +205,7 @@ fun HomeScreen(
 @Composable
 private fun HomeDashboardContent(
     userName: String,
+    onWellnessScoreClick: () -> Unit,
     onVitalsClick: () -> Unit,
     onHeartRateClick: () -> Unit,
     onBloodPressureClick: () -> Unit,
@@ -206,9 +238,9 @@ private fun HomeDashboardContent(
         Column {
             Text(
                 text = "Good Morning, $firstName 👋",
-                fontSize = 26.sp,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827),
+                color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -216,19 +248,20 @@ private fun HomeDashboardContent(
             Text(
                 text = "Here's your health overview",
                 fontSize = 14.sp,
-                color = Color(0xFF6B7280)
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Wellness Score Hero Card
+        // Wellness Score Hero Card (Clicking opens Weekly Health Performance Report Screen)
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onVitalsClick() },
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F6F0)),
+                .clickable { onWellnessScoreClick() },
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Row(
@@ -237,7 +270,7 @@ private fun HomeDashboardContent(
                     .padding(20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Animated Gauge Progress Ring
+                // Animated Dark Purple Gauge Progress Ring
                 Box(
                     modifier = Modifier.size(90.dp),
                     contentAlignment = Alignment.Center
@@ -247,9 +280,9 @@ private fun HomeDashboardContent(
                         val arcSize = Size(size.width - strokePx, size.height - strokePx)
                         val topLeft = Offset(strokePx / 2f, strokePx / 2f)
 
-                        // Track
+                        // Track (Soft Light Purple)
                         drawArc(
-                            color = Color(0xFFC7EBDD),
+                            color = Color(0xFFC4B5FD),
                             startAngle = -220f,
                             sweepAngle = 260f,
                             useCenter = false,
@@ -257,9 +290,9 @@ private fun HomeDashboardContent(
                             size = arcSize,
                             style = Stroke(width = strokePx, cap = StrokeCap.Round)
                         )
-                        // Smoothly Animated Active Progress Sweep
+                        // Smoothly Animated Active Dark Purple Progress Sweep
                         drawArc(
-                            color = Color(0xFF0F9F7A),
+                            color = Color(0xFF7C3AED),
                             startAngle = -220f,
                             sweepAngle = animatedSweepAngle,
                             useCenter = false,
@@ -276,12 +309,12 @@ private fun HomeDashboardContent(
                             text = "82",
                             fontSize = 28.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
                             text = "/ 100",
                             fontSize = 12.sp,
-                            color = Color(0xFF6B7280)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -293,7 +326,7 @@ private fun HomeDashboardContent(
                         text = "Wellness Score",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
 
                     Spacer(modifier = Modifier.height(6.dp))
@@ -302,16 +335,16 @@ private fun HomeDashboardContent(
                         text = "Good",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F9F7A)
+                        color = Color(0xFF7C3AED)
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "+6% from last week",
+                        text = "+6% from last week →",
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF0F9F7A)
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF7C3AED)
                     )
                 }
             }
@@ -319,7 +352,7 @@ private fun HomeDashboardContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Your Vitals Section Header (4 Key Stats Overview)
+        // Your Vitals Section Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -330,12 +363,12 @@ private fun HomeDashboardContent(
                     text = "Your vitals",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
                     text = "4 key health stats",
                     fontSize = 12.sp,
-                    color = Color(0xFF6B7280)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -343,14 +376,14 @@ private fun HomeDashboardContent(
                 text = "View all →",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F9F7A),
+                color = VitalPrimaryMint,
                 modifier = Modifier.clickable { onVitalsClick() }
             )
         }
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Vitals 2x2 Grid
+        // Vitals 2x2 Grid with Dynamic Classification Colors
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(14.dp)
@@ -406,9 +439,10 @@ private fun HomeDashboardContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onActivityClick() },
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -423,14 +457,14 @@ private fun HomeDashboardContent(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         FootstepsIcon(
                             modifier = Modifier.size(20.dp),
-                            color = Color(0xFF0F9F7A)
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "Activity",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
 
@@ -438,7 +472,7 @@ private fun HomeDashboardContent(
                         text = "6,245 steps",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F9F7A)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
 
@@ -451,17 +485,17 @@ private fun HomeDashboardContent(
                     Text(
                         text = "4.2 km",
                         fontSize = 13.sp,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = "320 kcal",
                         fontSize = 13.sp,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = "42 active min",
                         fontSize = 13.sp,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -478,9 +512,10 @@ private fun HomeDashboardContent(
                 modifier = Modifier
                     .weight(1f)
                     .clickable { onSleepClick() },
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp)
@@ -488,13 +523,13 @@ private fun HomeDashboardContent(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         MoonIcon(
                             modifier = Modifier.size(18.dp),
-                            color = Color(0xFF0F9F7A)
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Sleep",
                             fontSize = 13.sp,
-                            color = Color(0xFF6B7280)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -504,7 +539,7 @@ private fun HomeDashboardContent(
                         text = "7h 32m",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -512,7 +547,7 @@ private fun HomeDashboardContent(
                     Text(
                         text = "Sleep Score 88",
                         fontSize = 12.sp,
-                        color = Color(0xFF9CA3AF)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -521,9 +556,10 @@ private fun HomeDashboardContent(
                 modifier = Modifier
                     .weight(1f)
                     .clickable { onHydrationClick() },
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp)
@@ -531,13 +567,13 @@ private fun HomeDashboardContent(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         WaterGlassIcon(
                             modifier = Modifier.size(18.dp),
-                            color = Color(0xFF0F9F7A)
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Hydration",
                             fontSize = 13.sp,
-                            color = Color(0xFF6B7280)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -547,7 +583,7 @@ private fun HomeDashboardContent(
                         text = "5 / 8 glasses",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -555,7 +591,7 @@ private fun HomeDashboardContent(
                     Text(
                         text = "3 more to your goal",
                         fontSize = 12.sp,
-                        color = Color(0xFF9CA3AF)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -563,18 +599,18 @@ private fun HomeDashboardContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // AI Insight Banner Card
+        // AI Insight Banner Card (Adaptive Dark/Light Theme)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(
                 modifier = Modifier.padding(18.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    SparkleIconPurple(modifier = Modifier.size(18.dp))
+                    SparkleIconPurple(modifier = Modifier.size(18.dp), color = Color(0xFF7C3AED))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "AI insight",
@@ -590,7 +626,7 @@ private fun HomeDashboardContent(
                     text = "Your activity is 12% higher than your weekly average.",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF374151),
+                    color = MaterialTheme.colorScheme.onBackground,
                     lineHeight = 20.sp
                 )
             }
@@ -614,21 +650,32 @@ private fun VitalCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
+    // Dynamic Classification Color Mapping based on Status / Trend
+    val statusColor = when {
+        status.contains("Low", ignoreCase = true) || status.contains("High", ignoreCase = true) || status.contains("Critical", ignoreCase = true) ->
+            Color(0xFFDC2626) // Red
+        status.contains("Warning", ignoreCase = true) || status.contains("Elevated", ignoreCase = true) ->
+            Color(0xFFD97706) // Amber/Orange
+        else ->
+            VitalPrimaryMint // Rich Dark Emerald Green (#026C54)
+    }
+
     Card(
         modifier = modifier.clickable { onClick() },
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = VitalCardBg),
+        border = BorderStroke(1.dp, VitalSoftBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 when (iconType) {
-                    VitalIconType.HEART -> HeartPulseIcon(modifier = Modifier.size(18.dp), color = Color(0xFF0F9F7A))
-                    VitalIconType.SPO2 -> WaterDropIcon(modifier = Modifier.size(18.dp), color = Color(0xFF0F9F7A))
-                    VitalIconType.BLOOD_PRESSURE -> PulseWaveIcon(modifier = Modifier.size(18.dp), color = Color(0xFF0F9F7A))
-                    VitalIconType.STEPS -> FootstepsIcon(modifier = Modifier.size(18.dp), color = Color(0xFF0F9F7A))
+                    VitalIconType.HEART -> HeartPulseIcon(modifier = Modifier.size(18.dp), color = statusColor)
+                    VitalIconType.SPO2 -> WaterDropIcon(modifier = Modifier.size(18.dp), color = statusColor)
+                    VitalIconType.BLOOD_PRESSURE -> PulseWaveIcon(modifier = Modifier.size(18.dp), color = statusColor)
+                    VitalIconType.STEPS -> FootstepsIcon(modifier = Modifier.size(18.dp), color = statusColor)
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -636,7 +683,7 @@ private fun VitalCard(
                 Text(
                     text = title,
                     fontSize = 13.sp,
-                    color = Color(0xFF6B7280),
+                    color = VitalTextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -648,7 +695,7 @@ private fun VitalCard(
                 text = value,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827),
+                color = VitalTextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -658,8 +705,8 @@ private fun VitalCard(
             Text(
                 text = status,
                 fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF0F9F7A),
+                fontWeight = FontWeight.Bold,
+                color = statusColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -667,56 +714,227 @@ private fun VitalCard(
     }
 }
 
+// 🔮 Parabolic Arc Jumping Circular Bubble Navigation Bar (Adaptive Dark/Light Theme)
 @Composable
 private fun HomeBottomNavigationBar(
     selectedTab: Int,
     onTabSelected: (Int) -> Unit
 ) {
-    NavigationBar(
-        containerColor = Color.White,
-        tonalElevation = 8.dp,
-        modifier = Modifier.height(72.dp)
+    val tabCount = 5
+    val items = listOf("Home", "Vitals", "AI", "Profile", "Gym")
+
+    var startTabPos by remember { mutableFloatStateOf(selectedTab.toFloat()) }
+    var targetTabPos by remember { mutableFloatStateOf(selectedTab.toFloat()) }
+
+    LaunchedEffect(selectedTab) {
+        startTabPos = targetTabPos
+        targetTabPos = selectedTab.toFloat()
+    }
+
+    // Horizontal Sliding Progress (0.0f to 4.0f)
+    val animatedTabPos by animateFloatAsState(
+        targetValue = targetTabPos,
+        animationSpec = spring(
+            dampingRatio = 0.68f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "JumpingBubbleHorizontal"
+    )
+
+    // Calculate Parabolic Arc Jump Fraction t (0.0f to 1.0f)
+    val totalDistance = abs(targetTabPos - startTabPos)
+    val traveled = abs(animatedTabPos - startTabPos)
+    val jumpFraction = if (totalDistance > 0.05f) (traveled / totalDistance).coerceIn(0f, 1f) else 0f
+
+    // Parabolic Arc Height Y (Arcs (-18.dp) upward in mid-air at peak)
+    val jumpArcYDp = (-18.dp) * sin(jumpFraction * Math.PI.toFloat())
+
+    // Mid-Air Scale Stretch
+    val bubbleScale = (1.0f + 0.12f * sin(jumpFraction * Math.PI.toFloat()))
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.BottomCenter
     ) {
-        val items = listOf("Home", "Vitals", "AI", "Profile", "Gym")
+        // Floating Glass Capsule Card Container (Adaptive Surface)
+        Card(
+            shape = RoundedCornerShape(32.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(68.dp)
+        ) {
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopStart
+            ) {
+                val totalWidth = maxWidth
+                val tabWidth = totalWidth / tabCount
 
-        items.forEachIndexed { index, label ->
-            val isSelected = selectedTab == index
-
-            NavigationBarItem(
-                selected = isSelected,
-                onClick = { onTabSelected(index) },
-                icon = {
-                    when (index) {
-                        0 -> HouseIcon(modifier = Modifier.size(22.dp), color = if (isSelected) Color(0xFF0F9F7A) else Color(0xFF9CA3AF))
-                        1 -> HeartPulseIcon(modifier = Modifier.size(22.dp), color = if (isSelected) Color(0xFF0F9F7A) else Color(0xFF9CA3AF))
-                        2 -> SparkleIconPurple(modifier = Modifier.size(22.dp), color = if (isSelected) Color(0xFF0F9F7A) else Color(0xFF9CA3AF))
-                        3 -> UserPersonIcon(modifier = Modifier.size(22.dp), color = if (isSelected) Color(0xFF0F9F7A) else Color(0xFF9CA3AF))
-                        4 -> DumbbellIcon(modifier = Modifier.size(22.dp), color = if (isSelected) Color(0xFF0F9F7A) else Color(0xFF9CA3AF))
-                    }
-                },
-                label = {
-                    Text(
-                        text = label,
-                        fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) Color(0xFF0F9F7A) else Color(0xFF9CA3AF)
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = Color(0xFFE6F4EA)
+                // 🔮 1. Active Selected Circular Bubble
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .offset(
+                            x = (tabWidth * animatedTabPos) + (tabWidth / 2f) - 20.dp,
+                            y = jumpArcYDp + 6.dp
+                        )
+                        .scale(bubbleScale)
+                        .shadow(
+                            elevation = 4.dp,
+                            shape = CircleShape,
+                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                        )
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.secondary)
                 )
-            )
+
+                // 2. FIXED NAVIGATION ITEMS ROW
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    items.forEachIndexed { index, label ->
+                        val isSelected = selectedTab == index
+                        val activeColor = MaterialTheme.colorScheme.primary
+                        val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
+
+                        val iconScale by animateFloatAsState(
+                            targetValue = if (isSelected) 1.12f else 1.0f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            label = "FixedIconScale"
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clickable {
+                                    startTabPos = animatedTabPos
+                                    onTabSelected(index)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                // Icon Container (40.dp size matches active circular bubble perfectly 1:1)
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .scale(iconScale),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    when (index) {
+                                        0 -> AnimatedHomeNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
+                                        1 -> AnimatedVitalsNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
+                                        2 -> AnimatedAiNavSparkleIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) Color(0xFF7C3AED) else inactiveColor)
+                                        3 -> AnimatedProfileNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
+                                        4 -> AnimatedGymNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
+                                        else -> AnimatedHomeNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(2.dp))
+
+                                // Fixed Text Label Position
+                                Text(
+                                    text = label,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) activeColor else inactiveColor,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
-// Icons
+// 💓 Interactive Heart Pulse Beat Animation Component for Navigation Bar
 @Composable
-private fun DumbbellIcon(
+private fun AnimatedVitalsNavIcon(
+    isSelected: Boolean,
     modifier: Modifier = Modifier,
     color: Color = Color.Gray
 ) {
-    Canvas(modifier = modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "VitalsNavPulseAnim")
+
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.22f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(650, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "HeartBeatPulse"
+    )
+
+    Canvas(
+        modifier = modifier.scale(if (isSelected) pulseScale else 1.0f)
+    ) {
+        val w = size.width
+        val h = size.height
+
+        val heartPath = Path().apply {
+            moveTo(w * 0.5f, h * 0.82f)
+            cubicTo(w * 0.15f, h * 0.58f, w * 0.02f, h * 0.30f, w * 0.25f, h * 0.14f)
+            cubicTo(w * 0.38f, h * 0.06f, w * 0.48f, h * 0.16f, w * 0.50f, h * 0.24f)
+            cubicTo(w * 0.52f, h * 0.16f, w * 0.62f, h * 0.06f, w * 0.75f, h * 0.14f)
+            cubicTo(w * 0.98f, h * 0.30f, w * 0.85f, h * 0.58f, w * 0.5f, h * 0.82f)
+            close()
+        }
+
+        val pulseLine = Path().apply {
+            moveTo(w * 0.22f, h * 0.48f)
+            lineTo(w * 0.38f, h * 0.48f)
+            lineTo(w * 0.45f, h * 0.34f)
+            lineTo(w * 0.53f, h * 0.62f)
+            lineTo(w * 0.62f, h * 0.48f)
+            lineTo(w * 0.78f, h * 0.48f)
+        }
+
+        drawPath(path = heartPath, color = color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(path = pulseLine, color = color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+// 🏋️ Interactive Dumbbell Lift Rep Animation Component for Navigation Bar
+@Composable
+private fun AnimatedGymNavIcon(
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    color: Color = Color.Gray
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "GymNavLiftAnim")
+
+    val liftOffsetY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = -5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(750, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "DumbbellLiftY"
+    )
+
+    Canvas(
+        modifier = modifier
+            .offset(y = if (isSelected) liftOffsetY.dp else 0.dp)
+            .scale(if (isSelected) 1.15f else 1.0f)
+    ) {
         val w = size.width
         val h = size.height
 
@@ -728,9 +946,215 @@ private fun DumbbellIcon(
         drawPath(path = bar, color = color, style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round))
         drawCircle(color = color, radius = w * 0.15f, center = Offset(w * 0.20f, h * 0.5f))
         drawCircle(color = color, radius = w * 0.15f, center = Offset(w * 0.80f, h * 0.5f))
+
+        // Outer Weight Ring Accent when active
+        if (isSelected) {
+            drawCircle(color = color.copy(alpha = 0.5f), radius = w * 0.22f, center = Offset(w * 0.20f, h * 0.5f), style = Stroke(width = 1.dp.toPx()))
+            drawCircle(color = color.copy(alpha = 0.5f), radius = w * 0.22f, center = Offset(w * 0.80f, h * 0.5f), style = Stroke(width = 1.dp.toPx()))
+        }
     }
 }
 
+// 👤 Interactive Upright Profile Person Icon Component for Navigation Bar
+@Composable
+private fun AnimatedProfileNavIcon(
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    color: Color = Color.Gray
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "ProfileNavPopAnim")
+
+    val headBounceY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = -3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "HeadBounceY"
+    )
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val headCenterY = if (isSelected) (h * 0.28f + headBounceY.dp.toPx()) else (h * 0.28f)
+        val headRadius = w * 0.22f
+
+        // 1. Head Circle
+        drawCircle(
+            color = color,
+            radius = headRadius,
+            center = Offset(w * 0.5f, headCenterY),
+            style = Stroke(width = 1.8.dp.toPx())
+        )
+
+        // 2. Body Arc (Upright person shoulders)
+        val bodyPath = Path().apply {
+            moveTo(w * 0.15f, h * 0.88f)
+            cubicTo(w * 0.15f, h * 0.58f, w * 0.85f, h * 0.58f, w * 0.85f, h * 0.88f)
+        }
+
+        drawPath(
+            path = bodyPath,
+            color = color,
+            style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round)
+        )
+    }
+}
+
+// 🏠 Interactive Pulsating Home Icon Animation Component for Navigation Bar
+@Composable
+private fun AnimatedHomeNavIcon(
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    color: Color = Color.Gray
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "HomeNavIconAnim")
+
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "HomePulseScale"
+    )
+
+    val smokeOffsetY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = -6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "SmokeOffsetY"
+    )
+
+    val smokeAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "SmokeAlpha"
+    )
+
+    Canvas(
+        modifier = modifier.scale(if (isSelected) pulseScale else 1.0f)
+    ) {
+        val w = size.width
+        val h = size.height
+
+        val housePath = Path().apply {
+            moveTo(w * 0.5f, h * 0.15f)
+            lineTo(w * 0.88f, h * 0.48f)
+            lineTo(w * 0.88f, h * 0.88f)
+            lineTo(w * 0.12f, h * 0.88f)
+            lineTo(w * 0.12f, h * 0.48f)
+            close()
+        }
+
+        drawPath(
+            path = housePath,
+            color = color,
+            style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+
+        // Door
+        val doorPath = Path().apply {
+            moveTo(w * 0.38f, h * 0.88f)
+            lineTo(w * 0.38f, h * 0.58f)
+            lineTo(w * 0.62f, h * 0.58f)
+            lineTo(w * 0.62f, h * 0.88f)
+        }
+        drawPath(
+            path = doorPath,
+            color = color,
+            style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+
+        // Floating Chimney Smoke Sparkle Dot when active
+        if (isSelected) {
+            drawCircle(
+                color = color.copy(alpha = smokeAlpha),
+                radius = 2.dp.toPx(),
+                center = Offset(w * 0.70f, (h * 0.08f) + smokeOffsetY.dp.toPx())
+            )
+        }
+    }
+}
+
+// 🔮 Interactive Pulsating AI Sparkle Star Animation Component for Navigation Bar
+@Composable
+private fun AnimatedAiNavSparkleIcon(
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF7C3AED)
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "AiNavSparkleAnim")
+
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.90f,
+        targetValue = 1.20f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "AiSparklePulse"
+    )
+
+    val spinAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(6000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "AiSparkleSpin"
+    )
+
+    Canvas(
+        modifier = modifier
+            .scale(if (isSelected) pulseScale else 1.0f)
+    ) {
+        val w = size.width
+        val h = size.height
+        val cx = w / 2f
+        val cy = h / 2f
+
+        // Central AI Sparkle Star
+        val path = Path().apply {
+            moveTo(cx, 0f)
+            quadraticTo(cx, cy, w, cy)
+            quadraticTo(cx, cy, cx, h)
+            quadraticTo(cx, cy, 0f, cy)
+            quadraticTo(cx, cy, cx, 0f)
+            close()
+        }
+
+        drawPath(path = path, color = color)
+
+        // Orbiting Sparkle Dots when AI tab is active
+        if (isSelected) {
+            repeat(4) { i ->
+                val angle = (i * 90f + spinAngle) * (Math.PI.toFloat() / 180f)
+                val r = w * 0.55f
+                val dotX = cx + r * cos(angle)
+                val dotY = cy + r * sin(angle)
+                drawCircle(
+                    color = Color(0xFFC4B5FD),
+                    radius = 2.2.dp.toPx(),
+                    center = Offset(dotX, dotY)
+                )
+            }
+        }
+    }
+}
+
+// Icons
 @Composable
 private fun HeartPulseIcon(
     modifier: Modifier = Modifier,
@@ -872,7 +1296,7 @@ private fun WaterGlassIcon(
 @Composable
 private fun SparkleIconPurple(
     modifier: Modifier = Modifier,
-    color: Color = Color(0xFF7C3AED)
+    color: Color = Color(0xFF4C1D95)
 ) {
     Canvas(modifier = modifier) {
         val w = size.width
@@ -888,48 +1312,6 @@ private fun SparkleIconPurple(
         }
 
         drawPath(path = path, color = color)
-    }
-}
-
-@Composable
-private fun HouseIcon(
-    modifier: Modifier = Modifier,
-    color: Color = Color.Gray
-) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        val housePath = Path().apply {
-            moveTo(w * 0.5f, h * 0.15f)
-            lineTo(w * 0.88f, h * 0.48f)
-            lineTo(w * 0.88f, h * 0.88f)
-            lineTo(w * 0.12f, h * 0.88f)
-            lineTo(w * 0.12f, h * 0.48f)
-            close()
-        }
-
-        drawPath(path = housePath, color = color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-    }
-}
-
-@Composable
-private fun UserPersonIcon(
-    modifier: Modifier = Modifier,
-    color: Color = Color.Gray
-) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        drawCircle(color = Color(0xFF0F9F7A), radius = w * 0.25f, center = Offset(w * 0.5f, h * 0.30f), style = Stroke(width = 1.6.dp.toPx()))
-
-        val bodyPath = Path().apply {
-            moveTo(w * 0.15f, h * 0.85f)
-            cubicTo(w * 0.15f, h * 0.60f, w * 0.85f, h * 0.60f, w * 0.85f, h * 0.85f)
-        }
-
-        drawPath(path = bodyPath, color = Color(0xFF0F9F7A), style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 

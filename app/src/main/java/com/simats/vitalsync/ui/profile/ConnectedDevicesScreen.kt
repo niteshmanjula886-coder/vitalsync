@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,11 +22,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -52,7 +52,7 @@ fun ConnectedDevicesScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -73,7 +73,7 @@ fun ConnectedDevicesScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -83,7 +83,7 @@ fun ConnectedDevicesScreen(
                     text = "Connected Devices",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -91,10 +91,10 @@ fun ConnectedDevicesScreen(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF1F5F9)),
+                    .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center
             ) {
-                RefreshIcon(modifier = Modifier.size(18.dp))
+                RefreshIcon(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -103,7 +103,7 @@ fun ConnectedDevicesScreen(
         Text(
             text = "Bring your health data together, effortlessly.",
             fontSize = 13.sp,
-            color = Color(0xFF6B7280)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -112,7 +112,8 @@ fun ConnectedDevicesScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F6F0)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
@@ -134,20 +135,20 @@ fun ConnectedDevicesScreen(
                             text = "Smart Watch",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Connected",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F9F7A)
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Battery 84% · Synced 9:30 AM",
                             fontSize = 11.sp,
-                            color = Color(0xFF6B7280)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -158,7 +159,7 @@ fun ConnectedDevicesScreen(
                     text = "🔄 All health data is up to date",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF0F9F7A)
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -174,13 +175,13 @@ fun ConnectedDevicesScreen(
                 text = "Available devices",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Text(
                 text = "Bluetooth on",
                 fontSize = 12.sp,
-                color = Color(0xFF0F9F7A),
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -233,9 +234,10 @@ private fun AvailableDeviceCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -248,19 +250,19 @@ private fun AvailableDeviceCard(
                 Text(text = icon, fontSize = 20.sp)
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(text = name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                    Text(text = sub, fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                    Text(text = name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                    Text(text = sub, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(20.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp))
                     .clickable { }
                     .padding(horizontal = 14.dp, vertical = 6.dp)
             ) {
-                Text(text = "Connect", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                Text(text = "Connect", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -277,12 +279,15 @@ private fun WatchIconLarge(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun RefreshIcon(modifier: Modifier = Modifier) {
+private fun RefreshIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF6B7280)
+) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
 
-        drawCircle(color = Color(0xFF6B7280), radius = w * 0.35f, center = Offset(w * 0.5f, h * 0.5f), style = Stroke(width = 1.6.dp.toPx()))
+        drawCircle(color = color, radius = w * 0.35f, center = Offset(w * 0.5f, h * 0.5f), style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 

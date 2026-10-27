@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.vitals
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -40,7 +41,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.theme.VitalCardBg
+import com.simats.vitalsync.ui.theme.VitalMainBackground
+import com.simats.vitalsync.ui.theme.VitalNavSelectedBg
+import com.simats.vitalsync.ui.theme.VitalPrimaryMint
+import com.simats.vitalsync.ui.theme.VitalSoftBorder
 import com.simats.vitalsync.ui.theme.VitalTealDark
+import com.simats.vitalsync.ui.theme.VitalTextPrimary
+import com.simats.vitalsync.ui.theme.VitalTextSecondary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
 @Composable
@@ -56,7 +64,7 @@ fun VitalSignsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(VitalMainBackground)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp),
@@ -84,7 +92,7 @@ fun VitalSignsScreen(
                     ) {
                         BackArrowIcon(
                             modifier = Modifier.size(20.dp),
-                            color = Color(0xFF111827)
+                            color = VitalTextPrimary
                         )
                     }
 
@@ -94,7 +102,7 @@ fun VitalSignsScreen(
                         text = "Vital Signs",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = VitalTextPrimary
                     )
                 }
 
@@ -111,7 +119,7 @@ fun VitalSignsScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 6 Grid Metric Cards
+            // 6 Grid Metric Cards with Dynamic Classification Colors
             // Row 1: Heart Rate & Blood Pressure
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -129,8 +137,8 @@ fun VitalSignsScreen(
 
                 VitalTileCard(
                     title = "Blood Pressure",
-                    value = "120/80 mmHg",
-                    status = "Normal",
+                    value = "140/90 mmHg",
+                    status = "Elevated",
                     updatedAt = "Updated 15m ago",
                     iconType = VitalTileIcon.BP,
                     modifier = Modifier.weight(1f),
@@ -147,8 +155,8 @@ fun VitalSignsScreen(
             ) {
                 VitalTileCard(
                     title = "SpO₂",
-                    value = "98%",
-                    status = "Optimal",
+                    value = "92%",
+                    status = "Low Rate",
                     updatedAt = "Updated 2m ago",
                     iconType = VitalTileIcon.SPO2,
                     modifier = Modifier.weight(1f),
@@ -236,29 +244,40 @@ private fun VitalTileCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
+    // Dynamic Classification Color Mapping based on Status / Trend
+    val (statusColor, statusBgColor) = when {
+        status.contains("Low", ignoreCase = true) || status.contains("High", ignoreCase = true) || status.contains("Critical", ignoreCase = true) ->
+            Pair(Color(0xFFDC2626), Color(0xFFFEE2E2)) // Red
+        status.contains("Warning", ignoreCase = true) || status.contains("Elevated", ignoreCase = true) ->
+            Pair(Color(0xFFD97706), Color(0xFFFEF3C7)) // Amber/Orange
+        else ->
+            Pair(VitalPrimaryMint, VitalNavSelectedBg) // Green
+    }
+
     Card(
         modifier = modifier.clickable { onClick() },
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = VitalCardBg),
+        border = BorderStroke(1.dp, VitalSoftBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 when (iconType) {
-                    VitalTileIcon.HEART -> HeartIconSmall(modifier = Modifier.size(16.dp))
-                    VitalTileIcon.BP -> BpIconSmall(modifier = Modifier.size(16.dp))
-                    VitalTileIcon.SPO2 -> WaterDropIconSmall(modifier = Modifier.size(16.dp))
-                    VitalTileIcon.TEMP -> TempIconSmall(modifier = Modifier.size(16.dp))
-                    VitalTileIcon.WEIGHT -> WeightIconSmall(modifier = Modifier.size(16.dp))
-                    VitalTileIcon.BMI -> BmiIconSmall(modifier = Modifier.size(16.dp))
+                    VitalTileIcon.HEART -> HeartIconSmall(modifier = Modifier.size(16.dp), color = statusColor)
+                    VitalTileIcon.BP -> BpIconSmall(modifier = Modifier.size(16.dp), color = statusColor)
+                    VitalTileIcon.SPO2 -> WaterDropIconSmall(modifier = Modifier.size(16.dp), color = statusColor)
+                    VitalTileIcon.TEMP -> TempIconSmall(modifier = Modifier.size(16.dp), color = statusColor)
+                    VitalTileIcon.WEIGHT -> WeightIconSmall(modifier = Modifier.size(16.dp), color = statusColor)
+                    VitalTileIcon.BMI -> BmiIconSmall(modifier = Modifier.size(16.dp), color = statusColor)
                 }
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = title,
                     fontSize = 12.sp,
-                    color = Color(0xFF6B7280)
+                    color = VitalTextSecondary
                 )
             }
 
@@ -268,7 +287,7 @@ private fun VitalTileCard(
                 text = value,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = VitalTextPrimary
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -281,27 +300,27 @@ private fun VitalTileCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFFE6F4EA))
+                        .background(statusBgColor)
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = status,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F9F7A)
+                        color = statusColor
                     )
                 }
 
                 Text(
                     text = updatedAt,
                     fontSize = 9.sp,
-                    color = Color(0xFF9CA3AF)
+                    color = VitalTextSecondary
                 )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Mini Wave Chart
+            // Mini Wave Chart with Trend Color Matching Status
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -317,7 +336,7 @@ private fun VitalTileCard(
                 }
                 drawPath(
                     path = path,
-                    color = Color(0xFF0F9F7A),
+                    color = statusColor,
                     style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                 )
             }
@@ -360,12 +379,15 @@ private fun CalendarIcon(modifier: Modifier = Modifier) {
             close()
         }
 
-        drawPath(path = calPath, color = Color(0xFF6B7280), style = Stroke(width = 1.6.dp.toPx()))
+        drawPath(path = calPath, color = VitalTextSecondary, style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 
 @Composable
-private fun HeartIconSmall(modifier: Modifier = Modifier) {
+private fun HeartIconSmall(
+    modifier: Modifier = Modifier,
+    color: Color = VitalPrimaryMint
+) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -376,12 +398,15 @@ private fun HeartIconSmall(modifier: Modifier = Modifier) {
             cubicTo(w * 0.9f, h * 0.2f, w * 0.9f, h * 0.5f, w * 0.5f, h * 0.8f)
             close()
         }
-        drawPath(path = path, color = Color(0xFF0F9F7A), style = Stroke(width = 1.6.dp.toPx()))
+        drawPath(path = path, color = color, style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 
 @Composable
-private fun BpIconSmall(modifier: Modifier = Modifier) {
+private fun BpIconSmall(
+    modifier: Modifier = Modifier,
+    color: Color = VitalPrimaryMint
+) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -393,12 +418,15 @@ private fun BpIconSmall(modifier: Modifier = Modifier) {
             lineTo(w * 0.7f, h * 0.85f)
             lineTo(w, h * 0.5f)
         }
-        drawPath(path = path, color = Color(0xFF0F9F7A), style = Stroke(width = 1.6.dp.toPx()))
+        drawPath(path = path, color = color, style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 
 @Composable
-private fun WaterDropIconSmall(modifier: Modifier = Modifier) {
+private fun WaterDropIconSmall(
+    modifier: Modifier = Modifier,
+    color: Color = VitalPrimaryMint
+) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -409,23 +437,29 @@ private fun WaterDropIconSmall(modifier: Modifier = Modifier) {
             cubicTo(w * 0.9f, h * 0.9f, w * 0.9f, h * 0.5f, w * 0.5f, 0f)
             close()
         }
-        drawPath(path = path, color = Color(0xFF0F9F7A), style = Stroke(width = 1.6.dp.toPx()))
+        drawPath(path = path, color = color, style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 
 @Composable
-private fun TempIconSmall(modifier: Modifier = Modifier) {
+private fun TempIconSmall(
+    modifier: Modifier = Modifier,
+    color: Color = VitalPrimaryMint
+) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
 
-        drawCircle(color = Color(0xFF0F9F7A), radius = w * 0.22f, center = Offset(w * 0.5f, h * 0.7f), style = Stroke(width = 1.6.dp.toPx()))
-        drawLine(color = Color(0xFF0F9F7A), start = Offset(w * 0.5f, h * 0.1f), end = Offset(w * 0.5f, h * 0.5f), strokeWidth = 1.6.dp.toPx())
+        drawCircle(color = color, radius = w * 0.22f, center = Offset(w * 0.5f, h * 0.7f), style = Stroke(width = 1.6.dp.toPx()))
+        drawLine(color = color, start = Offset(w * 0.5f, h * 0.1f), end = Offset(w * 0.5f, h * 0.5f), strokeWidth = 1.6.dp.toPx())
     }
 }
 
 @Composable
-private fun WeightIconSmall(modifier: Modifier = Modifier) {
+private fun WeightIconSmall(
+    modifier: Modifier = Modifier,
+    color: Color = VitalPrimaryMint
+) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -437,18 +471,21 @@ private fun WeightIconSmall(modifier: Modifier = Modifier) {
             lineTo(w * 0.1f, h * 0.8f)
             close()
         }
-        drawPath(path = path, color = Color(0xFF0F9F7A), style = Stroke(width = 1.6.dp.toPx()))
+        drawPath(path = path, color = color, style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 
 @Composable
-private fun BmiIconSmall(modifier: Modifier = Modifier) {
+private fun BmiIconSmall(
+    modifier: Modifier = Modifier,
+    color: Color = VitalPrimaryMint
+) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
 
-        drawCircle(color = Color(0xFF0F9F7A), radius = w * 0.25f, center = Offset(w * 0.5f, h * 0.3f), style = Stroke(width = 1.6.dp.toPx()))
-        drawLine(color = Color(0xFF0F9F7A), start = Offset(w * 0.2f, h * 0.8f), end = Offset(w * 0.8f, h * 0.8f), strokeWidth = 1.6.dp.toPx())
+        drawCircle(color = color, radius = w * 0.25f, center = Offset(w * 0.5f, h * 0.3f), style = Stroke(width = 1.6.dp.toPx()))
+        drawLine(color = color, start = Offset(w * 0.2f, h * 0.8f), end = Offset(w * 0.8f, h * 0.8f), strokeWidth = 1.6.dp.toPx())
     }
 }
 

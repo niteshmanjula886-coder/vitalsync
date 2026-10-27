@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -47,7 +49,7 @@ fun NotificationsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -68,7 +70,7 @@ fun NotificationsScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -78,7 +80,7 @@ fun NotificationsScreen(
                     text = "Notifications",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -86,10 +88,10 @@ fun NotificationsScreen(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF1F5F9)),
+                    .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center
             ) {
-                DoubleCheckIcon(modifier = Modifier.size(18.dp))
+                DoubleCheckIcon(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.primary)
             }
         }
 
@@ -103,14 +105,14 @@ fun NotificationsScreen(
             Text(
                 text = "Stay in sync with your day.",
                 fontSize = 13.sp,
-                color = Color(0xFF6B7280)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Text(
                 text = "Mark all read",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F9F7A),
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable { }
             )
         }
@@ -126,13 +128,13 @@ fun NotificationsScreen(
                 text = "Today",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Text(
                 text = "2 unread",
                 fontSize = 12.sp,
-                color = Color(0xFF0F9F7A),
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -145,8 +147,7 @@ fun NotificationsScreen(
             title = "Time to drink water",
             description = "Your hydration goal is 62% complete.",
             time = "5 min ago",
-            isUnread = true,
-            bgColor = Color(0xFFE8F6F0)
+            isUnread = true
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -157,8 +158,7 @@ fun NotificationsScreen(
             title = "Activity Reminder",
             description = "You have 1,755 steps left to hit your goal.",
             time = "28 min ago",
-            isUnread = true,
-            bgColor = Color(0xFFE8F6F0)
+            isUnread = true
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -167,7 +167,7 @@ fun NotificationsScreen(
             text = "Yesterday",
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF111827)
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -178,8 +178,7 @@ fun NotificationsScreen(
             title = "Sleep Reminder",
             description = "Your scheduled bedtime is in 30 minutes.",
             time = "Yesterday · 10:00 PM · Read",
-            isUnread = false,
-            bgColor = Color.White
+            isUnread = false
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -190,8 +189,7 @@ fun NotificationsScreen(
             title = "AI Wellness Update",
             description = "Your weekly wellness report is ready to view.",
             time = "Yesterday · 8:00 AM · Read",
-            isUnread = false,
-            bgColor = Color.White
+            isUnread = false
         )
 
         Spacer(modifier = Modifier.height(28.dp))
@@ -204,14 +202,16 @@ private fun NotificationCard(
     title: String,
     description: String,
     time: String,
-    isUnread: Boolean,
-    bgColor: Color
+    isUnread: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isUnread) 0.dp else 1.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isUnread) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isUnread) 0.dp else 2.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             Row(
@@ -226,7 +226,7 @@ private fun NotificationCard(
                         text = title,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -235,7 +235,7 @@ private fun NotificationCard(
                         modifier = Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF0F9F7A))
+                            .background(MaterialTheme.colorScheme.primary)
                     )
                 }
             }
@@ -245,7 +245,7 @@ private fun NotificationCard(
             Text(
                 text = description,
                 fontSize = 13.sp,
-                color = Color(0xFF4B5563)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -253,14 +253,17 @@ private fun NotificationCard(
             Text(
                 text = time,
                 fontSize = 11.sp,
-                color = Color(0xFF9CA3AF)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 }
 
 @Composable
-private fun DoubleCheckIcon(modifier: Modifier = Modifier) {
+private fun DoubleCheckIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF0F9F7A)
+) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -271,7 +274,7 @@ private fun DoubleCheckIcon(modifier: Modifier = Modifier) {
             lineTo(w * 0.7f, h * 0.2f)
         }
 
-        drawPath(path = p1, color = Color(0xFF0F9F7A), style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(path = p1, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 

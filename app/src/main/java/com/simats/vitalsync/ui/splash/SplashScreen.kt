@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -368,7 +367,8 @@ private fun HeartWithPulseIcon(modifier: Modifier = Modifier) {
             color = Color.White,
             style = Stroke(
                 width = 2.6.dp.toPx(),
-                cap = StrokeCap.Round,join = StrokeJoin.Round
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round
             )
         )
     }

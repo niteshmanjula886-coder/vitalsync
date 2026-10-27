@@ -27,6 +27,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -79,7 +80,7 @@ val sampleHealthGoals = listOf(
 fun ProfileSetupScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
-    onSaveAndContinue: () -> Unit = {}
+    onSaveAndContinue: (name: String, age: String, height: String, weight: String) -> Unit = { _, _, _, _ -> }
 ) {
     var name by remember { mutableStateOf("Alex Morgan") }
     var age by remember { mutableStateOf("28 years") }
@@ -99,7 +100,7 @@ fun ProfileSetupScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 24.dp)
@@ -123,7 +124,7 @@ fun ProfileSetupScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -133,7 +134,7 @@ fun ProfileSetupScreen(
                     text = "Profile setup",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -144,7 +145,7 @@ fun ProfileSetupScreen(
                 text = "Personalize Your Experience",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -153,7 +154,7 @@ fun ProfileSetupScreen(
             Text(
                 text = "A few details help us tailor your insights.",
                 fontSize = 14.sp,
-                color = Color(0xFF6B7280)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -163,7 +164,7 @@ fun ProfileSetupScreen(
                 text = "Name",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF374151)
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -175,12 +176,12 @@ fun ProfileSetupScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                     focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB),
-                    focusedTextColor = Color(0xFF111827),
-                    unfocusedTextColor = Color(0xFF111827)
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                 ),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
@@ -201,7 +202,7 @@ fun ProfileSetupScreen(
                         text = "Age",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF374151)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     OutlinedTextField(
@@ -211,10 +212,12 @@ fun ProfileSetupScreen(
                         singleLine = true,
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                             focusedBorderColor = VitalTealPrimary,
-                            unfocusedBorderColor = Color(0xFFE5E7EB)
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                         )
                     )
                 }
@@ -225,7 +228,7 @@ fun ProfileSetupScreen(
                         text = "Gender",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF374151)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Box {
@@ -239,9 +242,9 @@ fun ProfileSetupScreen(
                             enabled = false,
                             shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                disabledContainerColor = Color.White,
-                                disabledBorderColor = Color(0xFFE5E7EB),
-                                disabledTextColor = Color(0xFF111827)
+                                disabledContainerColor = MaterialTheme.colorScheme.surface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                disabledTextColor = MaterialTheme.colorScheme.onBackground
                             ),
                             trailingIcon = {
                                 DropdownArrowIcon(
@@ -283,7 +286,7 @@ fun ProfileSetupScreen(
                         text = "Height",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF374151)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     OutlinedTextField(
@@ -293,10 +296,12 @@ fun ProfileSetupScreen(
                         singleLine = true,
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                             focusedBorderColor = VitalTealPrimary,
-                            unfocusedBorderColor = Color(0xFFE5E7EB)
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                         )
                     )
                 }
@@ -307,7 +312,7 @@ fun ProfileSetupScreen(
                         text = "Weight",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF374151)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     OutlinedTextField(
@@ -317,10 +322,12 @@ fun ProfileSetupScreen(
                         singleLine = true,
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                             focusedBorderColor = VitalTealPrimary,
-                            unfocusedBorderColor = Color(0xFFE5E7EB)
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                         )
                     )
                 }
@@ -333,7 +340,7 @@ fun ProfileSetupScreen(
                 text = "Activity Level",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF374151)
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -349,9 +356,9 @@ fun ProfileSetupScreen(
                         .clickable { isActivityDropdownExpanded = true },
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        disabledContainerColor = Color.White,
-                        disabledBorderColor = Color(0xFFE5E7EB),
-                        disabledTextColor = Color(0xFF111827)
+                        disabledContainerColor = MaterialTheme.colorScheme.surface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        disabledTextColor = MaterialTheme.colorScheme.onBackground
                     ),
                     trailingIcon = {
                         DropdownArrowIcon(
@@ -385,7 +392,7 @@ fun ProfileSetupScreen(
                 text = "What are your health goals?",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -414,7 +421,7 @@ fun ProfileSetupScreen(
 
             // Save & Continue Button
             Button(
-                onClick = onSaveAndContinue,
+                onClick = { onSaveAndContinue(name, age, height, weight) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
@@ -447,11 +454,11 @@ private fun GoalOptionCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(
-                if (isSelected) Color(0xFFE6F4EA) else Color.White
+                if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface
             )
             .border(
                 width = 1.dp,
-                color = if (isSelected) VitalTealPrimary else Color(0xFFE5E7EB),
+                color = if (isSelected) VitalTealPrimary else MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(16.dp)
             )
             .clickable { onClick() }
@@ -468,7 +475,7 @@ private fun GoalOptionCard(
                 GoalIcon(
                     iconType = goal.iconType,
                     modifier = Modifier.size(20.dp),
-                    color = if (isSelected) VitalTealDark else Color(0xFF4B5563)
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -477,7 +484,7 @@ private fun GoalOptionCard(
                     text = goal.title,
                     fontSize = 15.sp,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                    color = Color(0xFF1F2937)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -485,10 +492,10 @@ private fun GoalOptionCard(
                 modifier = Modifier
                     .size(22.dp)
                     .clip(CircleShape)
-                    .background(if (isSelected) VitalTealPrimary else Color.Transparent)
+                    .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
                     .border(
                         width = if (isSelected) 0.dp else 1.5.dp,
-                        color = if (isSelected) Color.Transparent else Color(0xFF9CA3AF),
+                        color = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.onSurfaceVariant,
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -516,7 +523,6 @@ private fun GoalIcon(
 
         when (iconType) {
             GoalIconType.FITNESS -> {
-                // Running / Activity Dumbbell Icon
                 drawCircle(color = color, radius = w * 0.18f, center = Offset(w * 0.25f, h * 0.25f))
                 drawCircle(color = color, radius = w * 0.18f, center = Offset(w * 0.75f, h * 0.75f))
                 drawLine(
@@ -528,7 +534,6 @@ private fun GoalIcon(
                 )
             }
             GoalIconType.SLEEP -> {
-                // Crescent Moon Icon
                 val moonPath = Path().apply {
                     moveTo(w * 0.75f, h * 0.15f)
                     cubicTo(w * 0.25f, h * 0.25f, w * 0.25f, h * 0.75f, w * 0.75f, h * 0.85f)
@@ -542,7 +547,6 @@ private fun GoalIcon(
                 )
             }
             GoalIconType.WEIGHT -> {
-                // Scales / Balance Icon
                 drawLine(
                     color = color,
                     start = Offset(w * 0.15f, h * 0.30f),
@@ -566,7 +570,6 @@ private fun GoalIcon(
                 )
             }
             GoalIconType.WELLNESS -> {
-                // Heart Outline Icon
                 val heartPath = Path().apply {
                     moveTo(w * 0.5f, h * 0.82f)
                     cubicTo(

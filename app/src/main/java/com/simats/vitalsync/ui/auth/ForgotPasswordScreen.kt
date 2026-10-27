@@ -17,12 +17,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -43,6 +45,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,12 +61,19 @@ fun ForgotPasswordScreen(
     onResetLinkSent: () -> Unit = {}
 ) {
     var email by remember { mutableStateOf("alex.morgan@email.com") }
-    var isLinkSent by remember { mutableStateOf(false) }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+
+    var isPasswordVisible by remember { mutableStateOf(false) }
+    var isConfirmPasswordVisible by remember { mutableStateOf(false) }
+
+    var errorMessage by remember { mutableStateOf("") }
+    var isSuccessBannerVisible by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 24.dp)
@@ -86,21 +97,21 @@ fun ForgotPasswordScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Text(
-                    text = "Forgot Password",
+                    text = "Reset Password",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // Key Lock Icon Header
             Box(
@@ -113,73 +124,189 @@ fun ForgotPasswordScreen(
                 KeyLockIcon(modifier = Modifier.size(36.dp))
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Title
             Text(
-                text = "Reset Your Password",
+                text = "Set New Password",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Subtitle
-            Text(
-                text = "Enter your registered email address below and we'll send you a link to reset your password.",
-                fontSize = 14.sp,
-                color = Color(0xFF6B7280),
-                lineHeight = 20.sp
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Email Label
-            Text(
-                text = "Email Address",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF374151)
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Email Input Box
+            // Subtitle
+            Text(
+                text = "Enter your email along with your new password to update your account.",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 20.sp
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 1. Email Address Label
+            Text(
+                text = "Email Address",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Email Input Field
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = {
+                    email = it
+                    errorMessage = ""
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                     focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB),
-                    focusedTextColor = Color(0xFF111827),
-                    unfocusedTextColor = Color(0xFF111827)
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                 ),
                 trailingIcon = {
                     EnvelopeIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF9CA3AF)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 2. New Password Label
+            Text(
+                text = "New Password",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // New Password Input Field
+            OutlinedTextField(
+                value = newPassword,
+                onValueChange = {
+                    newPassword = it
+                    errorMessage = ""
+                },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = VitalTealPrimary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+                ),
+                trailingIcon = {
+                    Text(
+                        text = if (isPasswordVisible) "🙈" else "👁️",
+                        fontSize = 18.sp,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable { isPasswordVisible = !isPasswordVisible }
+                            .padding(4.dp)
+                    )
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Next
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 3. Confirm Password Label
+            Text(
+                text = "Confirm Password",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Confirm Password Input Field
+            OutlinedTextField(
+                value = confirmPassword,
+                onValueChange = {
+                    confirmPassword = it
+                    errorMessage = ""
+                },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = VitalTealPrimary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+                ),
+                trailingIcon = {
+                    Text(
+                        text = if (isConfirmPasswordVisible) "🙈" else "👁️",
+                        fontSize = 18.sp,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable { isConfirmPasswordVisible = !isConfirmPasswordVisible }
+                            .padding(4.dp)
+                    )
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
                 )
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Success Confirmation Banner if sent
-            if (isLinkSent) {
+            // Error Message Display
+            if (errorMessage.isNotBlank()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFEE2E2))
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = "⚠️ $errorMessage",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFDC2626)
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // Success Confirmation Banner
+            if (isSuccessBannerVisible) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFFDCFCE7))
                         .padding(14.dp)
                 ) {
@@ -187,21 +314,35 @@ fun ForgotPasswordScreen(
                         Text(text = "✅", fontSize = 16.sp)
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Reset instructions sent to $email. Please check your inbox.",
+                            text = "Password reset successfully! You can now back to login.",
                             fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = FontWeight.Bold,
                             color = Color(0xFF166534)
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Send Reset Link Button
+            // Reset Password Button
             Button(
                 onClick = {
-                    isLinkSent = true
-                    onResetLinkSent()
+                    when {
+                        email.isBlank() || !email.contains("@") -> {
+                            errorMessage = "Please enter a valid email address"
+                        }
+                        newPassword.length < 6 -> {
+                            errorMessage = "Password must be at least 6 characters"
+                        }
+                        newPassword != confirmPassword -> {
+                            errorMessage = "Passwords do not match"
+                        }
+                        else -> {
+                            errorMessage = ""
+                            isSuccessBannerVisible = true
+                            onResetLinkSent()
+                        }
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -213,11 +354,13 @@ fun ForgotPasswordScreen(
                 )
             ) {
                 Text(
-                    text = if (isLinkSent) "Resend Reset Link" else "Send Reset Link",
+                    text = "Reset Password",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
 
         // Back to Login link
@@ -225,7 +368,7 @@ fun ForgotPasswordScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 28.dp)
+                .padding(vertical = 24.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -235,7 +378,7 @@ fun ForgotPasswordScreen(
                 Text(
                     text = "Remember password? ",
                     fontSize = 14.sp,
-                    color = Color(0xFF6B7280)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "Back to Login",

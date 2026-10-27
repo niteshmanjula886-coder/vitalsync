@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.nutrition
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,14 +25,13 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -45,7 +45,6 @@ import com.simats.vitalsync.data.MealCategory
 import com.simats.vitalsync.data.MealEntry
 import com.simats.vitalsync.data.NutritionGoal
 import com.simats.vitalsync.ui.theme.VitalTealDark
-import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 import kotlin.math.max
 
@@ -71,7 +70,7 @@ fun NutritionDashboardScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -92,7 +91,7 @@ fun NutritionDashboardScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -102,7 +101,7 @@ fun NutritionDashboardScreen(
                     text = "Diet & Protein Tracker 🥗",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -110,7 +109,7 @@ fun NutritionDashboardScreen(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF1F5F9))
+                    .background(MaterialTheme.colorScheme.surface)
                     .clickable { onNutritionSettingsClick() },
                 contentAlignment = Alignment.Center
             ) {
@@ -123,9 +122,10 @@ fun NutritionDashboardScreen(
         // Date Navigator Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -140,14 +140,14 @@ fun NutritionDashboardScreen(
                 ) {
                     Text(text = "🗓️", fontSize = 16.sp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = dateString, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(text = dateString, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 }
 
                 Text(
                     text = "Meal Logs →",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F9F7A),
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable { onViewMealHistoryClick() }
                 )
             }
@@ -267,7 +267,7 @@ fun NutritionDashboardScreen(
             text = "Today's Meals",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF111827)
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -282,8 +282,9 @@ fun NutritionDashboardScreen(
                     .fillMaxWidth()
                     .padding(vertical = 6.dp),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(
@@ -299,12 +300,12 @@ fun NutritionDashboardScreen(
                                     text = category.displayName,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF111827)
+                                    color = MaterialTheme.colorScheme.onBackground
                                 )
                                 Text(
                                     text = "$categoryCals kcal · ${categoryProtein.toInt()}g protein",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF6B7280)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -312,7 +313,7 @@ fun NutritionDashboardScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFE8F6F0))
+                                .background(MaterialTheme.colorScheme.secondary)
                                 .clickable { onAddMealClick(category) }
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
@@ -320,14 +321,14 @@ fun NutritionDashboardScreen(
                                 text = "+ Add Food",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F9F7A)
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
 
                     if (categoryMeals.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Spacer(modifier = Modifier.height(10.dp))
 
                         categoryMeals.forEach { meal ->
@@ -342,13 +343,13 @@ fun NutritionDashboardScreen(
                                     text = "${meal.foodItem.name} (${meal.quantity.toInt()}x)",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF374151)
+                                    color = MaterialTheme.colorScheme.onBackground
                                 )
                                 Text(
                                     text = "${meal.calculatedCalories} kcal | ${meal.calculatedProtein}g P",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F9F7A)
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -371,14 +372,15 @@ private fun MacroMiniCard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Text(text = title, fontSize = 11.sp, color = Color(0xFF6B7280), fontWeight = FontWeight.Bold)
+            Text(text = title, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             Text(text = targetStr, fontSize = 11.sp, color = color, fontWeight = FontWeight.Bold)
         }
     }

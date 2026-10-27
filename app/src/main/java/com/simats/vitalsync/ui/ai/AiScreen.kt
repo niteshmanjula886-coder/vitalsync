@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.ai
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,6 +26,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -52,7 +54,7 @@ fun AiScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -75,14 +77,14 @@ fun AiScreen(
                     text = "VitalSync AI ✨",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
 
                 IconButton(
                     onClick = onAskAiClick,
                     modifier = Modifier.size(36.dp)
                 ) {
-                    ChatBubbleIcon(modifier = Modifier.size(20.dp))
+                    ChatBubbleIcon(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onBackground)
                 }
             }
 
@@ -93,7 +95,7 @@ fun AiScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onAskAiClick() },
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(28.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
@@ -158,7 +160,7 @@ fun AiScreen(
                 text = "Your weekly trends",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -171,7 +173,7 @@ fun AiScreen(
                 TrendCard(
                     title = "Activity",
                     value = "↑ 12%",
-                    color = Color(0xFF0F9F7A),
+                    color = MaterialTheme.colorScheme.primary,
                     iconType = TrendIcon.STEPS,
                     modifier = Modifier.weight(1f)
                 )
@@ -179,7 +181,7 @@ fun AiScreen(
                 TrendCard(
                     title = "Sleep",
                     value = "↑ 6%",
-                    color = Color(0xFF0F9F7A),
+                    color = MaterialTheme.colorScheme.primary,
                     iconType = TrendIcon.SLEEP,
                     modifier = Modifier.weight(1f)
                 )
@@ -202,7 +204,7 @@ fun AiScreen(
                 TrendCard(
                     title = "Heart Rate",
                     value = "Stable",
-                    color = Color(0xFF0F9F7A),
+                    color = MaterialTheme.colorScheme.primary,
                     iconType = TrendIcon.HEART,
                     modifier = Modifier.weight(1f)
                 )
@@ -215,16 +217,17 @@ fun AiScreen(
                 text = "Small steps for today",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     StepActionRow(icon = "👟", text = "Take a 15-minute walk today.")
@@ -268,7 +271,7 @@ fun AiScreen(
             Text(
                 text = "Wellness guidance, not a medical diagnosis.",
                 fontSize = 12.sp,
-                color = Color(0xFF9CA3AF),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }
@@ -292,9 +295,10 @@ private fun TrendCard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -312,7 +316,7 @@ private fun TrendCard(
                 Text(
                     text = title,
                     fontSize = 13.sp,
-                    color = Color(0xFF6B7280)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -353,7 +357,7 @@ private fun StepActionRow(
             text = text,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF111827)
+            color = MaterialTheme.colorScheme.onBackground
         )
     }
 }
@@ -377,7 +381,10 @@ private fun BrainAiIcon(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ChatBubbleIcon(modifier: Modifier = Modifier) {
+private fun ChatBubbleIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF374151)
+) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -393,25 +400,27 @@ private fun ChatBubbleIcon(modifier: Modifier = Modifier) {
             close()
         }
 
-        drawPath(path = path, color = Color(0xFF374151), style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(path = path, color = color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 
 @Composable
 private fun StepsIconSmall(modifier: Modifier = Modifier) {
+    val primary = MaterialTheme.colorScheme.primary
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
-        drawCircle(color = Color(0xFF0F9F7A), radius = w * 0.25f, center = Offset(w * 0.5f, h * 0.5f))
+        drawCircle(color = primary, radius = w * 0.25f, center = Offset(w * 0.5f, h * 0.5f))
     }
 }
 
 @Composable
 private fun MoonIconSmall(modifier: Modifier = Modifier) {
+    val primary = MaterialTheme.colorScheme.primary
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
-        drawCircle(color = Color(0xFF0F9F7A), radius = w * 0.25f, center = Offset(w * 0.5f, h * 0.5f))
+        drawCircle(color = primary, radius = w * 0.25f, center = Offset(w * 0.5f, h * 0.5f))
     }
 }
 
@@ -426,10 +435,11 @@ private fun WaterIconSmall(modifier: Modifier = Modifier) {
 
 @Composable
 private fun HeartIconSmall(modifier: Modifier = Modifier) {
+    val primary = MaterialTheme.colorScheme.primary
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
-        drawCircle(color = Color(0xFF0F9F7A), radius = w * 0.25f, center = Offset(w * 0.5f, h * 0.5f))
+        drawCircle(color = primary, radius = w * 0.25f, center = Offset(w * 0.5f, h * 0.5f))
     }
 }
 

@@ -3,6 +3,7 @@ package com.simats.vitalsync.ui.vitals
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,10 +54,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
-// Dark Classification Colors
-private val DarkGreenClassification = Color(0xFF047857) // Dark Emerald Green
-private val DarkYellowClassification = Color(0xFFB45309) // Dark Amber / Yellow
-private val DarkRedClassification = Color(0xFFB91C1C) // Dark Red
+// Classification Colors
+private val DarkGreenClassification = Color(0xFF00A884) // Emerald Green
+private val DarkYellowClassification = Color(0xFFD97706) // Amber / Yellow
+private val DarkRedClassification = Color(0xFFDC2626) // Red
 
 @Composable
 fun HeartRateDetailScreen(
@@ -69,14 +71,14 @@ fun HeartRateDetailScreen(
     val (statusLabel, statusColor, statusBgColor) = when {
         heartRateBpm < 60 -> Triple("Low Rate", DarkRedClassification, Color(0xFFFEE2E2))
         heartRateBpm in 60..70 -> Triple("Moderate", DarkYellowClassification, Color(0xFFFEF3C7))
-        heartRateBpm in 71..90 -> Triple("Normal (High Optimal)", DarkGreenClassification, Color(0xFFE6F4EA))
+        heartRateBpm in 71..90 -> Triple("Normal", DarkGreenClassification, Color(0xFFDDF7EC))
         else -> Triple("High Rate", DarkRedClassification, Color(0xFFFEE2E2))
     }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -97,7 +99,7 @@ fun HeartRateDetailScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -107,7 +109,7 @@ fun HeartRateDetailScreen(
                     text = "Heart Rate",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -115,10 +117,10 @@ fun HeartRateDetailScreen(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF1F5F9)),
+                    .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center
             ) {
-                CalendarIcon(modifier = Modifier.size(18.dp))
+                CalendarIcon(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -127,9 +129,10 @@ fun HeartRateDetailScreen(
         // Latest Reading Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
                 Row(
@@ -143,7 +146,7 @@ fun HeartRateDetailScreen(
                         Text(
                             text = "Latest Reading - 9:00 AM",
                             fontSize = 13.sp,
-                            color = Color(0xFF6B7280)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -162,6 +165,22 @@ fun HeartRateDetailScreen(
                                 color = DarkYellowClassification
                             )
                         }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(statusBgColor)
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = statusLabel,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = statusColor
+                            )
+                        }
                     }
                 }
 
@@ -172,14 +191,14 @@ fun HeartRateDetailScreen(
                         text = "$heartRateBpm",
                         fontSize = 38.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "BPM",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6B7280),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 6.dp)
                     )
                 }
@@ -200,9 +219,10 @@ fun HeartRateDetailScreen(
         // Heart Rate Trend Chart Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
                 Row(
@@ -214,7 +234,7 @@ fun HeartRateDetailScreen(
                         text = "Heart rate trend",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
 
                     Text(
@@ -227,12 +247,12 @@ fun HeartRateDetailScreen(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Color Classification Legend Row (Dark Yellow, Dark Green, Dark Red)
+                // Color Classification Legend Row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFF8FAFC))
+                        .background(MaterialTheme.colorScheme.outlineVariant)
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -244,7 +264,7 @@ fun HeartRateDetailScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Smooth Animated Heart Rate Trend Line Chart Canvas with Dark Classification Zones
+                // Smooth Animated Heart Rate Trend Line Chart Canvas with Zero Allocations
                 var targetProgress by remember { mutableFloatStateOf(0f) }
                 LaunchedEffect(Unit) {
                     targetProgress = 1f
@@ -254,6 +274,11 @@ fun HeartRateDetailScreen(
                     animationSpec = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
                     label = "HeartRateTrendLineAnimation"
                 )
+
+                val fullPath = remember { Path() }
+                val animatedPath = remember { Path() }
+                val fillPath = remember { Path() }
+                val pathMeasure = remember { PathMeasure() }
 
                 Canvas(
                     modifier = Modifier
@@ -265,19 +290,16 @@ fun HeartRateDetailScreen(
                     val h = size.height
 
                     // 1. Draw 3 Dark Color Classification Background Range Bands
-                    // High Zone (Top 33%) -> Dark Yellow / Amber Band
                     drawRect(
                         color = DarkYellowClassification.copy(alpha = 0.15f),
                         topLeft = Offset(0f, 0f),
                         size = Size(w, h * 0.33f)
                     )
-                    // Normal Zone (Middle 34%) -> Dark Green Band
                     drawRect(
                         color = DarkGreenClassification.copy(alpha = 0.18f),
                         topLeft = Offset(0f, h * 0.33f),
                         size = Size(w, h * 0.34f)
                     )
-                    // Low Zone (Bottom 33%) -> Dark Red Band
                     drawRect(
                         color = DarkRedClassification.copy(alpha = 0.15f),
                         topLeft = Offset(0f, h * 0.67f),
@@ -285,29 +307,25 @@ fun HeartRateDetailScreen(
                     )
 
                     // 2. Trend Line Path
-                    val fullPath = Path().apply {
-                        moveTo(0f, h * 0.70f)
-                        cubicTo(w * 0.08f, h * 0.60f, w * 0.12f, h * 0.50f, w * 0.16f, h * 0.50f)
-                        cubicTo(w * 0.24f, h * 0.30f, w * 0.28f, h * 0.20f, w * 0.32f, h * 0.20f)
-                        cubicTo(w * 0.40f, h * 0.30f, w * 0.44f, h * 0.40f, w * 0.48f, h * 0.40f)
-                        cubicTo(w * 0.56f, h * 0.20f, w * 0.60f, h * 0.10f, w * 0.64f, h * 0.10f)
-                        cubicTo(w * 0.72f, h * 0.20f, w * 0.76f, h * 0.30f, w * 0.80f, h * 0.30f)
-                        cubicTo(w * 0.90f, h * 0.40f, w * 0.95f, h * 0.50f, w, h * 0.50f)
-                    }
+                    fullPath.reset()
+                    fullPath.moveTo(0f, h * 0.70f)
+                    fullPath.cubicTo(w * 0.08f, h * 0.60f, w * 0.12f, h * 0.50f, w * 0.16f, h * 0.50f)
+                    fullPath.cubicTo(w * 0.24f, h * 0.30f, w * 0.28f, h * 0.20f, w * 0.32f, h * 0.20f)
+                    fullPath.cubicTo(w * 0.40f, h * 0.30f, w * 0.44f, h * 0.40f, w * 0.48f, h * 0.40f)
+                    fullPath.cubicTo(w * 0.56f, h * 0.20f, w * 0.60f, h * 0.10f, w * 0.64f, h * 0.10f)
+                    fullPath.cubicTo(w * 0.72f, h * 0.20f, w * 0.76f, h * 0.30f, w * 0.80f, h * 0.30f)
+                    fullPath.cubicTo(w * 0.90f, h * 0.40f, w * 0.95f, h * 0.50f, w, h * 0.50f)
 
-                    val pathMeasure = PathMeasure()
                     pathMeasure.setPath(fullPath, false)
-                    val animatedPath = Path()
+                    animatedPath.reset()
                     pathMeasure.getSegment(0f, pathMeasure.length * chartProgress, animatedPath, true)
 
                     if (chartProgress > 0f) {
-                        // Smooth Gradient Fill under the trend line
-                        val fillPath = Path().apply {
-                            addPath(animatedPath)
-                            lineTo(w * chartProgress, h)
-                            lineTo(0f, h)
-                            close()
-                        }
+                        fillPath.reset()
+                        fillPath.addPath(animatedPath)
+                        fillPath.lineTo(w * chartProgress, h)
+                        fillPath.lineTo(0f, h)
+                        fillPath.close()
 
                         drawPath(
                             path = fillPath,
@@ -316,7 +334,6 @@ fun HeartRateDetailScreen(
                             )
                         )
 
-                        // Glowing Animated Heart Rate Line Path
                         drawPath(
                             path = animatedPath,
                             color = statusColor,
@@ -336,7 +353,7 @@ fun HeartRateDetailScreen(
                         Text(
                             text = day,
                             fontSize = 12.sp,
-                            color = Color(0xFF9CA3AF)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -348,9 +365,10 @@ fun HeartRateDetailScreen(
         // 4 Stat Metrics Grid Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
                 Row(
@@ -358,13 +376,13 @@ fun HeartRateDetailScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Average", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "Average", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "74 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "74 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                     }
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Highest", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "Highest", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(text = "92 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkRedClassification)
                     }
@@ -377,15 +395,15 @@ fun HeartRateDetailScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Lowest", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "Lowest", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(text = "61 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkYellowClassification)
                     }
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Resting max", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "Resting max", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "64 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "64 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                     }
                 }
             }
@@ -396,7 +414,7 @@ fun HeartRateDetailScreen(
         // AI Insight Banner
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
@@ -442,7 +460,10 @@ private fun BackArrowIcon(
 }
 
 @Composable
-private fun CalendarIcon(modifier: Modifier = Modifier) {
+private fun CalendarIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF6B7280)
+) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -455,7 +476,7 @@ private fun CalendarIcon(modifier: Modifier = Modifier) {
             close()
         }
 
-        drawPath(path = calPath, color = Color(0xFF6B7280), style = Stroke(width = 1.6.dp.toPx()))
+        drawPath(path = calPath, color = color, style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 

@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.gym
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -24,6 +25,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,7 +47,6 @@ import com.simats.vitalsync.data.Exercise
 import com.simats.vitalsync.data.WorkoutExercise
 import com.simats.vitalsync.data.WorkoutSet
 import com.simats.vitalsync.ui.theme.VitalTealDark
-import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
 // Predefined Varied Routines Library
@@ -140,7 +141,7 @@ fun GymModeScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -159,38 +160,38 @@ fun GymModeScreen(
                     text = "Gym & Fitness 🏋️",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
                     text = "Live workout assistant & diet tracker",
                     fontSize = 13.sp,
-                    color = Color(0xFF6B7280)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFDCFCE7))
+                    .background(MaterialTheme.colorScheme.secondary)
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Text(
                     text = "Active",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF15803D)
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Top Segment Tab Bar (Workouts | Nutrition | Analytics)
+        // Top Segment Tab Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
-                .background(Color(0xFFF1F5F9))
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(4.dp)
         ) {
             listOf("🏋️ Workouts", "🥗 Nutrition", "📈 Analytics").forEachIndexed { index, label ->
@@ -214,7 +215,7 @@ fun GymModeScreen(
                         text = label,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isSelected) Color.White else Color(0xFF64748B)
+                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -222,7 +223,7 @@ fun GymModeScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Quick Navigation Shortcut Cards (Splits & History)
+        // Quick Navigation Shortcut Cards
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -231,14 +232,15 @@ fun GymModeScreen(
                 modifier = Modifier
                     .weight(1f)
                     .clickable { onStartWorkoutSplitClick() },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F6F0)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    Text(text = "⚡ Routine Splits", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                    Text(text = "⚡ Routine Splits", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Push, Pull, Legs, HIIT", fontSize = 11.sp, color = Color(0xFF6B7280))
+                    Text(text = "Push, Pull, Legs, HIIT", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -246,14 +248,15 @@ fun GymModeScreen(
                 modifier = Modifier
                     .weight(1f)
                     .clickable { onViewWorkoutHistoryClick() },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    Text(text = "📜 Workout History", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(text = "📜 Workout History", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Logs & Templates", fontSize = 11.sp, color = Color(0xFF6B7280))
+                    Text(text = "Logs & Templates", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -341,14 +344,14 @@ fun GymModeScreen(
                 text = "Routine split",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Text(
                 text = "${currentExercises.size} exercises",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F9F7A)
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -366,7 +369,7 @@ fun GymModeScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(if (isSelected) VitalTealDark else Color(0xFFF1F5F9))
+                        .background(if (isSelected) VitalTealDark else MaterialTheme.colorScheme.surface)
                         .clickable {
                             if (split == "+ Custom Split") {
                                 onStartWorkoutSplitClick()
@@ -380,7 +383,7 @@ fun GymModeScreen(
                         text = split,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isSelected) Color.White else Color(0xFF475569)
+                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -395,8 +398,9 @@ fun GymModeScreen(
                     .fillMaxWidth()
                     .padding(vertical = 6.dp),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(
@@ -409,13 +413,13 @@ fun GymModeScreen(
                                 text = "${getExerciseEmoji(we.exercise.targetMuscle)} ${we.exercise.name}",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "Target: ${we.exercise.targetMuscle}",
                                 fontSize = 12.sp,
-                                color = Color(0xFF6B7280)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
@@ -424,14 +428,14 @@ fun GymModeScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFE8F6F0))
+                                .background(MaterialTheme.colorScheme.secondary)
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = "${we.sets.size} sets",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F9F7A)
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -440,7 +444,7 @@ fun GymModeScreen(
 
                     we.sets.forEachIndexed { setIndex, setItem ->
                         if (setIndex > 0) {
-                            HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 6.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 6.dp))
                         }
                         SetRow(
                             setNum = "${setItem.setNumber}",
@@ -460,52 +464,6 @@ fun GymModeScreen(
         }
 
         Spacer(modifier = Modifier.height(20.dp))
-
-        // Rest Timer Preset Controls
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F6F0)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "⏱️ QUICK REST TIMER PRESETS",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F9F7A),
-                    letterSpacing = 0.8.sp
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf(30, 60, 90, 120).forEach { sec ->
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White)
-                                .clickable { restSecondsLeft = sec }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "${sec}s",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
 
         // Action Buttons Row (Log Set | Finish Session)
         Row(
@@ -567,17 +525,17 @@ private fun SetRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = "Set $setNum", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            Text(text = "Set $setNum", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             Spacer(modifier = Modifier.width(16.dp))
-            Text(text = reps, fontSize = 13.sp, color = Color(0xFF374151))
+            Text(text = reps, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.width(16.dp))
-            Text(text = weight, fontSize = 13.sp, color = Color(0xFF6B7280))
+            Text(text = weight, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(6.dp))
-                .background(if (isDone) Color(0xFFDCFCE7) else Color(0xFFF1F5F9))
+                .background(if (isDone) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface)
                 .clickable { onToggleDone(!isDone) }
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
@@ -585,7 +543,7 @@ private fun SetRow(
                 text = if (isDone) "✓ Completed" else "Mark Done",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isDone) Color(0xFF15803D) else Color(0xFF64748B)
+                color = if (isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

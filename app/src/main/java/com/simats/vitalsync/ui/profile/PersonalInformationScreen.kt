@@ -4,6 +4,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -31,6 +32,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -42,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
@@ -129,7 +132,7 @@ fun PersonalInformationScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp),
@@ -158,7 +161,7 @@ fun PersonalInformationScreen(
                     ) {
                         BackArrowIcon(
                             modifier = Modifier.size(20.dp),
-                            color = Color(0xFF111827)
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
 
@@ -168,12 +171,12 @@ fun PersonalInformationScreen(
                         text = "Personal Information",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
                 IconButton(onClick = { }, modifier = Modifier.size(36.dp)) {
-                    PencilEditIcon(modifier = Modifier.size(20.dp))
+                    PencilEditIcon(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onBackground)
                 }
             }
 
@@ -183,19 +186,20 @@ fun PersonalInformationScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Profile Photo Circle (Displays Gallery Photo if selected, or Avatar Initials)
+                    // Profile Photo Circle
                     Box(
                         modifier = Modifier
                             .size(92.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFE6F4EA))
+                            .background(MaterialTheme.colorScheme.secondary)
                             .clickable { galleryLauncher.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
@@ -211,7 +215,7 @@ fun PersonalInformationScreen(
                                 text = initials,
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = VitalTealDark
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -226,7 +230,7 @@ fun PersonalInformationScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFE8F6F0))
+                                .background(MaterialTheme.colorScheme.secondary)
                                 .clickable { galleryLauncher.launch("image/*") }
                                 .padding(horizontal = 14.dp, vertical = 8.dp)
                         ) {
@@ -234,7 +238,7 @@ fun PersonalInformationScreen(
                                 text = "Choose Photo 📷",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F9F7A)
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
 
@@ -261,7 +265,7 @@ fun PersonalInformationScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Text(text = "Or pick preset avatar:", fontSize = 11.sp, color = Color(0xFF6B7280))
+                    Text(text = "Or pick preset avatar:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -273,7 +277,7 @@ fun PersonalInformationScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(if (isSelected) VitalTealDark else Color(0xFFF1F5F9))
+                                    .background(if (isSelected) VitalTealDark else MaterialTheme.colorScheme.outlineVariant)
                                     .clickable {
                                         initials = presetInitials
                                         profileImageBitmap = null
@@ -286,7 +290,7 @@ fun PersonalInformationScreen(
                                     text = presetInitials,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) Color.White else Color(0xFF475569)
+                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -299,7 +303,7 @@ fun PersonalInformationScreen(
             // Editable Input Fields Form
             Column(modifier = Modifier.fillMaxWidth()) {
                 // Full Name
-                Text(text = "Full name", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                Text(text = "Full name", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = name,
@@ -317,36 +321,36 @@ fun PersonalInformationScreen(
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedTextColor = Color(0xFF111827),
-                        unfocusedTextColor = Color(0xFF111827),
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         focusedBorderColor = VitalTealPrimary,
-                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                     ),
-                    trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp)) }
+                    trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Date of Birth (Typable & Auto Calculated Age Badge)
+                // Date of Birth
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "Date of birth", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                    Text(text = "Date of birth", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFE8F6F0))
+                            .background(MaterialTheme.colorScheme.secondary)
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "⚡ Calculated Age: $calculatedAge yrs",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F9F7A)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -356,24 +360,24 @@ fun PersonalInformationScreen(
                     onValueChange = { dob = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("e.g. 14 May 1996 or 1996", fontSize = 13.sp, color = Color(0xFF9CA3AF)) },
+                    placeholder = { Text("e.g. 14 May 1996 or 1996", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedTextColor = Color(0xFF111827),
-                        unfocusedTextColor = Color(0xFF111827),
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         focusedBorderColor = VitalTealPrimary,
-                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                     ),
                     trailingIcon = { CalendarIcon(modifier = Modifier.size(16.dp)) }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Gender (Typable)
-                Text(text = "Gender", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                // Gender
+                Text(text = "Gender", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = gender,
@@ -383,19 +387,19 @@ fun PersonalInformationScreen(
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedTextColor = Color(0xFF111827),
-                        unfocusedTextColor = Color(0xFF111827),
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         focusedBorderColor = VitalTealPrimary,
-                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                     )
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Email Address (Typable)
-                Text(text = "Email address", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                // Email Address
+                Text(text = "Email address", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = email,
@@ -405,20 +409,20 @@ fun PersonalInformationScreen(
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedTextColor = Color(0xFF111827),
-                        unfocusedTextColor = Color(0xFF111827),
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         focusedBorderColor = VitalTealPrimary,
-                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                     ),
-                    trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp)) }
+                    trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Phone Number (Typable)
-                Text(text = "Phone number", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                // Phone Number
+                Text(text = "Phone number", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = phone,
@@ -428,36 +432,36 @@ fun PersonalInformationScreen(
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedTextColor = Color(0xFF111827),
-                        unfocusedTextColor = Color(0xFF111827),
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         focusedBorderColor = VitalTealPrimary,
-                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                     ),
-                    trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp)) }
+                    trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Height & Weight (Typable Numbers & Auto Calculated BMI Badge)
+                // Height & Weight
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "Body Dimensions", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                    Text(text = "Body Dimensions", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFE8F6F0))
+                            .background(MaterialTheme.colorScheme.secondary)
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "⚡ Calculated BMI: ${String.format(Locale.US, "%.1f", calculatedBmi)}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F9F7A)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -469,7 +473,7 @@ fun PersonalInformationScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Height (cm)", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "Height (cm)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(4.dp))
                         OutlinedTextField(
                             value = height,
@@ -478,18 +482,18 @@ fun PersonalInformationScreen(
                             shape = RoundedCornerShape(14.dp),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                focusedTextColor = Color(0xFF111827),
-                                unfocusedTextColor = Color(0xFF111827),
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                                 focusedBorderColor = VitalTealPrimary,
-                                unfocusedBorderColor = Color(0xFFE5E7EB)
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                             )
                         )
                     }
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Weight (kg)", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "Weight (kg)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(4.dp))
                         OutlinedTextField(
                             value = weight,
@@ -498,12 +502,12 @@ fun PersonalInformationScreen(
                             shape = RoundedCornerShape(14.dp),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                focusedTextColor = Color(0xFF111827),
-                                unfocusedTextColor = Color(0xFF111827),
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                                 focusedBorderColor = VitalTealPrimary,
-                                unfocusedBorderColor = Color(0xFFE5E7EB)
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                             )
                         )
                     }
@@ -536,7 +540,10 @@ fun PersonalInformationScreen(
 }
 
 @Composable
-private fun PencilEditIcon(modifier: Modifier = Modifier) {
+private fun PencilEditIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF374151)
+) {
     Canvas(modifier = modifier) {
         val w = size.width
 
@@ -549,7 +556,7 @@ private fun PencilEditIcon(modifier: Modifier = Modifier) {
             close()
         }
 
-        drawPath(path = path, color = Color(0xFF374151), style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(path = path, color = color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 

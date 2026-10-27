@@ -12,27 +12,33 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = VitalTealPrimary,
-    secondary = VitalMintAccent,
+    primary = Color(0xFF34D399),            // Bright Emerald Green Accent
+    secondary = Color(0xFF065F46),          // Deep Mint Selected Pill
     tertiary = Color(0xFFA7F3D0),
-    background = Color(0xFF0F172A),
-    surface = Color(0xFF1E293B),
+    background = Color(0xFF0F172A),         // Slate Dark Background
+    surface = Color(0xFF1E293B),            // Dark Slate Card Surface
+    surfaceVariant = Color(0xFF2E1065),     // Deep Purple Hero Card Surface
     onPrimary = Color.White,
     onSecondary = Color.White,
-    onBackground = Color(0xFFF8FAFC),
-    onSurface = Color(0xFFF8FAFC)
+    onBackground = Color(0xFFF8FAFC),       // Crisp White Primary Text
+    onSurface = Color(0xFFF8FAFC),          // Crisp White Surface Text
+    onSurfaceVariant = Color(0xFF94A3B8),   // Medium Slate Grey Secondary Text
+    outlineVariant = Color(0xFF334155)      // Subtle Dark Card Border
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = VitalTealPrimary,
-    secondary = VitalMintAccent,
+    primary = VitalPrimaryMint,             // #00A884
+    secondary = VitalNavSelectedBg,          // #DDF7EC
     tertiary = VitalTextFooterTitle,
-    background = Color(0xFFF0FDF4),
-    surface = Color.White,
+    background = VitalMainBackground,        // #F7FBF8
+    surface = VitalCardBg,                  // #FFFFFF
+    surfaceVariant = VitalWellnessCardBg,    // #F3E8FF (Purple)
     onPrimary = Color.White,
-    onSecondary = VitalTealDark,
-    onBackground = Color(0xFF022C22),
-    onSurface = Color(0xFF022C22)
+    onSecondary = VitalPrimaryDark,
+    onBackground = VitalTextPrimary,        // #14202D
+    onSurface = VitalTextPrimary,           // #14202D
+    onSurfaceVariant = VitalTextSecondary,  // #7B858D
+    outlineVariant = VitalSoftBorder        // #E8EEEA
 )
 
 @Composable

@@ -3,6 +3,7 @@ package com.simats.vitalsync.ui.ai
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +28,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +55,22 @@ import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
+// Dynamic Health Classification Colors
+private val DarkGreenNormal = Color(0xFF00A884) // Green (Normal / Optimal)
+private val LightGreenNormalBg = Color(0xFFDDF7EC)
+
+private val DarkYellowMid = Color(0xFFD97706) // Yellow / Amber (Mid / Moderate)
+private val LightYellowMidBg = Color(0xFFFEF3C7)
+
+private val DarkRedLow = Color(0xFFDC2626) // Red (Low / Critical Alert)
+private val LightRedLowBg = Color(0xFFFEE2E2)
+
+enum class MetricStatusType {
+    NORMAL, // Green
+    MID,    // Yellow
+    LOW     // Red
+}
+
 @Composable
 fun WeeklyHealthReportScreen(
     modifier: Modifier = Modifier,
@@ -61,7 +79,7 @@ fun WeeklyHealthReportScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp),
@@ -89,7 +107,7 @@ fun WeeklyHealthReportScreen(
                     ) {
                         BackArrowIcon(
                             modifier = Modifier.size(20.dp),
-                            color = Color(0xFF111827)
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
 
@@ -99,7 +117,7 @@ fun WeeklyHealthReportScreen(
                         text = "Weekly Health Report",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -107,7 +125,7 @@ fun WeeklyHealthReportScreen(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF1F5F9)),
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(text = "📅", fontSize = 16.sp)
@@ -117,18 +135,45 @@ fun WeeklyHealthReportScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "October 9–15, 2025",
+                text = "Overall Vital Performance · October 9–15, 2025",
                 fontSize = 13.sp,
-                color = Color(0xFF6B7280)
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Color Status Legend Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "● ", fontSize = 12.sp, color = DarkGreenNormal)
+                    Text(text = "Normal", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "● ", fontSize = 12.sp, color = DarkYellowMid)
+                    Text(text = "Mid / Elevated", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "● ", fontSize = 12.sp, color = DarkRedLow)
+                    Text(text = "Low / Alert", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Wellness Score Hero Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F6F0)),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
@@ -139,32 +184,42 @@ fun WeeklyHealthReportScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(72.dp)
+                            .size(76.dp)
                             .clip(CircleShape)
-                            .background(Color.White),
+                            .background(MaterialTheme.colorScheme.surface),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = "82", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                            Text(text = "/ 100", fontSize = 10.sp, color = Color(0xFF9CA3AF))
+                            Text(
+                                text = "82",
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = "/ 100",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(18.dp))
 
                     Column {
                         Text(
                             text = "Wellness Score",
-                            fontSize = 16.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Your wellness improved by 8% this week.",
+                            text = "Overall vital performance is Good (+6% increase from last week).",
                             fontSize = 13.sp,
-                            color = Color(0xFF0F9F7A),
-                            fontWeight = FontWeight.Medium
+                            color = Color(0xFF7C3AED),
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 18.sp
                         )
                     }
                 }
@@ -172,12 +227,13 @@ fun WeeklyHealthReportScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Wellness Trend Card
+            // 7-Day Wellness Trend Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(
@@ -185,8 +241,25 @@ fun WeeklyHealthReportScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "Wellness", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Text(text = "↑ 8%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                        Text(
+                            text = "7-Day Wellness Trend",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(LightGreenNormalBg)
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "↑ 6% Normal",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DarkGreenNormal
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -205,7 +278,7 @@ fun WeeklyHealthReportScreen(
                     Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(80.dp)
+                            .height(85.dp)
                     ) {
                         val w = size.width
                         val h = size.height
@@ -236,13 +309,13 @@ fun WeeklyHealthReportScreen(
                             drawPath(
                                 path = fillPath,
                                 brush = Brush.verticalGradient(
-                                    colors = listOf(Color(0x350F9F7A), Color(0x000F9F7A))
+                                    colors = listOf(DarkGreenNormal.copy(alpha = 0.30f), DarkGreenNormal.copy(alpha = 0.0f))
                                 )
                             )
 
                             drawPath(
                                 path = animatedPath,
-                                color = Color(0xFF0F9F7A),
+                                color = DarkGreenNormal,
                                 style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                             )
                         }
@@ -250,51 +323,114 @@ fun WeeklyHealthReportScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // 4 Metrics Grid (2x2)
+            Text(
+                text = "Vital Performance Breakdown",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Vital Metrics Cards Row 1 (Green Normal vs Yellow Mid)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                ReportMetricCard("Activity", "6,245 steps", Color(0xFF0F9F7A), modifier = Modifier.weight(1f))
-                ReportMetricCard("Sleep", "7h 32m", Color(0xFF7C3AED), modifier = Modifier.weight(1f))
+                ReportMetricCard(
+                    title = "Heart Rate Avg",
+                    value = "76 BPM",
+                    statusText = "Normal",
+                    statusType = MetricStatusType.NORMAL,
+                    modifier = Modifier.weight(1f)
+                )
+
+                ReportMetricCard(
+                    title = "Blood Pressure",
+                    value = "132/86",
+                    statusText = "Mid / Elevated",
+                    statusType = MetricStatusType.MID,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Vital Metrics Cards Row 2 (Red Low vs Green Normal)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                ReportMetricCard("Hydration", "1,250 ml", Color(0xFF38BDF8), modifier = Modifier.weight(1f))
-                ReportMetricCard("Heart Rate", "76 BPM", Color(0xFF0F9F7A), modifier = Modifier.weight(1f))
+                ReportMetricCard(
+                    title = "SpO₂ Avg",
+                    value = "92%",
+                    statusText = "Low Rate Alert",
+                    statusType = MetricStatusType.LOW,
+                    modifier = Modifier.weight(1f)
+                )
+
+                ReportMetricCard(
+                    title = "Sleep Quality",
+                    value = "7h 32m",
+                    statusText = "Score 88 Normal",
+                    statusType = MetricStatusType.NORMAL,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Vital Metrics Cards Row 3 (Yellow Mid vs Red Low)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ReportMetricCard(
+                    title = "Hydration",
+                    value = "1,250 ml",
+                    statusText = "5/8 Mid Goal",
+                    statusType = MetricStatusType.MID,
+                    modifier = Modifier.weight(1f)
+                )
+
+                ReportMetricCard(
+                    title = "Activity Steps",
+                    value = "3,120 steps",
+                    statusText = "Low Goal Alert",
+                    statusType = MetricStatusType.LOW,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // AI Weekly Summary Card
+            // AI Weekly Summary & Recommendations Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(
-                        text = "✨ AI Weekly Summary",
-                        fontSize = 14.sp,
+                        text = "✨ AI Doctor Observations",
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF7C3AED)
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "More movement and better sleep supported your progress. Focus on steady hydration next week.",
+                        text = "• Heart Rate & Sleep remain in the optimal Green Normal range.\n" +
+                            "• Blood Pressure & Hydration are in the Yellow Mid range.\n" +
+                            "• SpO₂ & Daily Step Count dipped into the Red Low Alert range this week.\n" +
+                            "• Recommendation: Take brief walk breaks and maintain continuous hydration.",
                         fontSize = 13.sp,
-                        color = Color(0xFF374151),
-                        lineHeight = 18.sp
+                        color = MaterialTheme.colorScheme.onBackground,
+                        lineHeight = 20.sp
                     )
                 }
             }
@@ -302,7 +438,7 @@ fun WeeklyHealthReportScreen(
             Spacer(modifier = Modifier.height(28.dp))
         }
 
-        // Action Buttons & Footer
+        // Action Buttons Footer
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
@@ -324,7 +460,7 @@ fun WeeklyHealthReportScreen(
                         contentColor = Color.White
                     )
                 ) {
-                    Text(text = "Download Report", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Download PDF Report", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
 
                 OutlinedButton(
@@ -335,16 +471,16 @@ fun WeeklyHealthReportScreen(
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = VitalTealDark)
                 ) {
-                    Text(text = "Share Report", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Share Summary", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "Your data. Your progress. Your peace of mind.",
+                text = "VitalSync Health Intelligence · Clinical Precision",
                 fontSize = 11.sp,
-                color = Color(0xFF9CA3AF),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }
@@ -355,19 +491,51 @@ fun WeeklyHealthReportScreen(
 private fun ReportMetricCard(
     title: String,
     value: String,
-    color: Color,
+    statusText: String,
+    statusType: MetricStatusType,
     modifier: Modifier = Modifier
 ) {
+    val (statusColor, statusBgColor) = when (statusType) {
+        MetricStatusType.NORMAL -> Pair(DarkGreenNormal, LightGreenNormalBg)
+        MetricStatusType.MID -> Pair(DarkYellowMid, LightYellowMidBg)
+        MetricStatusType.LOW -> Pair(DarkRedLow, LightRedLowBg)
+    }
+
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Text(text = title, fontSize = 12.sp, color = Color(0xFF6B7280))
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(text = value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            Text(text = title, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = value,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Classification Color Status Badge
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(statusBgColor)
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = statusText,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = statusColor
+                )
+            }
 
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -381,6 +549,7 @@ private fun ReportMetricCard(
                 label = "MetricCardTrendAnimation"
             )
 
+            // Animated Metric Line in Classification Color (Green / Yellow / Red)
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -390,9 +559,23 @@ private fun ReportMetricCard(
                 val h = size.height
 
                 val fullPath = Path().apply {
-                    moveTo(0f, h * 0.7f)
-                    quadraticTo(w * 0.25f, h * 0.2f, w * 0.5f, h * 0.6f)
-                    quadraticTo(w * 0.75f, h * 0.9f, w, h * 0.3f)
+                    when (statusType) {
+                        MetricStatusType.NORMAL -> {
+                            moveTo(0f, h * 0.7f)
+                            quadraticTo(w * 0.25f, h * 0.2f, w * 0.5f, h * 0.5f)
+                            quadraticTo(w * 0.75f, h * 0.8f, w, h * 0.2f)
+                        }
+                        MetricStatusType.MID -> {
+                            moveTo(0f, h * 0.4f)
+                            quadraticTo(w * 0.25f, h * 0.6f, w * 0.5f, h * 0.3f)
+                            quadraticTo(w * 0.75f, h * 0.7f, w, h * 0.5f)
+                        }
+                        MetricStatusType.LOW -> {
+                            moveTo(0f, h * 0.2f)
+                            quadraticTo(w * 0.25f, h * 0.5f, w * 0.5f, h * 0.7f)
+                            quadraticTo(w * 0.75f, h * 0.4f, w, h * 0.85f)
+                        }
+                    }
                 }
 
                 val pathMeasure = PathMeasure()
@@ -401,7 +584,11 @@ private fun ReportMetricCard(
                 pathMeasure.getSegment(0f, pathMeasure.length * chartProgress, animatedPath, true)
 
                 if (chartProgress > 0f) {
-                    drawPath(path = animatedPath, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    drawPath(
+                        path = animatedPath,
+                        color = statusColor,
+                        style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                    )
                 }
             }
         }

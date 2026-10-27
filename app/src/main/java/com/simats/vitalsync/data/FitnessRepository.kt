@@ -4,13 +4,11 @@ import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
-class FitnessRepository(context: Context) {
+class FitnessRepository private constructor(context: Context) {
 
-    private val prefs: SharedPreferences = context.getSharedPreferences("vitalsync_fitness_prefs", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences =
+        context.getSharedPreferences("vitalsync_fitness_prefs", Context.MODE_PRIVATE)
 
     companion object {
         @Volatile
@@ -18,81 +16,54 @@ class FitnessRepository(context: Context) {
 
         fun getInstance(context: Context): FitnessRepository {
             return INSTANCE ?: synchronized(this) {
-                val instance = FitnessRepository(context.applicationContext)
-                INSTANCE = instance
-                instance
+                INSTANCE ?: FitnessRepository(context.applicationContext).also { INSTANCE = it }
             }
         }
     }
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-
-    fun getTodayDateString(): String {
-        return dateFormat.format(Date())
-    }
-
-    // Initial Indian Food Database (Estimates clearly defined per serving)
-    val initialIndianFoodDatabase = listOf(
-        FoodItem("f1", "Whole Egg (Boiled/Poached)", FoodCategory.EGG, 1f, "large egg (50g)", 78, 6.3f, 0.6f, 5.3f),
-        FoodItem("f2", "Chicken Breast (Raw)", FoodCategory.NON_VEG, 100f, "100g", 165, 31.0f, 0.0f, 3.6f),
-        FoodItem("f3", "Grilled Chicken Breast (Cooked)", FoodCategory.NON_VEG, 100f, "100g", 195, 29.5f, 0.0f, 7.8f),
-        FoodItem("f4", "Cooked Basmati Rice", FoodCategory.VEG, 100f, "100g (1 cup cooked)", 130, 2.7f, 28.0f, 0.3f),
-        FoodItem("f5", "Roti / Chapati (Whole Wheat)", FoodCategory.VEG, 1f, "1 chapati (30g)", 85, 3.1f, 15.0f, 0.5f),
-        FoodItem("f6", "Paneer (Raw Cottage Cheese)", FoodCategory.VEG, 100f, "100g", 265, 18.0f, 3.5f, 20.0f),
-        FoodItem("f7", "Soya Chunks (Raw / Uncooked)", FoodCategory.VEGAN, 50f, "50g", 172, 26.0f, 16.5f, 0.5f),
-        FoodItem("f8", "Cow Milk (Toned / Low Fat)", FoodCategory.VEG, 250f, "250 ml (1 glass)", 150, 8.0f, 12.0f, 7.5f),
-        FoodItem("f9", "Curd / Dahi (Whole Milk)", FoodCategory.VEG, 150f, "150g (1 bowl)", 98, 5.2f, 7.0f, 5.5f),
-        FoodItem("f10", "Banana", FoodCategory.VEGAN, 1f, "1 medium banana (118g)", 105, 1.3f, 27.0f, 0.3f),
-        FoodItem("f11", "Almonds (Raw)", FoodCategory.VEGAN, 30f, "30g (approx 20 almonds)", 175, 6.0f, 6.0f, 15.0f),
-        FoodItem("f12", "Rolled Oats (Dry)", FoodCategory.VEGAN, 40f, "40g (1/2 cup dry)", 152, 5.3f, 27.0f, 2.7f),
-        FoodItem("f13", "Dal Tadka (Cooked Yellow Lentils)", FoodCategory.VEG, 150f, "150g (1 katori)", 140, 7.5f, 18.0f, 4.2f)
-    )
-
-    // Initial Default Exercise Library (Chest, Back, Shoulders, Arms, Legs)
+    // EXERCISES DATABASE
     val defaultExerciseLibrary = listOf(
-        // Chest
-        Exercise("e1", "Barbell Bench Press", "Chest", 60f, 10, "Focus on full range of motion"),
-        Exercise("e2", "Incline Dumbbell Press", "Chest", 22f, 10, "Keep elbows at 45 degree angle"),
-        Exercise("e11", "Machine Chest Press", "Chest", 50f, 12, "Control the negative movement"),
-        Exercise("e12", "Cable Chest Fly", "Chest", 15f, 15, "Squeeze chest at peak contraction"),
+        // Push
+        Exercise("e1", "Barbell Bench Press", "Chest", 60f, 10, "Keep shoulder blades retracted and feet planted."),
+        Exercise("e2", "Incline Dumbbell Press", "Upper Chest", 22f, 10, "Focus on upper chest contraction at top."),
+        Exercise("e3", "Overhead Barbell Press", "Shoulders", 40f, 8, "Core braced, press vertically overhead."),
+        Exercise("e4", "Triceps Rope Pushdown", "Triceps", 25f, 12, "Keep elbows stationary at sides."),
+        Exercise("e5", "Incline Chest Fly", "Chest", 16f, 12, "Slight bend in elbows throughout movement."),
+        Exercise("e6", "Lateral Raises", "Side Deltoids", 10f, 15, "Lead with elbows for side shoulder isolation."),
 
-        // Back
-        Exercise("e7", "Lat Pulldowns", "Back", 50f, 12, "Pull down to upper chest"),
-        Exercise("e8", "Seated Cable Rows", "Back", 55f, 12, "Squeeze shoulder blades together"),
-        Exercise("e13", "Chest-Supported DB Row", "Back", 20f, 10, "Eliminate momentum"),
-        Exercise("e14", "Assisted Pull-Up", "Back", 0f, 8, "Full extension at bottom"),
-
-        // Shoulders
-        Exercise("e5", "Overhead Shoulder Press", "Shoulders", 40f, 10, "Core braced, lock out at top"),
-        Exercise("e6", "Lateral Raises", "Shoulders", 10f, 15, "Slight bend in elbows"),
-        Exercise("e15", "Face Pulls", "Shoulders", 17.5f, 15, "Pull cable towards forehead"),
-        Exercise("e16", "Reverse Pec Deck Fly", "Shoulders", 30f, 15, "Isolate rear deltoids"),
-
-        // Arms (Biceps & Triceps)
-        Exercise("e9", "Barbell Biceps Curls", "Arms", 25f, 12, "Keep elbows pinned to sides"),
-        Exercise("e10", "Triceps Rope Pushdowns", "Arms", 22.5f, 15, "Fully extend arms at bottom"),
-        Exercise("e17", "Hammer Curls", "Arms", 14f, 12, "Palms facing each other"),
-        Exercise("e18", "Incline Dumbbell Curl", "Arms", 12f, 10, "Deep stretch at bottom"),
-        Exercise("e19", "Preacher Curl", "Arms", 20f, 10, "Keep upper arms flush against pad"),
-        Exercise("e20", "Overhead Triceps Extension", "Arms", 18f, 12, "Keep elbows tucked in"),
+        // Pull
+        Exercise("e7", "Barbell Deadlift", "Back & Posture", 100f, 5, "Flat spine, drive through heels."),
+        Exercise("e8", "Lat Pulldown", "Lats", 50f, 10, "Pull bar to upper chest squeezing lats."),
+        Exercise("e9", "Seated Cable Row", "Mid Back", 45f, 12, "Keep torso upright and squeeze shoulder blades."),
+        Exercise("e10", "Dumbbell Bicep Curls", "Biceps", 14f, 12, "Control eccentric negative movement."),
+        Exercise("e11", "Face Pulls", "Rear Delts", 20f, 15, "Pull rope towards forehead, flare elbows."),
 
         // Legs
-        Exercise("e3", "Barbell Squat", "Legs", 80f, 8, "Keep chest up and knees outward"),
-        Exercise("e4", "Romanian Deadlift", "Legs", 70f, 10, "Hinge at hips, keep spine neutral"),
-        Exercise("e21", "Leg Press", "Legs", 120f, 10, "Push through heels"),
-        Exercise("e22", "Leg Extension", "Legs", 40f, 15, "Hold peak contraction at top"),
-        Exercise("e23", "Lying Leg Curl", "Legs", 35f, 12, "Control weight on descent"),
-        Exercise("e24", "Standing Calf Raise", "Legs", 50f, 15, "Full stretch at bottom")
+        Exercise("e12", "Barbell Back Squat", "Quadriceps", 80f, 8, "Break at hips, squat to parallel depth."),
+        Exercise("e13", "Romanian Deadlift", "Hamstrings", 70f, 10, "Hinge at hips feeling hamstring stretch."),
+        Exercise("e14", "Leg Press", "Quadriceps & Glutes", 140f, 12, "Controlled depth without lower back rounding."),
+        Exercise("e15", "Standing Calf Raises", "Calves", 50f, 15, "Full stretch at bottom, squeeze at peak.")
     )
 
     fun getExerciseLibrary(): List<Exercise> {
-        val customJson = prefs.getString("key_custom_exercises", null) ?: return defaultExerciseLibrary
-        val customList = mutableListOf<Exercise>()
+        val customExList = loadCustomExercisesFromPrefs()
+        return defaultExerciseLibrary + customExList
+    }
+
+    fun addCustomExercise(exercise: Exercise) {
+        val customExList = loadCustomExercisesFromPrefs().toMutableList()
+        customExList.add(exercise)
+        saveCustomExercisesToPrefs(customExList)
+    }
+
+    private fun loadCustomExercisesFromPrefs(): List<Exercise> {
+        val jsonStr = prefs.getString("key_custom_exercises", null) ?: return emptyList()
+        val list = mutableListOf<Exercise>()
         try {
-            val array = JSONArray(customJson)
+            val array = JSONArray(jsonStr)
             for (i in 0 until array.length()) {
                 val obj = array.getJSONObject(i)
-                customList.add(
+                list.add(
                     Exercise(
                         id = obj.getString("id"),
                         name = obj.getString("name"),
@@ -103,16 +74,12 @@ class FitnessRepository(context: Context) {
                     )
                 )
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Exception) {
         }
-        return defaultExerciseLibrary + customList
+        return list
     }
 
-    fun addCustomExercise(exercise: Exercise) {
-        val customExercises = getExerciseLibrary().filter { it.id.startsWith("custom_ex_") }.toMutableList()
-        customExercises.add(exercise)
-
+    private fun saveCustomExercisesToPrefs(customExercises: List<Exercise>) {
         val array = JSONArray()
         for (ex in customExercises) {
             val obj = JSONObject().apply {
@@ -145,7 +112,7 @@ class FitnessRepository(context: Context) {
                 dailyCarbsTarget = obj.optDouble("dailyCarbsTarget", 250.0).toFloat(),
                 dailyFatTarget = obj.optDouble("dailyFatTarget", 65.0).toFloat()
             )
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             NutritionGoal()
         }
     }
@@ -166,144 +133,140 @@ class FitnessRepository(context: Context) {
         prefs.edit().putString("key_nutrition_goal", obj.toString()).apply()
     }
 
-    fun getFoodDatabase(): List<FoodItem> {
-        val customJson = prefs.getString("key_custom_foods", null) ?: return initialIndianFoodDatabase
-        val customFoods = mutableListOf<FoodItem>()
-        try {
-            val array = JSONArray(customJson)
-            for (i in 0 until array.length()) {
-                val obj = array.getJSONObject(i)
-                customFoods.add(
-                    FoodItem(
-                        id = obj.getString("id"),
-                        name = obj.getString("name"),
-                        category = FoodCategory.valueOf(obj.getString("category")),
-                        servingSizeAmount = obj.getDouble("servingSizeAmount").toFloat(),
-                        servingUnit = obj.getString("servingUnit"),
-                        calories = obj.getInt("calories"),
-                        proteinGrams = obj.getDouble("proteinGrams").toFloat(),
-                        carbsGrams = obj.getDouble("carbsGrams").toFloat(),
-                        fatGrams = obj.getDouble("fatGrams").toFloat(),
-                        isCustom = true
-                    )
-                )
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return initialIndianFoodDatabase + customFoods
-    }
-
-    fun addCustomFoodItem(foodItem: FoodItem) {
-        val currentFoods = getFoodDatabase().filter { it.isCustom }.toMutableList()
-        currentFoods.add(foodItem)
-
-        val array = JSONArray()
-        for (item in currentFoods) {
-            val obj = JSONObject().apply {
-                put("id", item.id)
-                put("name", item.name)
-                put("category", item.category.name)
-                put("servingSizeAmount", item.servingSizeAmount)
-                put("servingUnit", item.servingUnit)
-                put("calories", item.calories)
-                put("proteinGrams", item.proteinGrams)
-                put("carbsGrams", item.carbsGrams)
-                put("fatGrams", item.fatGrams)
-            }
-            array.put(obj)
-        }
-        prefs.edit().putString("key_custom_foods", array.toString()).apply()
-    }
-
-    fun getMealEntriesForDate(dateString: String): List<MealEntry> {
-        val jsonStr = prefs.getString("key_meals_$dateString", null) ?: return emptyList()
-        val entries = mutableListOf<MealEntry>()
-        val foodDbMap = getFoodDatabase().associateBy { it.id }
-
+    // MEALS FOR DATE
+    fun getMealEntriesForDate(dateStr: String): List<MealEntry> {
+        val jsonStr = prefs.getString("key_meals_$dateStr", null) ?: return getSampleMealsForToday()
+        val list = mutableListOf<MealEntry>()
         try {
             val array = JSONArray(jsonStr)
             for (i in 0 until array.length()) {
                 val obj = array.getJSONObject(i)
-                val foodId = obj.getString("foodId")
-                val food = foodDbMap[foodId] ?: continue
-                val quantity = obj.getDouble("quantity").toFloat()
+                val foodObj = obj.getJSONObject("foodItem")
+                val foodItem = FoodItem(
+                    id = foodObj.getString("id"),
+                    name = foodObj.getString("name"),
+                    category = FoodCategory.valueOf(foodObj.getString("category")),
+                    servingSizeAmount = foodObj.getDouble("servingSizeAmount").toFloat(),
+                    servingUnit = foodObj.getString("servingUnit"),
+                    calories = foodObj.getInt("calories"),
+                    proteinGrams = foodObj.getDouble("proteinGrams").toFloat(),
+                    carbsGrams = foodObj.getDouble("carbsGrams").toFloat(),
+                    fatGrams = foodObj.getDouble("fatGrams").toFloat(),
+                    isCustom = foodObj.optBoolean("isCustom", false)
+                )
 
-                entries.add(
+                list.add(
                     MealEntry(
                         id = obj.getString("id"),
                         category = MealCategory.valueOf(obj.getString("category")),
-                        foodItem = food,
-                        quantity = quantity,
+                        foodItem = foodItem,
+                        quantity = obj.getDouble("quantity").toFloat(),
                         calculatedCalories = obj.getInt("calculatedCalories"),
                         calculatedProtein = obj.getDouble("calculatedProtein").toFloat(),
                         calculatedCarbs = obj.getDouble("calculatedCarbs").toFloat(),
                         calculatedFat = obj.getDouble("calculatedFat").toFloat(),
-                        dateString = dateString
+                        dateString = obj.getString("dateString")
                     )
                 )
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Exception) {
         }
-        return entries
+        return list
     }
 
     fun saveMealEntry(mealEntry: MealEntry) {
-        val currentMeals = getMealEntriesForDate(mealEntry.dateString).toMutableList()
-        val existingIndex = currentMeals.indexOfFirst { it.id == mealEntry.id }
-        if (existingIndex >= 0) {
-            currentMeals[existingIndex] = mealEntry
-        } else {
-            currentMeals.add(mealEntry)
-        }
+        val currentList = getMealEntriesForDate(mealEntry.dateString).toMutableList()
+        currentList.add(mealEntry)
 
-        saveMealEntriesListForDate(mealEntry.dateString, currentMeals)
-    }
-
-    fun deleteMealEntry(id: String, dateString: String) {
-        val currentMeals = getMealEntriesForDate(dateString).filter { it.id != id }
-        saveMealEntriesListForDate(dateString, currentMeals)
-    }
-
-    private fun saveMealEntriesListForDate(dateString: String, meals: List<MealEntry>) {
         val array = JSONArray()
-        for (m in meals) {
+        for (m in currentList) {
             val obj = JSONObject().apply {
                 put("id", m.id)
                 put("category", m.category.name)
-                put("foodId", m.foodItem.id)
                 put("quantity", m.quantity)
                 put("calculatedCalories", m.calculatedCalories)
                 put("calculatedProtein", m.calculatedProtein)
                 put("calculatedCarbs", m.calculatedCarbs)
                 put("calculatedFat", m.calculatedFat)
+                put("dateString", m.dateString)
+
+                val foodObj = JSONObject().apply {
+                    put("id", m.foodItem.id)
+                    put("name", m.foodItem.name)
+                    put("category", m.foodItem.category.name)
+                    put("servingSizeAmount", m.foodItem.servingSizeAmount)
+                    put("servingUnit", m.foodItem.servingUnit)
+                    put("calories", m.foodItem.calories)
+                    put("proteinGrams", m.foodItem.proteinGrams)
+                    put("carbsGrams", m.foodItem.carbsGrams)
+                    put("fatGrams", m.foodItem.fatGrams)
+                    put("isCustom", m.foodItem.isCustom)
+                }
+                put("foodItem", foodObj)
             }
             array.put(obj)
         }
-        prefs.edit().putString("key_meals_$dateString", array.toString()).apply()
+        prefs.edit().putString("key_meals_${mealEntry.dateString}", array.toString()).apply()
     }
 
-    // WORKOUT PERSISTENCE
-    fun getAllWorkoutSessions(): List<WorkoutSession> {
-        val jsonStr = prefs.getString("key_workout_sessions", null) ?: return emptyList()
-        val list = mutableListOf<WorkoutSession>()
-        val exerciseMap = getExerciseLibrary().associateBy { it.id }
+    fun deleteMealEntry(id: String, dateStr: String) {
+        val currentList = getMealEntriesForDate(dateStr).filter { it.id != id }
+        val array = JSONArray()
+        for (m in currentList) {
+            val obj = JSONObject().apply {
+                put("id", m.id)
+                put("category", m.category.name)
+                put("quantity", m.quantity)
+                put("calculatedCalories", m.calculatedCalories)
+                put("calculatedProtein", m.calculatedProtein)
+                put("calculatedCarbs", m.calculatedCarbs)
+                put("calculatedFat", m.calculatedFat)
+                put("dateString", m.dateString)
 
+                val foodObj = JSONObject().apply {
+                    put("id", m.foodItem.id)
+                    put("name", m.foodItem.name)
+                    put("category", m.foodItem.category.name)
+                    put("servingSizeAmount", m.foodItem.servingSizeAmount)
+                    put("servingUnit", m.foodItem.servingUnit)
+                    put("calories", m.foodItem.calories)
+                    put("proteinGrams", m.foodItem.proteinGrams)
+                    put("carbsGrams", m.foodItem.carbsGrams)
+                    put("fatGrams", m.foodItem.fatGrams)
+                    put("isCustom", m.foodItem.isCustom)
+                }
+                put("foodItem", foodObj)
+            }
+            array.put(obj)
+        }
+        prefs.edit().putString("key_meals_$dateStr", array.toString()).apply()
+    }
+
+    // WORKOUT HISTORY PERSISTENCE
+    fun getAllWorkoutSessions(): List<WorkoutSession> {
+        val jsonStr = prefs.getString("key_workout_sessions", null) ?: return getSampleWorkoutSessions()
+        val list = mutableListOf<WorkoutSession>()
         try {
             val array = JSONArray(jsonStr)
             for (i in 0 until array.length()) {
-                val sessionObj = array.getJSONObject(i)
+                val obj = array.getJSONObject(i)
+                val exercisesArray = obj.getJSONArray("exercises")
                 val exercisesList = mutableListOf<WorkoutExercise>()
-                val exArray = sessionObj.getJSONArray("exercises")
 
-                for (j in 0 until exArray.length()) {
-                    val exObj = exArray.getJSONObject(j)
-                    val exId = exObj.getString("exerciseId")
-                    val exercise = exerciseMap[exId] ?: Exercise(exId, exObj.optString("exerciseName", "Exercise"), "General")
+                for (j in 0 until exercisesArray.length()) {
+                    val weObj = exercisesArray.getJSONObject(j)
+                    val exObj = weObj.getJSONObject("exercise")
+                    val exercise = Exercise(
+                        id = exObj.getString("id"),
+                        name = exObj.getString("name"),
+                        targetMuscle = exObj.getString("targetMuscle"),
+                        defaultWeightKg = exObj.getDouble("defaultWeightKg").toFloat(),
+                        defaultReps = exObj.getInt("defaultReps"),
+                        notes = exObj.optString("notes", "")
+                    )
+
+                    val setsArray = weObj.getJSONArray("sets")
                     val setsList = mutableListOf<WorkoutSet>()
-                    val setsArray = exObj.getJSONArray("sets")
-
                     for (k in 0 until setsArray.length()) {
                         val setObj = setsArray.getJSONObject(k)
                         setsList.add(
@@ -316,42 +279,35 @@ class FitnessRepository(context: Context) {
                         )
                     }
 
-                    exercisesList.add(
-                        WorkoutExercise(
-                            exercise = exercise,
-                            sets = setsList,
-                            notes = exObj.optString("notes", "")
-                        )
-                    )
+                    exercisesList.add(WorkoutExercise(exercise, setsList))
                 }
 
                 list.add(
                     WorkoutSession(
-                        id = sessionObj.getString("id"),
-                        name = sessionObj.getString("name"),
-                        split = WorkoutSplit.valueOf(sessionObj.getString("split")),
-                        dateString = sessionObj.getString("dateString"),
-                        timestampFormatted = sessionObj.getString("timestampFormatted"),
-                        durationMinutes = sessionObj.getInt("durationMinutes"),
+                        id = obj.getString("id"),
+                        name = obj.getString("name"),
+                        split = WorkoutSplit.valueOf(obj.getString("split")),
+                        dateString = obj.getString("dateString"),
+                        timestampFormatted = obj.getString("timestampFormatted"),
+                        durationMinutes = obj.getInt("durationMinutes"),
                         exercises = exercisesList,
-                        totalVolumeKg = sessionObj.getDouble("totalVolumeKg").toFloat(),
-                        estimatedCaloriesBurned = sessionObj.getInt("estimatedCaloriesBurned")
+                        totalVolumeKg = obj.getDouble("totalVolumeKg").toFloat(),
+                        estimatedCaloriesBurned = obj.getInt("estimatedCaloriesBurned")
                     )
                 )
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Exception) {
         }
         return list
     }
 
     fun saveWorkoutSession(session: WorkoutSession) {
-        val currentSessions = getAllWorkoutSessions().toMutableList()
-        currentSessions.add(0, session) // newest first
+        val currentList = getAllWorkoutSessions().toMutableList()
+        currentList.add(0, session)
 
         val array = JSONArray()
-        for (s in currentSessions) {
-            val sessionObj = JSONObject().apply {
+        for (s in currentList) {
+            val sObj = JSONObject().apply {
                 put("id", s.id)
                 put("name", s.name)
                 put("split", s.split.name)
@@ -361,31 +317,148 @@ class FitnessRepository(context: Context) {
                 put("totalVolumeKg", s.totalVolumeKg)
                 put("estimatedCaloriesBurned", s.estimatedCaloriesBurned)
 
-                val exArray = JSONArray()
+                val exercisesArray = JSONArray()
                 for (we in s.exercises) {
-                    val exObj = JSONObject().apply {
-                        put("exerciseId", we.exercise.id)
-                        put("exerciseName", we.exercise.name)
-                        put("notes", we.notes)
+                    val weObj = JSONObject().apply {
+                        val exObj = JSONObject().apply {
+                            put("id", we.exercise.id)
+                            put("name", we.exercise.name)
+                            put("targetMuscle", we.exercise.targetMuscle)
+                            put("defaultWeightKg", we.exercise.defaultWeightKg)
+                            put("defaultReps", we.exercise.defaultReps)
+                            put("notes", we.exercise.notes)
+                        }
+                        put("exercise", exObj)
 
                         val setsArray = JSONArray()
-                        for (set in we.sets) {
-                            val setObj = JSONObject().apply {
-                                put("setNumber", set.setNumber)
-                                put("reps", set.reps)
-                                put("weightKg", set.weightKg)
-                                put("isCompleted", set.isCompleted)
+                        for (st in we.sets) {
+                            val stObj = JSONObject().apply {
+                                put("setNumber", st.setNumber)
+                                put("reps", st.reps)
+                                put("weightKg", st.weightKg)
+                                put("isCompleted", st.isCompleted)
                             }
-                            setsArray.put(setObj)
+                            setsArray.put(stObj)
                         }
                         put("sets", setsArray)
                     }
-                    exArray.put(exObj)
+                    exercisesArray.put(weObj)
                 }
-                put("exercises", exArray)
+                put("exercises", exercisesArray)
             }
-            array.put(sessionObj)
+            array.put(sObj)
         }
         prefs.edit().putString("key_workout_sessions", array.toString()).apply()
+    }
+
+    // INDIAN FOOD DATABASE
+    val initialIndianFoodDatabase = listOf(
+        FoodItem("f1", "Paneer Tikka (Grilled Cottage Cheese)", FoodCategory.VEG, 100f, "100g (4 pieces)", 260, 18f, 6f, 18f),
+        FoodItem("f2", "Roti / Phulka (Whole Wheat Flatbread)", FoodCategory.VEG, 30f, "1 piece (30g)", 80, 2.8f, 15f, 0.8f),
+        FoodItem("f3", "Chicken Breast Curry (Home Cooked)", FoodCategory.NON_VEG, 150f, "150g (1 bowl)", 220, 28f, 4f, 10f),
+        FoodItem("f4", "Egg Bhurji (Scrambled Eggs with Spices)", FoodCategory.EGG, 100f, "2 eggs (100g)", 170, 13f, 2.5f, 12f),
+        FoodItem("f5", "Dal Tadka (Cooked Yellow Lentils)", FoodCategory.VEG, 150f, "150g (1 katori)", 140, 7.5f, 18f, 4.2f),
+        FoodItem("f6", "Steamed Basmati Rice", FoodCategory.VEG, 150f, "150g (1 bowl)", 195, 3.8f, 42f, 0.6f),
+        FoodItem("f7", "Greek Yogurt (Hung Curd)", FoodCategory.VEG, 100f, "100g (1 cup)", 95, 10f, 4.5f, 4f),
+        FoodItem("f8", "Whey Protein Scoop in Water", FoodCategory.VEG, 30f, "1 scoop (30g)", 120, 24f, 2f, 1.5f),
+        FoodItem("f9", "Masala Dosa with Chutney", FoodCategory.VEG, 150f, "1 dosa (150g)", 320, 6f, 48f, 11f),
+        FoodItem("f10", "Idli with Sambar (2 pieces)", FoodCategory.VEG, 120f, "2 idlis + sambar", 180, 6.5f, 36f, 1.2f),
+        FoodItem("f11", "Moong Dal Chilla (Lentil Pancake)", FoodCategory.VEG, 80f, "1 chilla (80g)", 130, 8f, 18f, 3f),
+        FoodItem("f12", "Chana Masala (Chickpea Curry)", FoodCategory.VEG, 150f, "150g (1 bowl)", 210, 9f, 32f, 5f)
+    )
+
+    fun getFoodDatabase(): List<FoodItem> {
+        val customFoods = loadCustomFoodsFromPrefs()
+        return initialIndianFoodDatabase + customFoods
+    }
+
+    fun addCustomFoodItem(foodItem: FoodItem) {
+        val customFoods = loadCustomFoodsFromPrefs().toMutableList()
+        customFoods.add(foodItem)
+        saveCustomFoodsToPrefs(customFoods)
+    }
+
+    private fun loadCustomFoodsFromPrefs(): List<FoodItem> {
+        val jsonStr = prefs.getString("key_custom_foods", null) ?: return emptyList()
+        val list = mutableListOf<FoodItem>()
+        try {
+            val array = JSONArray(jsonStr)
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                list.add(
+                    FoodItem(
+                        id = obj.getString("id"),
+                        name = obj.getString("name"),
+                        category = FoodCategory.valueOf(obj.getString("category")),
+                        servingSizeAmount = obj.getDouble("servingSizeAmount").toFloat(),
+                        servingUnit = obj.getString("servingUnit"),
+                        calories = obj.getInt("calories"),
+                        proteinGrams = obj.getDouble("proteinGrams").toFloat(),
+                        carbsGrams = obj.getDouble("carbsGrams").toFloat(),
+                        fatGrams = obj.getDouble("fatGrams").toFloat(),
+                        isCustom = obj.optBoolean("isCustom", false)
+                    )
+                )
+            }
+        } catch (_: Exception) {
+        }
+        return list
+    }
+
+    private fun saveCustomFoodsToPrefs(foods: List<FoodItem>) {
+        val array = JSONArray()
+        for (f in foods) {
+            val obj = JSONObject().apply {
+                put("id", f.id)
+                put("name", f.name)
+                put("category", f.category.name)
+                put("servingSizeAmount", f.servingSizeAmount)
+                put("servingUnit", f.servingUnit)
+                put("calories", f.calories)
+                put("proteinGrams", f.proteinGrams)
+                put("carbsGrams", f.carbsGrams)
+                put("fatGrams", f.fatGrams)
+                put("isCustom", f.isCustom)
+            }
+            array.put(obj)
+        }
+        prefs.edit().putString("key_custom_foods", array.toString()).apply()
+    }
+
+    fun getTodayDateString(): String = "2025-10-15"
+
+    private fun getSampleMealsForToday(): List<MealEntry> {
+        return listOf(
+            MealEntry("m1", MealCategory.BREAKFAST, initialIndianFoodDatabase[3], 1.5f, 255, 19.5f, 3.75f, 18.0f, "2025-10-15"),
+            MealEntry("m2", MealCategory.BREAKFAST, initialIndianFoodDatabase[1], 2.0f, 160, 5.6f, 30.0f, 1.6f, "2025-10-15"),
+            MealEntry("m3", MealCategory.LUNCH, initialIndianFoodDatabase[2], 1.0f, 220, 28.0f, 4.0f, 10.0f, "2025-10-15"),
+            MealEntry("m4", MealCategory.LUNCH, initialIndianFoodDatabase[5], 1.0f, 195, 3.8f, 42.0f, 0.6f, "2025-10-15"),
+            MealEntry("m5", MealCategory.SNACKS, initialIndianFoodDatabase[7], 1.0f, 120, 24.0f, 2.0f, 1.5f, "2025-10-15")
+        )
+    }
+
+    private fun getSampleWorkoutSessions(): List<WorkoutSession> {
+        return listOf(
+            WorkoutSession(
+                id = "s1",
+                name = "Hypertrophy Push Heavy",
+                split = WorkoutSplit.PUSH,
+                dateString = "2025-10-14",
+                timestampFormatted = "Yesterday at 6:30 PM",
+                durationMinutes = 58,
+                exercises = listOf(
+                    WorkoutExercise(
+                        defaultExerciseLibrary[0],
+                        listOf(WorkoutSet(1, 10, 60f, true), WorkoutSet(2, 10, 65f, true), WorkoutSet(3, 8, 70f, true))
+                    ),
+                    WorkoutExercise(
+                        defaultExerciseLibrary[1],
+                        listOf(WorkoutSet(1, 10, 22f, true), WorkoutSet(2, 10, 24f, true), WorkoutSet(3, 10, 24f, true))
+                    )
+                ),
+                totalVolumeKg = 4280f,
+                estimatedCaloriesBurned = 380
+            )
+        )
     }
 }

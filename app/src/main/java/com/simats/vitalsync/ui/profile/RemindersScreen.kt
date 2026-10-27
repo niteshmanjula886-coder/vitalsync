@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,6 +26,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -46,7 +48,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.theme.VitalTealDark
-import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
 @Composable
@@ -63,7 +64,7 @@ fun RemindersScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp),
@@ -89,7 +90,7 @@ fun RemindersScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -99,7 +100,7 @@ fun RemindersScreen(
                     text = "Reminders",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -108,7 +109,7 @@ fun RemindersScreen(
             Text(
                 text = "Make healthy habits part of your day.",
                 fontSize = 13.sp,
-                color = Color(0xFF6B7280)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -117,15 +118,24 @@ fun RemindersScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFFE6F4EA))
+                        .background(MaterialTheme.colorScheme.secondary)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text(text = "4 scheduled", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                    Text(
+                        text = "4 scheduled",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Text(text = "All reminders are on", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                Text(
+                    text = "All reminders are on",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -213,8 +223,9 @@ private fun ReminderCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             Row(
@@ -227,7 +238,7 @@ private fun ReminderCard(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFE6F4EA)),
+                            .background(MaterialTheme.colorScheme.secondary),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(text = icon, fontSize = 18.sp)
@@ -236,8 +247,17 @@ private fun ReminderCard(
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Column {
-                        Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Text(text = schedule, fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                        Text(
+                            text = title,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = schedule,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
@@ -246,7 +266,7 @@ private fun ReminderCard(
                     onCheckedChange = onCheckedChange,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
-                        checkedTrackColor = VitalTealPrimary
+                        checkedTrackColor = MaterialTheme.colorScheme.primary
                     )
                 )
             }
@@ -257,16 +277,24 @@ private fun ReminderCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.clickable { }
             ) {
-                Text(text = time, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                Text(
+                    text = time,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                PencilEditIcon(modifier = Modifier.size(16.dp))
+                PencilEditIcon(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
 }
 
 @Composable
-private fun PencilEditIcon(modifier: Modifier = Modifier) {
+private fun PencilEditIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF6B7280)
+) {
     Canvas(modifier = modifier) {
         val w = size.width
 
@@ -279,7 +307,7 @@ private fun PencilEditIcon(modifier: Modifier = Modifier) {
             close()
         }
 
-        drawPath(path = path, color = Color(0xFF6B7280), style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(path = path, color = color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 
