@@ -56,6 +56,7 @@ fun NutritionDashboardScreen(
     loggedMeals: List<MealEntry> = emptyList(),
     onBackClick: () -> Unit = {},
     onAddMealClick: (MealCategory) -> Unit = {},
+    onDeleteMealEntry: (String) -> Unit = {},
     onViewMealHistoryClick: () -> Unit = {},
     onNutritionSettingsClick: () -> Unit = {}
 ) {
@@ -98,22 +99,21 @@ fun NutritionDashboardScreen(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = "Diet & Protein Tracker 🥗",
+                    text = "Diet & Protein Tracker",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .clickable { onNutritionSettingsClick() },
-                contentAlignment = Alignment.Center
+            IconButton(
+                onClick = onNutritionSettingsClick,
+                modifier = Modifier.size(36.dp)
             ) {
-                Text(text = "⚙️", fontSize = 16.sp)
+                GearSettingsIcon(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
             }
         }
 
@@ -138,7 +138,7 @@ fun NutritionDashboardScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable { onViewMealHistoryClick() }
                 ) {
-                    Text(text = "🗓️", fontSize = 16.sp)
+                    CalendarIcon(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = dateString, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 }
@@ -292,22 +292,18 @@ fun NutritionDashboardScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = category.icon, fontSize = 20.sp)
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = category.displayName,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Text(
-                                    text = "$categoryCals kcal · ${categoryProtein.toInt()}g protein",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        Column {
+                            Text(
+                                text = category.displayName,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = "$categoryCals kcal · ${categoryProtein.toInt()}g protein",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
 
                         Box(
@@ -317,12 +313,16 @@ fun NutritionDashboardScreen(
                                 .clickable { onAddMealClick(category) }
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Text(
-                                text = "+ Add Food",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                PlusAddIcon(modifier = Modifier.size(12.dp), color = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Add Food",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
 
@@ -335,22 +335,45 @@ fun NutritionDashboardScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
+                                    .padding(vertical = 5.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "${meal.foodItem.name} (${meal.quantity.toInt()}x)",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Text(
-                                    text = "${meal.calculatedCalories} kcal | ${meal.calculatedProtein}g P",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "${meal.foodItem.name} (${meal.quantity}x)",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                    Text(
+                                        text = "${meal.calculatedCalories} kcal | ${meal.calculatedProtein}g P",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                // Professional Delete Button with Trash Bin Icon
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFFEE2E2))
+                                        .clickable { onDeleteMealEntry(meal.id) }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        TrashBinIcon(modifier = Modifier.size(13.dp), color = Color(0xFFDC2626))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Delete",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFDC2626)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -383,6 +406,86 @@ private fun MacroMiniCard(
             Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             Text(text = targetStr, fontSize = 11.sp, color = color, fontWeight = FontWeight.Bold)
         }
+    }
+}
+
+@Composable
+fun TrashBinIcon(modifier: Modifier = Modifier, color: Color = Color(0xFFDC2626)) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val lidLine = Path().apply {
+            moveTo(w * 0.15f, h * 0.28f)
+            lineTo(w * 0.85f, h * 0.28f)
+            moveTo(w * 0.38f, h * 0.28f)
+            lineTo(w * 0.38f, h * 0.15f)
+            lineTo(w * 0.62f, h * 0.15f)
+            lineTo(w * 0.62f, h * 0.28f)
+        }
+
+        val binBody = Path().apply {
+            moveTo(w * 0.22f, h * 0.28f)
+            lineTo(w * 0.28f, h * 0.88f)
+            lineTo(w * 0.72f, h * 0.88f)
+            lineTo(w * 0.78f, h * 0.28f)
+        }
+
+        val innerLines = Path().apply {
+            moveTo(w * 0.40f, h * 0.40f)
+            lineTo(w * 0.40f, h * 0.76f)
+            moveTo(w * 0.60f, h * 0.40f)
+            lineTo(w * 0.60f, h * 0.76f)
+        }
+
+        drawPath(path = lidLine, color = color, style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(path = binBody, color = color, style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(path = innerLines, color = color, style = Stroke(width = 1.4.dp.toPx(), cap = StrokeCap.Round))
+    }
+}
+
+@Composable
+fun PlusAddIcon(modifier: Modifier = Modifier, color: Color = Color(0xFF0F9F7A)) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val path = Path().apply {
+            moveTo(w * 0.5f, h * 0.15f)
+            lineTo(w * 0.5f, h * 0.85f)
+            moveTo(w * 0.15f, h * 0.5f)
+            lineTo(w * 0.85f, h * 0.5f)
+        }
+
+        drawPath(path = path, color = color, style = Stroke(width = 2.0.dp.toPx(), cap = StrokeCap.Round))
+    }
+}
+
+@Composable
+private fun GearSettingsIcon(modifier: Modifier = Modifier, color: Color = Color.Black) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        drawCircle(color = color, radius = w * 0.25f, center = Offset(w * 0.5f, h * 0.5f), style = Stroke(width = 1.8.dp.toPx()))
+    }
+}
+
+@Composable
+private fun CalendarIcon(modifier: Modifier = Modifier, color: Color = Color.Black) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val calPath = Path().apply {
+            moveTo(0f, h * 0.25f)
+            lineTo(w, h * 0.25f)
+            lineTo(w, h * 0.85f)
+            lineTo(0f, h * 0.85f)
+            close()
+        }
+
+        drawPath(path = calPath, color = color, style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 

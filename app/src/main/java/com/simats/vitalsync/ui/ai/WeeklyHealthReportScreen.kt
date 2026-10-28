@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -55,20 +56,19 @@ import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
-// Dynamic Health Classification Colors
-private val DarkGreenNormal = Color(0xFF00A884) // Green (Normal / Optimal)
+private val DarkGreenNormal = Color(0xFF00A884)
 private val LightGreenNormalBg = Color(0xFFDDF7EC)
 
-private val DarkYellowMid = Color(0xFFD97706) // Yellow / Amber (Mid / Moderate)
+private val DarkYellowMid = Color(0xFFD97706)
 private val LightYellowMidBg = Color(0xFFFEF3C7)
 
-private val DarkRedLow = Color(0xFFDC2626) // Red (Low / Critical Alert)
+private val DarkRedLow = Color(0xFFDC2626)
 private val LightRedLowBg = Color(0xFFFEE2E2)
 
 enum class MetricStatusType {
-    NORMAL, // Green
-    MID,    // Yellow
-    LOW     // Red
+    NORMAL,
+    MID,
+    LOW
 }
 
 @Composable
@@ -128,7 +128,7 @@ fun WeeklyHealthReportScreen(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "📅", fontSize = 16.sp)
+                    CalendarIcon(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -264,7 +264,6 @@ fun WeeklyHealthReportScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Smoothly Animated Trend Line
                     var targetProgress by remember { mutableFloatStateOf(0f) }
                     LaunchedEffect(Unit) {
                         targetProgress = 1f
@@ -334,7 +333,7 @@ fun WeeklyHealthReportScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Vital Metrics Cards Row 1 (Green Normal vs Yellow Mid)
+            // Vital Metrics Cards Row 1
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -358,7 +357,7 @@ fun WeeklyHealthReportScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Vital Metrics Cards Row 2 (Red Low vs Green Normal)
+            // Vital Metrics Cards Row 2
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -382,7 +381,7 @@ fun WeeklyHealthReportScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Vital Metrics Cards Row 3 (Yellow Mid vs Red Low)
+            // Vital Metrics Cards Row 3
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -414,12 +413,16 @@ fun WeeklyHealthReportScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        text = "✨ AI Doctor Observations",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF7C3AED)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SparkleIconPurple(modifier = Modifier.size(18.dp), color = Color(0xFF7C3AED))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "AI Doctor Observations",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF7C3AED)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -522,7 +525,6 @@ private fun ReportMetricCard(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // Classification Color Status Badge
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
@@ -549,7 +551,6 @@ private fun ReportMetricCard(
                 label = "MetricCardTrendAnimation"
             )
 
-            // Animated Metric Line in Classification Color (Green / Yellow / Red)
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -592,6 +593,46 @@ private fun ReportMetricCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CalendarIcon(modifier: Modifier = Modifier, color: Color = Color.Black) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val calPath = Path().apply {
+            moveTo(0f, h * 0.25f)
+            lineTo(w, h * 0.25f)
+            lineTo(w, h * 0.85f)
+            lineTo(0f, h * 0.85f)
+            close()
+        }
+
+        drawPath(path = calPath, color = color, style = Stroke(width = 1.6.dp.toPx()))
+    }
+}
+
+@Composable
+private fun SparkleIconPurple(
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF4C1D95)
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val path = Path().apply {
+            moveTo(w * 0.5f, 0f)
+            quadraticTo(w * 0.5f, h * 0.5f, w, h * 0.5f)
+            quadraticTo(w * 0.5f, h * 0.5f, w * 0.5f, h)
+            quadraticTo(w * 0.5f, h * 0.5f, 0f, h * 0.5f)
+            quadraticTo(w * 0.5f, h * 0.5f, w * 0.5f, 0f)
+            close()
+        }
+
+        drawPath(path = path, color = color)
     }
 }
 

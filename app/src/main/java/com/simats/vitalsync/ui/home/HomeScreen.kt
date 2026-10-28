@@ -20,6 +20,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -48,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,6 +65,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -79,6 +83,7 @@ import com.simats.vitalsync.ui.theme.VitalTextSecondary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 @Composable
@@ -234,10 +239,10 @@ private fun HomeDashboardContent(
             .padding(horizontal = 20.dp)
             .padding(top = 16.dp, bottom = 24.dp)
     ) {
-        // Good Morning Header
+        // Good Morning Header (Clean iOS Style)
         Column {
             Text(
-                text = "Good Morning, $firstName 👋",
+                text = "Good Morning, $firstName",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
@@ -280,7 +285,7 @@ private fun HomeDashboardContent(
                         val arcSize = Size(size.width - strokePx, size.height - strokePx)
                         val topLeft = Offset(strokePx / 2f, strokePx / 2f)
 
-                        // Track (Soft Light Purple)
+                        // Track
                         drawArc(
                             color = Color(0xFFC4B5FD),
                             startAngle = -220f,
@@ -290,7 +295,7 @@ private fun HomeDashboardContent(
                             size = arcSize,
                             style = Stroke(width = strokePx, cap = StrokeCap.Round)
                         )
-                        // Smoothly Animated Active Dark Purple Progress Sweep
+                        // Smoothly Animated Active Progress Sweep
                         drawArc(
                             color = Color(0xFF7C3AED),
                             startAngle = -220f,
@@ -383,7 +388,7 @@ private fun HomeDashboardContent(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Vitals 2x2 Grid with Dynamic Classification Colors
+        // Vitals 2x2 Grid
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(14.dp)
@@ -650,14 +655,13 @@ private fun VitalCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
-    // Dynamic Classification Color Mapping based on Status / Trend
     val statusColor = when {
         status.contains("Low", ignoreCase = true) || status.contains("High", ignoreCase = true) || status.contains("Critical", ignoreCase = true) ->
-            Color(0xFFDC2626) // Red
+            Color(0xFFDC2626)
         status.contains("Warning", ignoreCase = true) || status.contains("Elevated", ignoreCase = true) ->
-            Color(0xFFD97706) // Amber/Orange
+            Color(0xFFD97706)
         else ->
-            VitalPrimaryMint // Rich Dark Emerald Green (#026C54)
+            VitalPrimaryMint
     }
 
     Card(
@@ -714,7 +718,7 @@ private fun VitalCard(
     }
 }
 
-// 🔮 Parabolic Arc Jumping Circular Bubble Navigation Bar (Adaptive Dark/Light Theme)
+// 🔮 Interactive Parabolic Arc Jumping & Drag/Swipe Circular Bubble Navigation Bar
 @Composable
 private fun HomeBottomNavigationBar(
     selectedTab: Int,
@@ -723,15 +727,19 @@ private fun HomeBottomNavigationBar(
     val tabCount = 5
     val items = listOf("Home", "Vitals", "AI", "Profile", "Gym")
 
+    var isDragging by remember { mutableStateOf(false) }
+    var dragTabPos by remember { mutableFloatStateOf(selectedTab.toFloat()) }
     var startTabPos by remember { mutableFloatStateOf(selectedTab.toFloat()) }
     var targetTabPos by remember { mutableFloatStateOf(selectedTab.toFloat()) }
 
     LaunchedEffect(selectedTab) {
-        startTabPos = targetTabPos
-        targetTabPos = selectedTab.toFloat()
+        if (!isDragging) {
+            startTabPos = targetTabPos
+            targetTabPos = selectedTab.toFloat()
+            dragTabPos = selectedTab.toFloat()
+        }
     }
 
-    // Horizontal Sliding Progress (0.0f to 4.0f)
     val animatedTabPos by animateFloatAsState(
         targetValue = targetTabPos,
         animationSpec = spring(
@@ -741,16 +749,14 @@ private fun HomeBottomNavigationBar(
         label = "JumpingBubbleHorizontal"
     )
 
-    // Calculate Parabolic Arc Jump Fraction t (0.0f to 1.0f)
     val totalDistance = abs(targetTabPos - startTabPos)
     val traveled = abs(animatedTabPos - startTabPos)
     val jumpFraction = if (totalDistance > 0.05f) (traveled / totalDistance).coerceIn(0f, 1f) else 0f
 
-    // Parabolic Arc Height Y (Arcs (-18.dp) upward in mid-air at peak)
     val jumpArcYDp = (-18.dp) * sin(jumpFraction * Math.PI.toFloat())
-
-    // Mid-Air Scale Stretch
     val bubbleScale = (1.0f + 0.12f * sin(jumpFraction * Math.PI.toFloat()))
+
+    val density = LocalDensity.current
 
     Box(
         modifier = Modifier
@@ -758,7 +764,6 @@ private fun HomeBottomNavigationBar(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // Floating Glass Capsule Card Container (Adaptive Surface)
         Card(
             shape = RoundedCornerShape(32.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -775,85 +780,123 @@ private fun HomeBottomNavigationBar(
                 val totalWidth = maxWidth
                 val tabWidth = totalWidth / tabCount
 
-                // 🔮 1. Active Selected Circular Bubble
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .offset(
-                            x = (tabWidth * animatedTabPos) + (tabWidth / 2f) - 20.dp,
-                            y = jumpArcYDp + 6.dp
-                        )
-                        .scale(bubbleScale)
-                        .shadow(
-                            elevation = 4.dp,
-                            shape = CircleShape,
-                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-                        )
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondary)
-                )
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            val totalWidthPx = with(density) { maxWidth.toPx() }
+                            val tabWidthPx = totalWidthPx / tabCount
 
-                // 2. FIXED NAVIGATION ITEMS ROW
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    items.forEachIndexed { index, label ->
-                        val isSelected = selectedTab == index
-                        val activeColor = MaterialTheme.colorScheme.primary
-                        val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
-
-                        val iconScale by animateFloatAsState(
-                            targetValue = if (isSelected) 1.12f else 1.0f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            ),
-                            label = "FixedIconScale"
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clickable {
-                                    startTabPos = animatedTabPos
-                                    onTabSelected(index)
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset ->
+                                    isDragging = true
+                                    val startTab = (offset.x / tabWidthPx).coerceIn(0f, (tabCount - 1).toFloat())
+                                    dragTabPos = startTab
+                                    targetTabPos = startTab
                                 },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                // Icon Container (40.dp size matches active circular bubble perfectly 1:1)
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .scale(iconScale),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    when (index) {
-                                        0 -> AnimatedHomeNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
-                                        1 -> AnimatedVitalsNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
-                                        2 -> AnimatedAiNavSparkleIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) Color(0xFF7C3AED) else inactiveColor)
-                                        3 -> AnimatedProfileNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
-                                        4 -> AnimatedGymNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
-                                        else -> AnimatedHomeNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
-                                    }
+                                onHorizontalDrag = { _, dragAmount ->
+                                    dragTabPos = (dragTabPos + dragAmount / tabWidthPx).coerceIn(0f, (tabCount - 1).toFloat())
+                                    targetTabPos = dragTabPos
+                                },
+                                onDragEnd = {
+                                    isDragging = false
+                                    val snappedTab = dragTabPos.roundToInt().coerceIn(0, tabCount - 1)
+                                    startTabPos = dragTabPos
+                                    targetTabPos = snappedTab.toFloat()
+                                    dragTabPos = snappedTab.toFloat()
+                                    onTabSelected(snappedTab)
+                                },
+                                onDragCancel = {
+                                    isDragging = false
+                                    val snappedTab = dragTabPos.roundToInt().coerceIn(0, tabCount - 1)
+                                    startTabPos = dragTabPos
+                                    targetTabPos = snappedTab.toFloat()
+                                    dragTabPos = snappedTab.toFloat()
+                                    onTabSelected(snappedTab)
                                 }
+                            )
+                        }
+                ) {
+                    // 🔮 Active Selected Circular Bubble
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .offset(
+                                x = (tabWidth * animatedTabPos) + (tabWidth / 2f) - 20.dp,
+                                y = jumpArcYDp + 6.dp
+                            )
+                            .scale(bubbleScale)
+                            .shadow(
+                                elevation = 4.dp,
+                                shape = CircleShape,
+                                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                            )
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondary)
+                    )
 
-                                Spacer(modifier = Modifier.height(2.dp))
+                    // Navigation Items Row
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        items.forEachIndexed { index, label ->
+                            val isSelected = selectedTab == index
+                            val activeColor = MaterialTheme.colorScheme.primary
+                            val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
 
-                                // Fixed Text Label Position
-                                Text(
-                                    text = label,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) activeColor else inactiveColor,
-                                    maxLines = 1
-                                )
+                            val iconScale by animateFloatAsState(
+                                targetValue = if (isSelected) 1.12f else 1.0f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                ),
+                                label = "FixedIconScale"
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clickable {
+                                        startTabPos = animatedTabPos
+                                        targetTabPos = index.toFloat()
+                                        dragTabPos = index.toFloat()
+                                        onTabSelected(index)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .scale(iconScale),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        when (index) {
+                                            0 -> AnimatedHomeNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) Color(0xFF8B4513) else inactiveColor)
+                                            1 -> AnimatedVitalsNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
+                                            2 -> AnimatedAiNavSparkleIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) Color(0xFF7C3AED) else inactiveColor)
+                                            3 -> AnimatedProfileNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
+                                            4 -> AnimatedGymNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) Color(0xFF10B981) else inactiveColor)
+                                            else -> AnimatedHomeNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) Color(0xFF8B4513) else inactiveColor)
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(2.dp))
+
+                                    Text(
+                                        text = label,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) activeColor else inactiveColor,
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }
@@ -911,99 +954,214 @@ private fun AnimatedVitalsNavIcon(
     }
 }
 
-// 🏋️ Interactive Dumbbell Lift Rep Animation Component for Navigation Bar
+// 💪 Flexed Biceps Emoji Structure Component for Gym Navigation
 @Composable
 private fun AnimatedGymNavIcon(
     isSelected: Boolean,
     modifier: Modifier = Modifier,
     color: Color = Color.Gray
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "GymNavLiftAnim")
+    val infiniteTransition = rememberInfiniteTransition(label = "GymBicepFlexAnim")
 
-    val liftOffsetY by infiniteTransition.animateFloat(
+    val flexProgress by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = -5f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(750, easing = FastOutSlowInEasing),
+            animation = tween(550, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "DumbbellLiftY"
+        label = "BicepFlexProgress"
     )
 
+    val activeGymColor = if (isSelected) Color(0xFF10B981) else color
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
     Canvas(
-        modifier = modifier
-            .offset(y = if (isSelected) liftOffsetY.dp else 0.dp)
-            .scale(if (isSelected) 1.15f else 1.0f)
+        modifier = modifier.scale(if (isSelected) 1.15f else 1.0f)
     ) {
         val w = size.width
         val h = size.height
 
-        val bar = Path().apply {
-            moveTo(w * 0.15f, h * 0.5f)
-            lineTo(w * 0.85f, h * 0.5f)
+        val flexHeight = if (isSelected) (flexProgress * 4.0.dp.toPx()) else 0f
+
+        // 1. Flexed Bicep Arm Main Outline (Matching Bicep Emoji Structure)
+        val bicepOutline = Path().apply {
+            moveTo(w * 0.28f, h * 0.16f)
+            cubicTo(w * 0.12f, h * 0.16f, w * 0.08f, h * 0.32f, w * 0.12f, h * 0.45f)
+            lineTo(w * 0.16f, h * 0.76f)
+            quadraticTo(w * 0.18f, h * 0.90f, w * 0.35f, h * 0.88f)
+            quadraticTo(w * 0.62f, h * 0.82f, w * 0.88f, h * 0.65f)
+            lineTo(w * 0.82f, h * 0.36f)
+            quadraticTo(w * 0.68f, h * 0.45f, w * 0.60f, h * 0.50f)
+            cubicTo(
+                w * 0.52f, h * 0.30f - flexHeight,
+                w * 0.38f, h * 0.28f - flexHeight,
+                w * 0.30f, h * 0.42f
+            )
+            quadraticTo(w * 0.28f, h * 0.28f, w * 0.28f, h * 0.16f)
+            close()
         }
 
-        drawPath(path = bar, color = color, style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round))
-        drawCircle(color = color, radius = w * 0.15f, center = Offset(w * 0.20f, h * 0.5f))
-        drawCircle(color = color, radius = w * 0.15f, center = Offset(w * 0.80f, h * 0.5f))
+        drawPath(
+            path = bicepOutline,
+            color = activeGymColor
+        )
 
-        // Outer Weight Ring Accent when active
+        // 2. Inner Bicep Muscle Definition Crease Line
+        val muscleLine = Path().apply {
+            moveTo(w * 0.38f, h * 0.56f)
+            quadraticTo(w * 0.55f, h * 0.42f - (flexHeight * 0.5f), w * 0.72f, h * 0.46f)
+        }
+        drawPath(
+            path = muscleLine,
+            color = surfaceColor,
+            style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
+        )
+
+        // 3. Knuckle Joint Lines on Clenched Fist (Top Left)
+        val knuckleLine = Path().apply {
+            moveTo(w * 0.20f, h * 0.20f)
+            lineTo(w * 0.26f, h * 0.25f)
+            moveTo(w * 0.18f, h * 0.26f)
+            lineTo(w * 0.24f, h * 0.31f)
+            moveTo(w * 0.18f, h * 0.32f)
+            lineTo(w * 0.24f, h * 0.37f)
+        }
+        drawPath(
+            path = knuckleLine,
+            color = surfaceColor,
+            style = Stroke(width = 1.2.dp.toPx(), cap = StrokeCap.Round)
+        )
+
+        // 4. Power Burst Rays
         if (isSelected) {
-            drawCircle(color = color.copy(alpha = 0.5f), radius = w * 0.22f, center = Offset(w * 0.20f, h * 0.5f), style = Stroke(width = 1.dp.toPx()))
-            drawCircle(color = color.copy(alpha = 0.5f), radius = w * 0.22f, center = Offset(w * 0.80f, h * 0.5f), style = Stroke(width = 1.dp.toPx()))
+            val peakX = w * 0.46f
+            val peakY = h * 0.26f - flexHeight
+
+            val ray1Start = Offset(peakX - 5.dp.toPx(), peakY - 2.dp.toPx())
+            val ray1End = Offset(peakX - 8.dp.toPx(), peakY - 7.dp.toPx())
+            drawLine(color = activeGymColor, start = ray1Start, end = ray1End, strokeWidth = 1.6.dp.toPx(), cap = StrokeCap.Round)
+
+            val ray2Start = Offset(peakX, peakY - 3.dp.toPx())
+            val ray2End = Offset(peakX, peakY - 9.dp.toPx())
+            drawLine(color = activeGymColor, start = ray2Start, end = ray2End, strokeWidth = 1.8.dp.toPx(), cap = StrokeCap.Round)
+
+            val ray3Start = Offset(peakX + 5.dp.toPx(), peakY - 2.dp.toPx())
+            val ray3End = Offset(peakX + 8.dp.toPx(), peakY - 7.dp.toPx())
+            drawLine(color = activeGymColor, start = ray3Start, end = ray3End, strokeWidth = 1.6.dp.toPx(), cap = StrokeCap.Round)
         }
     }
 }
 
-// 👤 Interactive Upright Profile Person Icon Component for Navigation Bar
+// 👤 Emoji-Style Person Structure Waving "Hi!" Component for Navigation Bar
 @Composable
 private fun AnimatedProfileNavIcon(
     isSelected: Boolean,
     modifier: Modifier = Modifier,
     color: Color = Color.Gray
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "ProfileNavPopAnim")
+    val infiniteTransition = rememberInfiniteTransition(label = "ProfileEmojiNavWave")
 
-    val headBounceY by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = -3f,
+    val handWaveAngle by infiniteTransition.animateFloat(
+        initialValue = -20f,
+        targetValue = 20f,
         animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = FastOutSlowInEasing),
+            animation = tween(380, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "HeadBounceY"
+        label = "EmojiHandWave"
+    )
+
+    val headTiltY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = -2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(550, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "EmojiHeadTilt"
     )
 
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
 
-        val headCenterY = if (isSelected) (h * 0.28f + headBounceY.dp.toPx()) else (h * 0.28f)
-        val headRadius = w * 0.22f
+        val headCenterX = if (isSelected) w * 0.42f else w * 0.50f
+        val headCenterY = if (isSelected) h * 0.28f + headTiltY.dp.toPx() else h * 0.28f
+        val headRadius = w * 0.21f
 
-        // 1. Head Circle
+        // 1. Emoji Person Head (Filled Circle)
         drawCircle(
             color = color,
             radius = headRadius,
-            center = Offset(w * 0.5f, headCenterY),
-            style = Stroke(width = 1.8.dp.toPx())
+            center = Offset(headCenterX, headCenterY)
         )
 
-        // 2. Body Arc (Upright person shoulders)
+        // 2. Emoji Person Body / Torso (Filled Shoulders)
         val bodyPath = Path().apply {
-            moveTo(w * 0.15f, h * 0.88f)
-            cubicTo(w * 0.15f, h * 0.58f, w * 0.85f, h * 0.58f, w * 0.85f, h * 0.88f)
+            val leftX = if (isSelected) w * 0.12f else w * 0.16f
+            val rightX = if (isSelected) w * 0.65f else w * 0.84f
+            moveTo(leftX, h * 0.90f)
+            lineTo(leftX, h * 0.78f)
+            cubicTo(leftX, h * 0.52f, rightX, h * 0.52f, rightX, h * 0.78f)
+            lineTo(rightX, h * 0.90f)
+            close()
         }
 
         drawPath(
             path = bodyPath,
-            color = color,
-            style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round)
+            color = color
         )
+
+        // 3. Emoji Person Raised Waving Arm & Hand ("Hi!") 👋
+        if (isSelected) {
+            val shoulderX = w * 0.62f
+            val shoulderY = h * 0.65f
+
+            val waveRad = (handWaveAngle * Math.PI.toFloat() / 180f)
+            val handX = shoulderX + (13.dp.toPx() * sin(waveRad + 0.35f))
+            val handY = shoulderY - (15.dp.toPx() * cos(waveRad + 0.35f))
+
+            // Raised Arm
+            val armPath = Path().apply {
+                moveTo(shoulderX, shoulderY)
+                quadraticTo(shoulderX + 5.dp.toPx(), shoulderY - 8.dp.toPx(), handX, handY)
+            }
+
+            drawPath(
+                path = armPath,
+                color = color,
+                style = Stroke(width = 2.4.dp.toPx(), cap = StrokeCap.Round)
+            )
+
+            // Waving Hand Palm Circle
+            drawCircle(
+                color = color,
+                radius = 3.0.dp.toPx(),
+                center = Offset(handX, handY)
+            )
+
+            // Finger Rays (Waving Hand Saying Hi!)
+            repeat(4) { fingerIndex ->
+                val fingerAngle = (-60f + fingerIndex * 35f + handWaveAngle * 0.8f) * (Math.PI.toFloat() / 180f)
+                val fingerStartX = handX + (2.5.dp.toPx() * cos(fingerAngle))
+                val fingerStartY = handY + (2.5.dp.toPx() * sin(fingerAngle))
+                val fingerEndX = handX + (5.5.dp.toPx() * cos(fingerAngle))
+                val fingerEndY = handY + (5.5.dp.toPx() * sin(fingerAngle))
+
+                drawLine(
+                    color = color,
+                    start = Offset(fingerStartX, fingerStartY),
+                    end = Offset(fingerEndX, fingerEndY),
+                    strokeWidth = 1.4.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
+            }
+        }
     }
 }
 
-// 🏠 Interactive Pulsating Home Icon Animation Component for Navigation Bar
+// 🏠 Brown House with Black Animated Chimney Smoke Puff Component for Navigation Bar
 @Composable
 private fun AnimatedHomeNavIcon(
     isSelected: Boolean,
@@ -1013,8 +1171,8 @@ private fun AnimatedHomeNavIcon(
     val infiniteTransition = rememberInfiniteTransition(label = "HomeNavIconAnim")
 
     val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.92f,
-        targetValue = 1.15f,
+        initialValue = 0.95f,
+        targetValue = 1.10f,
         animationSpec = infiniteRepeatable(
             animation = tween(1400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -1022,25 +1180,18 @@ private fun AnimatedHomeNavIcon(
         label = "HomePulseScale"
     )
 
-    val smokeOffsetY by infiniteTransition.animateFloat(
+    val smokeProgress by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = -6f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
+            animation = tween(1600, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "SmokeOffsetY"
+        label = "ChimneySmokeProgress"
     )
 
-    val smokeAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "SmokeAlpha"
-    )
+    val houseColor = if (isSelected) Color(0xFF8B4513) else color
+    val blackSmokeColor = Color(0xFF111827)
 
     Canvas(
         modifier = modifier.scale(if (isSelected) pulseScale else 1.0f)
@@ -1048,22 +1199,36 @@ private fun AnimatedHomeNavIcon(
         val w = size.width
         val h = size.height
 
-        val housePath = Path().apply {
-            moveTo(w * 0.5f, h * 0.15f)
-            lineTo(w * 0.88f, h * 0.48f)
-            lineTo(w * 0.88f, h * 0.88f)
-            lineTo(w * 0.12f, h * 0.88f)
-            lineTo(w * 0.12f, h * 0.48f)
-            close()
+        // 1. Chimney on Roof Right Side
+        val chimneyTopY = h * 0.22f
+        val chimneyPath = Path().apply {
+            moveTo(w * 0.68f, h * 0.30f)
+            lineTo(w * 0.68f, chimneyTopY)
+            lineTo(w * 0.80f, chimneyTopY)
+            lineTo(w * 0.80f, h * 0.42f)
         }
-
         drawPath(
-            path = housePath,
-            color = color,
+            path = chimneyPath,
+            color = houseColor,
             style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
 
-        // Door
+        // 2. House Main Outline (Roof + Walls)
+        val housePath = Path().apply {
+            moveTo(w * 0.50f, h * 0.16f) // Roof Peak
+            lineTo(w * 0.88f, h * 0.48f) // Right roof corner
+            lineTo(w * 0.88f, h * 0.88f) // Right wall bottom
+            lineTo(w * 0.12f, h * 0.88f) // Left wall bottom
+            lineTo(w * 0.12f, h * 0.48f) // Left roof corner
+            close()
+        }
+        drawPath(
+            path = housePath,
+            color = houseColor,
+            style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+
+        // 3. Front Door
         val doorPath = Path().apply {
             moveTo(w * 0.38f, h * 0.88f)
             lineTo(w * 0.38f, h * 0.58f)
@@ -1072,17 +1237,28 @@ private fun AnimatedHomeNavIcon(
         }
         drawPath(
             path = doorPath,
-            color = color,
+            color = houseColor,
             style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
 
-        // Floating Chimney Smoke Sparkle Dot when active
+        // 4. Black Chimney Smoke Puff Clouds (Active when Home Tab is Selected)
         if (isSelected) {
-            drawCircle(
-                color = color.copy(alpha = smokeAlpha),
-                radius = 2.dp.toPx(),
-                center = Offset(w * 0.70f, (h * 0.08f) + smokeOffsetY.dp.toPx())
-            )
+            val chimneyCenterX = w * 0.74f
+            val smokePuffs = listOf(0.0f, 0.33f, 0.66f)
+
+            smokePuffs.forEach { offsetFraction ->
+                val progress = (smokeProgress + offsetFraction) % 1.0f
+                val riseY = chimneyTopY - (progress * 14.dp.toPx())
+                val driftX = chimneyCenterX + (sin(progress * Math.PI.toFloat() * 2f) * 2.5.dp.toPx())
+                val radius = (1.8.dp.toPx() + (progress * 2.2.dp.toPx()))
+                val alpha = (1.0f - progress).coerceIn(0f, 1f)
+
+                drawCircle(
+                    color = blackSmokeColor.copy(alpha = alpha * 0.88f),
+                    radius = radius,
+                    center = Offset(driftX, riseY)
+                )
+            }
         }
     }
 }
@@ -1125,7 +1301,6 @@ private fun AnimatedAiNavSparkleIcon(
         val cx = w / 2f
         val cy = h / 2f
 
-        // Central AI Sparkle Star
         val path = Path().apply {
             moveTo(cx, 0f)
             quadraticTo(cx, cy, w, cy)
@@ -1137,7 +1312,6 @@ private fun AnimatedAiNavSparkleIcon(
 
         drawPath(path = path, color = color)
 
-        // Orbiting Sparkle Dots when AI tab is active
         if (isSelected) {
             repeat(4) { i ->
                 val angle = (i * 90f + spinAngle) * (Math.PI.toFloat() / 180f)

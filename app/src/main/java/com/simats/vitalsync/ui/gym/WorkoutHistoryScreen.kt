@@ -23,6 +23,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -50,7 +51,7 @@ fun WorkoutHistoryScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -69,7 +70,7 @@ fun WorkoutHistoryScreen(
             ) {
                 BackArrowIcon(
                     modifier = Modifier.size(20.dp),
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -79,7 +80,7 @@ fun WorkoutHistoryScreen(
                 text = "Workout History",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
 
@@ -95,7 +96,7 @@ fun WorkoutHistoryScreen(
                 Text(
                     text = "No recorded gym sessions yet. Complete your first workout!",
                     fontSize = 14.sp,
-                    color = Color(0xFF9CA3AF)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
@@ -105,7 +106,7 @@ fun WorkoutHistoryScreen(
                         .fillMaxWidth()
                         .padding(vertical = 6.dp),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
@@ -119,28 +120,32 @@ fun WorkoutHistoryScreen(
                                     text = session.name,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF111827)
+                                    color = MaterialTheme.colorScheme.onBackground
                                 )
                                 Text(
                                     text = session.timestampFormatted,
                                     fontSize = 12.sp,
-                                    color = Color(0xFF6B7280)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
 
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFE8F6F0))
+                                    .background(MaterialTheme.colorScheme.secondary)
                                     .clickable { onReuseTemplate(session) }
                                     .padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
-                                Text(
-                                    text = "Reuse Template 🔄",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F9F7A)
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RefreshIcon(modifier = Modifier.size(12.dp), color = MaterialTheme.colorScheme.primary)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Reuse Template",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
                         }
 
@@ -151,29 +156,29 @@ fun WorkoutHistoryScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text(text = "Duration", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                                Text(text = "${session.durationMinutes} min", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                                Text(text = "Duration", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = "${session.durationMinutes} min", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                             }
 
                             Column {
-                                Text(text = "Total Volume", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                                Text(text = "${session.totalVolumeKg.toInt()} kg", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                                Text(text = "Total Volume", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = "${session.totalVolumeKg.toInt()} kg", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                             }
 
                             Column {
-                                Text(text = "Est. Calories", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                                Text(text = "${session.estimatedCaloriesBurned} kcal", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                                Text(text = "Est. Calories", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = "${session.estimatedCaloriesBurned} kcal", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                             }
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Text(
                             text = "Exercises (${session.exercises.size}): " + session.exercises.joinToString(", ") { it.exercise.name },
                             fontSize = 12.sp,
-                            color = Color(0xFF4B5563)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -181,6 +186,24 @@ fun WorkoutHistoryScreen(
         }
 
         Spacer(modifier = Modifier.height(28.dp))
+    }
+}
+
+@Composable
+private fun RefreshIcon(modifier: Modifier = Modifier, color: Color = Color.Black) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val path = Path().apply {
+            moveTo(w * 0.85f, h * 0.5f)
+            cubicTo(w * 0.85f, h * 0.7f, w * 0.7f, h * 0.85f, w * 0.5f, h * 0.85f)
+            cubicTo(w * 0.3f, h * 0.85f, w * 0.15f, h * 0.7f, w * 0.15f, h * 0.5f)
+            cubicTo(w * 0.15f, h * 0.3f, w * 0.3f, h * 0.15f, w * 0.5f, h * 0.15f)
+            lineTo(w * 0.65f, h * 0.15f)
+        }
+
+        drawPath(path = path, color = color, style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 

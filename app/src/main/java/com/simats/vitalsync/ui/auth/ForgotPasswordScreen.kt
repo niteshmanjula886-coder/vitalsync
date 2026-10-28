@@ -218,14 +218,13 @@ fun ForgotPasswordScreen(
                     unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                 ),
                 trailingIcon = {
-                    Text(
-                        text = if (isPasswordVisible) "🙈" else "👁️",
-                        fontSize = 18.sp,
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .clickable { isPasswordVisible = !isPasswordVisible }
-                            .padding(4.dp)
-                    )
+                    IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                        if (isPasswordVisible) {
+                            EyeOffIcon(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            EyeIcon(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
@@ -265,14 +264,13 @@ fun ForgotPasswordScreen(
                     unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                 ),
                 trailingIcon = {
-                    Text(
-                        text = if (isConfirmPasswordVisible) "🙈" else "👁️",
-                        fontSize = 18.sp,
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .clickable { isConfirmPasswordVisible = !isConfirmPasswordVisible }
-                            .padding(4.dp)
-                    )
+                    IconButton(onClick = { isConfirmPasswordVisible = !isConfirmPasswordVisible }) {
+                        if (isConfirmPasswordVisible) {
+                            EyeOffIcon(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            EyeIcon(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
@@ -292,7 +290,7 @@ fun ForgotPasswordScreen(
                         .padding(12.dp)
                 ) {
                     Text(
-                        text = "⚠️ $errorMessage",
+                        text = errorMessage,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFDC2626)
@@ -310,16 +308,12 @@ fun ForgotPasswordScreen(
                         .background(Color(0xFFDCFCE7))
                         .padding(14.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "✅", fontSize = 16.sp)
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Password reset successfully! You can now back to login.",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF166534)
-                        )
-                    }
+                    Text(
+                        text = "Password reset successfully! You can now back to login.",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF166534)
+                    )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -388,6 +382,48 @@ fun ForgotPasswordScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun EyeIcon(modifier: Modifier = Modifier, color: Color = Color.Gray) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val eyePath = Path().apply {
+            moveTo(0f, h * 0.5f)
+            quadraticTo(w * 0.5f, 0f, w, h * 0.5f)
+            quadraticTo(w * 0.5f, h, 0f, h * 0.5f)
+            close()
+        }
+
+        drawPath(path = eyePath, color = color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawCircle(color = color, radius = w * 0.18f, center = Offset(w * 0.5f, h * 0.5f))
+    }
+}
+
+@Composable
+fun EyeOffIcon(modifier: Modifier = Modifier, color: Color = Color.Gray) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val eyePath = Path().apply {
+            moveTo(0f, h * 0.5f)
+            quadraticTo(w * 0.5f, 0f, w, h * 0.5f)
+            quadraticTo(w * 0.5f, h, 0f, h * 0.5f)
+            close()
+        }
+
+        val slashLine = Path().apply {
+            moveTo(w * 0.15f, h * 0.85f)
+            lineTo(w * 0.85f, h * 0.15f)
+        }
+
+        drawPath(path = eyePath, color = color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawCircle(color = color, radius = w * 0.18f, center = Offset(w * 0.5f, h * 0.5f))
+        drawPath(path = slashLine, color = color, style = Stroke(width = 2.0.dp.toPx(), cap = StrokeCap.Round))
     }
 }
 

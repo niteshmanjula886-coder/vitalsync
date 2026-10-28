@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.nutrition
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -55,7 +57,7 @@ fun DailyMealHistoryScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -76,7 +78,7 @@ fun DailyMealHistoryScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -86,7 +88,7 @@ fun DailyMealHistoryScreen(
                     text = "Daily Meal History",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -94,10 +96,10 @@ fun DailyMealHistoryScreen(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF1F5F9)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "📅", fontSize = 16.sp)
+                CalendarIcon(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.primary)
             }
         }
 
@@ -107,7 +109,7 @@ fun DailyMealHistoryScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F6F0)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Row(
@@ -118,13 +120,13 @@ fun DailyMealHistoryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(text = dateString, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                    Text(text = "${loggedMeals.size} logged items", fontSize = 12.sp, color = Color(0xFF6B7280))
+                    Text(text = dateString, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                    Text(text = "${loggedMeals.size} logged items", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(text = "$totalCalories kcal", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                    Text(text = "${totalProtein.toInt()}g protein", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                    Text(text = "$totalCalories kcal", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                    Text(text = "${totalProtein.toInt()}g protein", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -141,7 +143,7 @@ fun DailyMealHistoryScreen(
                 Text(
                     text = "No meals logged for this date yet.",
                     fontSize = 14.sp,
-                    color = Color(0xFF9CA3AF)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
@@ -149,10 +151,10 @@ fun DailyMealHistoryScreen(
                 val categoryMeals = loggedMeals.filter { it.category == category }
                 if (categoryMeals.isNotEmpty()) {
                     Text(
-                        text = "${category.icon} ${category.displayName}",
+                        text = category.displayName,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -163,7 +165,8 @@ fun DailyMealHistoryScreen(
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                         ) {
                             Row(
@@ -178,22 +181,33 @@ fun DailyMealHistoryScreen(
                                         text = meal.foodItem.name,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF111827)
+                                        color = MaterialTheme.colorScheme.onBackground
                                     )
                                     Text(
                                         text = "Quantity: ${meal.quantity}x · ${meal.calculatedCalories} kcal | ${meal.calculatedProtein}g P",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF6B7280)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
 
-                                Text(
-                                    text = "Delete 🗑️",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFDC2626),
-                                    modifier = Modifier.clickable { onDeleteMealEntry(meal.id) }
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFFEE2E2))
+                                        .clickable { onDeleteMealEntry(meal.id) }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        TrashBinIcon(modifier = Modifier.size(13.dp), color = Color(0xFFDC2626))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Delete",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFDC2626)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -204,6 +218,24 @@ fun DailyMealHistoryScreen(
         }
 
         Spacer(modifier = Modifier.height(28.dp))
+    }
+}
+
+@Composable
+private fun CalendarIcon(modifier: Modifier = Modifier, color: Color = Color.Black) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val calPath = Path().apply {
+            moveTo(0f, h * 0.25f)
+            lineTo(w, h * 0.25f)
+            lineTo(w, h * 0.85f)
+            lineTo(0f, h * 0.85f)
+            close()
+        }
+
+        drawPath(path = calPath, color = color, style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 
