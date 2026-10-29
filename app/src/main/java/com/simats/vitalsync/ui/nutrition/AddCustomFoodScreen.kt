@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -43,6 +44,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,17 +61,19 @@ fun AddCustomFoodScreen(
     onSaveCustomFoodSuccess: (FoodItem) -> Unit = {}
 ) {
     var foodNameInput by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf(FoodCategory.VEG) }
     var servingUnitInput by remember { mutableStateOf("1 serving (100g)") }
-    var proteinInput by remember { mutableStateOf("25") }
-    var carbsInput by remember { mutableStateOf("15") }
-    var fatInput by remember { mutableStateOf("6") }
-    var selectedCategory by remember { mutableStateOf(FoodCategory.NON_VEG) }
 
-    // Automatic non-editable Atwater calorie calculation: (P*4 + C*4 + F*9)
-    val proteinVal = proteinInput.toFloatOrNull() ?: 0f
-    val carbsVal = carbsInput.toFloatOrNull() ?: 0f
-    val fatVal = fatInput.toFloatOrNull() ?: 0f
-    val autoCalculatedCalories = (proteinVal * 4f + carbsVal * 4f + fatVal * 9f).toInt()
+    var proteinInput by remember { mutableStateOf("10.0") }
+    var carbsInput by remember { mutableStateOf("15.0") }
+    var fatInput by remember { mutableStateOf("5.0") }
+
+    val pG = proteinInput.toFloatOrNull() ?: 0f
+    val cG = carbsInput.toFloatOrNull() ?: 0f
+    val fG = fatInput.toFloatOrNull() ?: 0f
+
+    // Standard Macro Formula: Protein=4kcal/g, Carbs=4kcal/g, Fat=9kcal/g
+    val autoCalculatedCalories = ((pG * 4f) + (cG * 4f) + (fG * 9f)).toInt()
 
     Column(
         modifier = modifier
@@ -77,6 +81,7 @@ fun AddCustomFoodScreen(
             .background(Color(0xFFFAFCFB))
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
             .padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
@@ -147,10 +152,10 @@ fun AddCustomFoodScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(
-                    FoodCategory.NON_VEG to "🔴 Non-Veg",
-                    FoodCategory.EGG to "🟡 Egg",
-                    FoodCategory.VEG to "🟢 Veg",
-                    FoodCategory.VEGAN to "🌱 Vegan"
+                    FoodCategory.NON_VEG to "Non-Veg",
+                    FoodCategory.EGG to "Egg",
+                    FoodCategory.VEG to "Veg",
+                    FoodCategory.VEGAN to "Vegan"
                 ).forEach { (cat, label) ->
                     val isSelected = selectedCategory == cat
                     Box(
@@ -217,7 +222,7 @@ fun AddCustomFoodScreen(
                                 .background(Color(0xFFE8F6F0))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Text(text = "⚡ Auto Calculated", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                            Text(text = "Auto Calculated", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
                         }
                     }
 
@@ -289,7 +294,7 @@ fun AddCustomFoodScreen(
                         }
 
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Fat (g)", fontSize = 12.sp, color = Color(0xFF374151), fontWeight = FontWeight.Bold)
+                            Text(text = "Fats (g)", fontSize = 12.sp, color = Color(0xFF374151), fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(4.dp))
                             OutlinedTextField(
                                 value = fatInput,
@@ -309,52 +314,58 @@ fun AddCustomFoodScreen(
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Text(
-                        text = "Calories calculate automatically: (Protein × 4) + (Carbs × 4) + (Fat × 9)",
-                        fontSize = 11.sp,
-                        color = Color(0xFF6B7280)
-                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(28.dp))
         }
 
-        // Save Custom Food Button
-        Button(
-            onClick = {
-                val nameToUse = foodNameInput.ifBlank { "Custom Food Item" }
-                val customFood = FoodItem(
-                    id = "custom_" + System.currentTimeMillis(),
-                    name = nameToUse,
-                    category = selectedCategory,
-                    servingSizeAmount = 100f,
-                    servingUnit = servingUnitInput.ifBlank { "1 serving" },
-                    calories = autoCalculatedCalories,
-                    proteinGrams = proteinVal,
-                    carbsGrams = carbsVal,
-                    fatGrams = fatVal,
-                    isCustom = true
-                )
-                onSaveCustomFoodSuccess(customFood)
-            },
+        // Save Food Item Button
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = VitalTealDark,
-                contentColor = Color.White
-            )
         ) {
+            Button(
+                onClick = {
+                    val customItem = FoodItem(
+                        id = "custom_" + System.currentTimeMillis(),
+                        name = if (foodNameInput.isBlank()) "My Custom Food" else foodNameInput.trim(),
+                        category = selectedCategory,
+                        servingSizeAmount = 100f,
+                        servingUnit = if (servingUnitInput.isBlank()) "1 serving" else servingUnitInput.trim(),
+                        calories = autoCalculatedCalories,
+                        proteinGrams = pG,
+                        carbsGrams = cG,
+                        fatGrams = fG,
+                        isCustom = true
+                    )
+                    onSaveCustomFoodSuccess(customItem)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = VitalTealDark,
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = "Save Custom Food Item",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = "Save Custom Food Item",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
+                text = "Custom foods will be saved to your local database for quick future logging.",
+                fontSize = 11.sp,
+                color = Color(0xFF9CA3AF),
+                textAlign = TextAlign.Center
             )
         }
     }

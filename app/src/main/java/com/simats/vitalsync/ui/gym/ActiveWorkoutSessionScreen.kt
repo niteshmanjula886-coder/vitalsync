@@ -1,7 +1,9 @@
 package com.simats.vitalsync.ui.gym
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,6 +21,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -29,6 +33,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -46,11 +51,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,7 +84,7 @@ fun ActiveWorkoutSessionScreen(
 ) {
     var workoutName by remember { mutableStateOf("${split.displayName} Workout") }
 
-    // Live Executable Workout Timer (Count Up & Play/Pause Controls)
+    // Live Executable Workout Timer
     var sessionElapsedSeconds by remember { mutableIntStateOf(0) }
     var isSessionTimerRunning by remember { mutableStateOf(true) }
 
@@ -91,8 +99,8 @@ fun ActiveWorkoutSessionScreen(
     val timerSecs = sessionElapsedSeconds % 60
     val formattedWorkoutTimer = String.format(Locale.US, "%02d:%02d", timerMinutes, timerSecs)
 
-    // Customizable Rest Countdown Timer State (Strictly manual Play/Pause, no auto-start)
-    var restTimerConfigSeconds by remember { mutableIntStateOf(60) } // Default 60s configurable
+    // Rest Countdown Timer State
+    var restTimerConfigSeconds by remember { mutableIntStateOf(60) }
     var restTimerSeconds by remember { mutableIntStateOf(60) }
     var isRestTimerActive by remember { mutableStateOf(false) }
 
@@ -143,6 +151,7 @@ fun ActiveWorkoutSessionScreen(
             .background(Color(0xFFFAFCFB))
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
             .padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
@@ -267,7 +276,7 @@ fun ActiveWorkoutSessionScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Customizable Rest & Recover Controls Card with Strict Play/Pause Toggle
+            // Rest & Recover Controls Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
@@ -284,7 +293,6 @@ fun ActiveWorkoutSessionScreen(
                             Text(text = "⏱️ Rest & Recover", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            // Strict Manual Play / Pause Rest Button
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
@@ -334,7 +342,7 @@ fun ActiveWorkoutSessionScreen(
                                     .clickable {
                                         restTimerConfigSeconds = sec
                                         restTimerSeconds = sec
-                                        isRestTimerActive = false // Selected duration preset; tap Play to start
+                                        isRestTimerActive = false
                                     }
                                     .padding(vertical = 6.dp),
                                 contentAlignment = Alignment.Center
@@ -402,9 +410,9 @@ fun ActiveWorkoutSessionScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(text = "SET", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9CA3AF), modifier = Modifier.width(36.dp))
-                            Text(text = "KG", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9CA3AF), modifier = Modifier.width(70.dp))
-                            Text(text = "REPS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9CA3AF), modifier = Modifier.width(70.dp))
-                            Text(text = "DONE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9CA3AF))
+                            Text(text = "KG", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9CA3AF), modifier = Modifier.width(82.dp))
+                            Text(text = "REPS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9CA3AF), modifier = Modifier.width(82.dp))
+                            Text(text = "DONE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9CA3AF), modifier = Modifier.width(48.dp))
                         }
 
                         HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 8.dp))
@@ -413,7 +421,7 @@ fun ActiveWorkoutSessionScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
+                                    .padding(vertical = 5.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -425,63 +433,63 @@ fun ActiveWorkoutSessionScreen(
                                     modifier = Modifier.width(36.dp)
                                 )
 
-                                // Editable Weight
-                                var weightInput by remember(setItem.weightKg) { mutableStateOf("${setItem.weightKg}") }
-                                OutlinedTextField(
+                                // Editable Weight (KG) Field
+                                var weightInput by remember(setItem.weightKg) {
+                                    val formatted = if (setItem.weightKg % 1f == 0f) {
+                                        setItem.weightKg.toInt().toString()
+                                    } else {
+                                        "${setItem.weightKg}"
+                                    }
+                                    mutableStateOf(formatted)
+                                }
+
+                                CompactNumericInputField(
                                     value = weightInput,
-                                    onValueChange = {
-                                        weightInput = it
-                                        val newWeight = it.toFloatOrNull() ?: setItem.weightKg
+                                    onValueChange = { input ->
+                                        weightInput = input
+                                        val newWeight = input.toFloatOrNull() ?: setItem.weightKg
                                         val updatedSets = we.sets.toMutableList()
                                         updatedSets[setIndex] = setItem.copy(weightKg = newWeight)
                                         activeExercises[exIndex] = we.copy(sets = updatedSets)
                                     },
-                                    modifier = Modifier.width(70.dp).height(48.dp),
-                                    singleLine = true,
-                                    shape = RoundedCornerShape(10.dp),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color.White,
-                                        unfocusedContainerColor = Color.White,
-                                        focusedTextColor = Color(0xFF111827),
-                                        unfocusedTextColor = Color(0xFF111827),
-                                        focusedBorderColor = VitalTealPrimary
-                                    )
+                                    modifier = Modifier
+                                        .width(82.dp)
+                                        .height(42.dp),
+                                    isDecimal = true
                                 )
 
-                                // Editable Reps
+                                // Editable Reps Field
                                 var repsInput by remember(setItem.reps) { mutableStateOf("${setItem.reps}") }
-                                OutlinedTextField(
+
+                                CompactNumericInputField(
                                     value = repsInput,
-                                    onValueChange = {
-                                        repsInput = it
-                                        val newReps = it.toIntOrNull() ?: setItem.reps
+                                    onValueChange = { input ->
+                                        repsInput = input
+                                        val newReps = input.toIntOrNull() ?: setItem.reps
                                         val updatedSets = we.sets.toMutableList()
                                         updatedSets[setIndex] = setItem.copy(reps = newReps)
                                         activeExercises[exIndex] = we.copy(sets = updatedSets)
                                     },
-                                    modifier = Modifier.width(70.dp).height(48.dp),
-                                    singleLine = true,
-                                    shape = RoundedCornerShape(10.dp),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color.White,
-                                        unfocusedContainerColor = Color.White,
-                                        focusedTextColor = Color(0xFF111827),
-                                        unfocusedTextColor = Color(0xFF111827),
-                                        focusedBorderColor = VitalTealPrimary
-                                    )
+                                    modifier = Modifier
+                                        .width(82.dp)
+                                        .height(42.dp),
+                                    isDecimal = false
                                 )
 
-                                Checkbox(
-                                    checked = setItem.isCompleted,
-                                    onCheckedChange = { isChecked ->
-                                        val updatedSets = we.sets.toMutableList()
-                                        updatedSets[setIndex] = setItem.copy(isCompleted = isChecked)
-                                        activeExercises[exIndex] = we.copy(sets = updatedSets)
-                                    },
-                                    colors = CheckboxDefaults.colors(checkedColor = VitalTealPrimary)
-                                )
+                                Box(
+                                    modifier = Modifier.width(48.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Checkbox(
+                                        checked = setItem.isCompleted,
+                                        onCheckedChange = { isChecked ->
+                                            val updatedSets = we.sets.toMutableList()
+                                            updatedSets[setIndex] = setItem.copy(isCompleted = isChecked)
+                                            activeExercises[exIndex] = we.copy(sets = updatedSets)
+                                        },
+                                        colors = CheckboxDefaults.colors(checkedColor = VitalTealPrimary)
+                                    )
+                                }
                             }
                         }
 
@@ -590,7 +598,7 @@ fun ActiveWorkoutSessionScreen(
                         if (sec > 0) {
                             restTimerConfigSeconds = sec
                             restTimerSeconds = sec
-                            isRestTimerActive = false // Strict Play/Pause control
+                            isRestTimerActive = false
                         }
                         showCustomRestDialog = false
                     },
@@ -606,6 +614,48 @@ fun ActiveWorkoutSessionScreen(
             }
         )
     }
+}
+
+// 🔲 Custom Compact Numeric Input Field for Table Grid Cells
+@Composable
+private fun CompactNumericInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    isDecimal: Boolean = false
+) {
+    val containerBg = MaterialTheme.colorScheme.surface
+    val borderCol = MaterialTheme.colorScheme.outlineVariant
+    val textCol = MaterialTheme.colorScheme.onBackground
+
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(containerBg)
+            .border(1.dp, borderCol, RoundedCornerShape(10.dp))
+            .padding(horizontal = 6.dp, vertical = 6.dp),
+        singleLine = true,
+        textStyle = TextStyle(
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = textCol,
+            textAlign = TextAlign.Center
+        ),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = if (isDecimal) KeyboardType.Decimal else KeyboardType.Number
+        ),
+        cursorBrush = SolidColor(VitalTealPrimary),
+        decorationBox = { innerTextField ->
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                innerTextField()
+            }
+        }
+    )
 }
 
 @Composable

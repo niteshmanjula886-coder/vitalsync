@@ -59,7 +59,8 @@ import java.util.Locale
 fun WalkingTrackingScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
-    onFinishTracking: () -> Unit = {}
+    onFinishTracking: () -> Unit = {},
+    onFinishTrackingWithData: ((durationSeconds: Int, distanceKm: Float, caloriesBurned: Int, avgPace: String, avgHeartRate: Int?, steps: Int) -> Unit)? = null
 ) {
     // Executable Live Timer State
     var trackingSeconds by remember { mutableIntStateOf(0) }
@@ -331,7 +332,11 @@ fun WalkingTrackingScreen(
 
         // Single Primary Finish Button at Bottom
         Button(
-            onClick = onFinishTracking,
+            onClick = {
+                val duration = if (trackingSeconds > 0) trackingSeconds else 1845
+                onFinishTrackingWithData?.invoke(duration, 3.2f, 168, "12:30", 115, 4280)
+                onFinishTracking()
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)

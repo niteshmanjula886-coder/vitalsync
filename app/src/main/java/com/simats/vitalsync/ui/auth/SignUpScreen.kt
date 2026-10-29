@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,11 +25,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +54,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.model.auth.User
+import com.simats.vitalsync.ui.auth.viewmodel.AuthUiState
+import com.simats.vitalsync.ui.auth.viewmodel.AuthViewModel
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -57,17 +64,30 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun SignUpScreen(
     modifier: Modifier = Modifier,
+    viewModel: AuthViewModel? = null,
     onBackClick: () -> Unit = {},
-    onSignUpSuccess: (name: String) -> Unit = {},
+    onSignUpSuccess: (String) -> Unit = {},
+    onSignUpSuccessWithUser: (User?) -> Unit = {},
     onNavigateToLogin: () -> Unit = {}
 ) {
+    val signUpState by viewModel?.signUpState?.collectAsState() ?: remember { mutableStateOf(AuthUiState()) }
+
     var name by remember { mutableStateOf("Alex Morgan") }
     var email by remember { mutableStateOf("alex.morgan@email.com") }
     var password by remember { mutableStateOf("1234567890") }
-    var confirmPassword by remember { mutableStateOf("1234567890") }
     var isPasswordVisible by remember { mutableStateOf(false) }
-    var isConfirmPasswordVisible by remember { mutableStateOf(false) }
     var isTermsAccepted by remember { mutableStateOf(true) }
+    var validationError by remember { mutableStateOf<String?>(null) }
+
+    // Trigger success callback when registration succeeds
+    LaunchedEffect(signUpState.isSuccess) {
+        if (signUpState.isSuccess) {
+            val user = signUpState.user
+            onSignUpSuccessWithUser(user)
+            onSignUpSuccess(user?.displayName ?: name)
+            viewModel?.resetSignUpState()
+        }
+    }
 
     Column(
         modifier = modifier
@@ -75,6 +95,7 @@ fun SignUpScreen(
             .background(Color(0xFFFAFCFB))
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
             .padding(horizontal = 24.dp)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.Start,
@@ -103,54 +124,29 @@ fun SignUpScreen(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Text(
-                    text = "Create your account",
-                    fontSize = 22.sp,
+                    text = "Create Account",
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Subtitle Header with Icon
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFFE6F4EA)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier.size(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        HeartPulseIconSmall(modifier = Modifier.size(22.dp))
-                        SparkleIconTiny(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .size(8.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Text(
-                    text = "A healthier you, one day at a time.",
-                    fontSize = 14.sp,
-                    color = Color(0xFF6B7280)
-                )
-            }
+            // Subtitle
+            Text(
+                text = "Join VitalSync for personalized health, vital tracking, and smart AI insights.",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal,
+                color = Color(0xFF6B7280),
+                lineHeight = 20.sp
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Name Field
+            // Full Name Label
             Text(
-                text = "Name",
+                text = "Full Name",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF374151)
@@ -158,9 +154,14 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
 
+            // Full Name Input Field
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it },
+                onValueChange = {
+                    name = it
+                    validationError = null
+                    viewModel?.clearSignUpError()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
@@ -173,7 +174,7 @@ fun SignUpScreen(
                     unfocusedTextColor = Color(0xFF111827)
                 ),
                 trailingIcon = {
-                    UserPersonIcon(
+                    PersonIcon(
                         modifier = Modifier.size(20.dp),
                         color = Color(0xFF9CA3AF)
                     )
@@ -186,9 +187,9 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Email Field
+            // Email Label
             Text(
-                text = "Email",
+                text = "Email Address",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF374151)
@@ -196,9 +197,14 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
 
+            // Email Input Field
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = {
+                    email = it
+                    validationError = null
+                    viewModel?.clearSignUpError()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
@@ -224,7 +230,7 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Password Field
+            // Password Label
             Text(
                 text = "Password",
                 fontSize = 13.sp,
@@ -234,9 +240,14 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
 
+            // Password Input Field
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = {
+                    password = it
+                    validationError = null
+                    viewModel?.clearSignUpError()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
@@ -262,60 +273,18 @@ fun SignUpScreen(
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Next
+                    imeAction = ImeAction.Done
                 )
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Confirm Password Field
-            Text(
-                text = "Confirm Password",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF374151)
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            OutlinedTextField(
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB),
-                    focusedTextColor = Color(0xFF111827),
-                    unfocusedTextColor = Color(0xFF111827)
-                ),
-                trailingIcon = {
-                    IconButton(
-                        onClick = { isConfirmPasswordVisible = !isConfirmPasswordVisible }
-                    ) {
-                        EyeVisibilityIcon(
-                            isVisible = isConfirmPasswordVisible,
-                            modifier = Modifier.size(20.dp),
-                            color = Color(0xFF9CA3AF)
-                        )
-                    }
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                )
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Checkbox & Terms
+            // Terms & Privacy Checkbox
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isTermsAccepted = !isTermsAccepted }
             ) {
                 Checkbox(
                     checked = isTermsAccepted,
@@ -326,44 +295,99 @@ fun SignUpScreen(
                     )
                 )
 
-                Spacer(modifier = Modifier.width(4.dp))
-
                 Text(
                     text = "I agree to the Terms of Service and Privacy Policy.",
                     fontSize = 12.sp,
-                    color = Color(0xFF6B7280)
+                    color = Color(0xFF4B5563)
                 )
+            }
+
+            // Error Display Banner (Local validation or ViewModel error)
+            val activeError = validationError ?: signUpState.errorMessage
+            if (!activeError.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFEE2E2))
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = activeError,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFDC2626)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Create Account Button (Triggers Welcome Screen for New User)
+            // Create Account Button (with Loading Spinner support)
             Button(
-                onClick = { onSignUpSuccess(name) },
+                onClick = {
+                    when {
+                        name.isBlank() -> validationError = "Please enter your full name"
+                        email.isBlank() || !email.contains("@") -> validationError = "Please enter a valid email address"
+                        password.length < 6 -> validationError = "Password must be at least 6 characters"
+                        !isTermsAccepted -> validationError = "Please accept the Terms of Service to continue"
+                        else -> {
+                            validationError = null
+                            if (viewModel != null) {
+                                viewModel.signUp(name = name, email = email, password = password, confirmPassword = password)
+                            } else {
+                                onSignUpSuccess(name)
+                            }
+                        }
+                    }
+                },
+                enabled = !signUpState.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = VitalTealDark,
-                    contentColor = Color.White
+                    contentColor = Color.White,
+                    disabledContainerColor = VitalTealDark.copy(alpha = 0.65f),
+                    disabledContentColor = Color.White.copy(alpha = 0.8f)
                 )
             ) {
-                Text(
-                    text = "Create Account",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (signUpState.isLoading) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Creating account...",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Create Account",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
 
-        // Already have an account? Login
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 24.dp)
         ) {
+            // Already have account link
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
@@ -375,7 +399,7 @@ fun SignUpScreen(
                     color = Color(0xFF6B7280)
                 )
                 Text(
-                    text = "Login",
+                    text = "Log In",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = VitalTealDark
@@ -405,88 +429,13 @@ private fun BackArrowIcon(
         drawPath(
             path = path,
             color = color,
-            style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-        )
-    }
-}
-
-@Composable
-private fun HeartPulseIconSmall(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        val heartPath = Path().apply {
-            moveTo(w * 0.5f, h * 0.82f)
-            cubicTo(
-                w * 0.15f, h * 0.58f,
-                w * 0.02f, h * 0.30f,
-                w * 0.25f, h * 0.14f
-            )
-            cubicTo(
-                w * 0.38f, h * 0.06f,
-                w * 0.48f, h * 0.16f,
-                w * 0.50f, h * 0.24f
-            )
-            cubicTo(
-                w * 0.52f, h * 0.16f,
-                w * 0.62f, h * 0.06f,
-                w * 0.75f, h * 0.14f
-            )
-            cubicTo(
-                w * 0.98f, h * 0.30f,
-                w * 0.85f, h * 0.58f,
-                w * 0.5f, h * 0.82f
-            )
-            close()
-        }
-
-        val pulseLine = Path().apply {
-            moveTo(w * 0.20f, h * 0.48f)
-            lineTo(w * 0.38f, h * 0.48f)
-            lineTo(w * 0.45f, h * 0.34f)
-            lineTo(w * 0.53f, h * 0.62f)
-            lineTo(w * 0.62f, h * 0.48f)
-            lineTo(w * 0.80f, h * 0.48f)
-        }
-
-        drawPath(
-            path = heartPath,
-            color = Color(0xFF0F9F7A),
-            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-        )
-        drawPath(
-            path = pulseLine,
-            color = Color(0xFF0F9F7A),
             style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
     }
 }
 
 @Composable
-private fun SparkleIconTiny(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        val path = Path().apply {
-            moveTo(w * 0.5f, 0f)
-            quadraticTo(w * 0.5f, h * 0.5f, w, h * 0.5f)
-            quadraticTo(w * 0.5f, h * 0.5f, w * 0.5f, h)
-            quadraticTo(w * 0.5f, h * 0.5f, 0f, h * 0.5f)
-            quadraticTo(w * 0.5f, h * 0.5f, w * 0.5f, 0f)
-            close()
-        }
-
-        drawPath(
-            path = path,
-            color = Color(0xFF0F9F7A)
-        )
-    }
-}
-
-@Composable
-private fun UserPersonIcon(
+private fun PersonIcon(
     modifier: Modifier = Modifier,
     color: Color = Color.Gray
 ) {
@@ -494,22 +443,16 @@ private fun UserPersonIcon(
         val w = size.width
         val h = size.height
 
-        // Head
         drawCircle(
             color = color,
             radius = w * 0.22f,
-            center = Offset(w * 0.5f, h * 0.30f),
+            center = Offset(w * 0.5f, h * 0.28f),
             style = Stroke(width = 1.6.dp.toPx())
         )
 
-        // Shoulder curve
         val bodyPath = Path().apply {
             moveTo(w * 0.15f, h * 0.85f)
-            cubicTo(
-                w * 0.15f, h * 0.60f,
-                w * 0.85f, h * 0.60f,
-                w * 0.85f, h * 0.85f
-            )
+            cubicTo(w * 0.15f, h * 0.55f, w * 0.85f, h * 0.55f, w * 0.85f, h * 0.85f)
         }
 
         drawPath(

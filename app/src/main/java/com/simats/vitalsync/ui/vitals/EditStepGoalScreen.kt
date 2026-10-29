@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,13 +27,17 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,6 +54,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.activity.viewmodel.ActivityViewModel
+import com.simats.vitalsync.ui.activity.viewmodel.StepGoalUiState
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -58,10 +65,31 @@ import java.util.Locale
 fun EditStepGoalScreen(
     modifier: Modifier = Modifier,
     initialStepGoal: Int = 8000,
+    viewModel: ActivityViewModel? = null,
+    userEmail: String = "alex.morgan@email.com",
     onBackClick: () -> Unit = {},
     onSaveGoalSuccess: (Int) -> Unit = {}
 ) {
     var stepGoal by remember { mutableIntStateOf(initialStepGoal) }
+
+    val stepGoalState by (viewModel?.stepGoalState?.collectAsState() ?: remember { mutableStateOf(StepGoalUiState()) })
+
+    LaunchedEffect(userEmail) {
+        viewModel?.loadStepGoal(userEmail)
+    }
+
+    LaunchedEffect(stepGoalState.dailyStepGoal) {
+        if (stepGoalState.dailyStepGoal > 0) {
+            stepGoal = stepGoalState.dailyStepGoal
+        }
+    }
+
+    LaunchedEffect(stepGoalState.isSavedSuccess) {
+        if (stepGoalState.isSavedSuccess) {
+            viewModel?.resetStepGoalSavedState()
+            onSaveGoalSuccess(stepGoal)
+        }
+    }
 
     // Calculated Estimates
     val estimatedKm = String.format(Locale.US, "%.1f", stepGoal * 0.00075f)
@@ -73,6 +101,7 @@ fun EditStepGoalScreen(
             .background(Color(0xFFFAFCFB))
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
             .padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
@@ -323,7 +352,14 @@ fun EditStepGoalScreen(
                 .padding(vertical = 16.dp)
         ) {
             Button(
-                onClick = { onSaveGoalSuccess(stepGoal) },
+                onClick = {
+                    if (viewModel != null) {
+                        viewModel.updateStepGoal(userEmail, stepGoal)
+                    } else {
+                        onSaveGoalSuccess(stepGoal)
+                    }
+                },
+                enabled = !stepGoalState.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
@@ -333,11 +369,19 @@ fun EditStepGoalScreen(
                     contentColor = Color.White
                 )
             ) {
-                Text(
-                    text = "Save Step Goal",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (stepGoalState.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Save Step Goal",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))

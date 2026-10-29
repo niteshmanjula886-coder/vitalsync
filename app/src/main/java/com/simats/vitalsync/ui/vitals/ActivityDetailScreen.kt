@@ -31,8 +31,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,16 +52,44 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.activity.viewmodel.ActivitySummaryUiState
+import com.simats.vitalsync.ui.activity.viewmodel.ActivityViewModel
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import java.util.Locale
 
 @Composable
 fun ActivityDetailScreen(
     modifier: Modifier = Modifier,
+    viewModel: ActivityViewModel? = null,
+    userEmail: String = "alex.morgan@email.com",
     onBackClick: () -> Unit = {},
     onStartActivityClick: () -> Unit = {},
     onViewHistoryClick: () -> Unit = {}
 ) {
+    // Load summary data from ViewModel
+    LaunchedEffect(userEmail) {
+        viewModel?.loadSummary(userEmail)
+    }
+
+    val summaryState by (viewModel?.summaryState?.collectAsState() ?: remember { mutableStateOf(ActivitySummaryUiState()) })
+    val summary = summaryState.summary
+
+    // Dynamic metrics from backend or graceful defaults
+    val stepsCurrent = summary?.steps?.current ?: 6245
+    val stepsGoal = summary?.steps?.goal ?: 8000
+    val progressPercent = summary?.steps?.progressPercent ?: 78
+    val distanceKm = summary?.distanceKm ?: 4.2f
+    val caloriesBurnedKcal = summary?.caloriesBurned?.current ?: 320
+    val activeMinutesCurrent = summary?.activeMinutes?.current ?: 42
+
+    val remainingSteps = (stepsGoal - stepsCurrent).coerceAtLeast(0)
+    val stepsRemainingText = if (remainingSteps > 0) {
+        "${String.format(Locale.US, "%,d", remainingSteps)} to go. Keep it up!"
+    } else {
+        "Goal achieved! Excellent work!"
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -132,10 +162,7 @@ fun ActivityDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Animated Ring Gauge
-                        var targetGaugeAngle by remember { mutableFloatStateOf(0f) }
-                        LaunchedEffect(Unit) {
-                            targetGaugeAngle = 280f
-                        }
+                        val targetGaugeAngle = (progressPercent.coerceIn(0, 100) / 100f) * 360f
                         val animatedGaugeAngle by animateFloatAsState(
                             targetValue = targetGaugeAngle,
                             animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
@@ -173,7 +200,7 @@ fun ActivityDetailScreen(
 
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "78%",
+                                    text = "$progressPercent%",
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF111827)
@@ -190,7 +217,7 @@ fun ActivityDetailScreen(
 
                         Column {
                             Text(
-                                text = "6,245",
+                                text = String.format(Locale.US, "%,d", stepsCurrent),
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF111827)
@@ -203,12 +230,12 @@ fun ActivityDetailScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Goal: 8,000 steps",
+                                text = "Goal: ${String.format(Locale.US, "%,d", stepsGoal)} steps",
                                 fontSize = 12.sp,
                                 color = Color(0xFF6B7280)
                             )
                             Text(
-                                text = "1,755 to go. Keep it up!",
+                                text = stepsRemainingText,
                                 fontSize = 12.sp,
                                 color = Color(0xFF0F9F7A),
                                 fontWeight = FontWeight.SemiBold
@@ -225,17 +252,32 @@ fun ActivityDetailScreen(
                         Column {
                             Text(text = "Distance", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = "4.2 km", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(
+                                text = String.format(Locale.US, "%.1f km", distanceKm),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
                         }
                         Column {
                             Text(text = "Energy", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = "320 kcal", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(
+                                text = "$caloriesBurnedKcal kcal",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
                         }
                         Column {
                             Text(text = "Active time", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = "42 min", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(
+                                text = "$activeMinutesCurrent min",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
                         }
                     }
                 }

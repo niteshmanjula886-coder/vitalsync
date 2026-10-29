@@ -1,8 +1,8 @@
 package com.simats.vitalsync.ui.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,18 +12,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
@@ -39,7 +41,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -56,18 +57,18 @@ import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
-data class HealthGoal(
-    val id: String,
-    val title: String,
-    val iconType: GoalIconType
-)
-
 enum class GoalIconType {
     FITNESS,
     SLEEP,
     WEIGHT,
     WELLNESS
 }
+
+data class HealthGoal(
+    val id: String,
+    val title: String,
+    val iconType: GoalIconType
+)
 
 val sampleHealthGoals = listOf(
     HealthGoal("1", "Fitness", GoalIconType.FITNESS),
@@ -103,6 +104,7 @@ fun ProfileSetupScreen(
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
             .padding(horizontal = 24.dp)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.Start,
@@ -131,44 +133,29 @@ fun ProfileSetupScreen(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Text(
-                    text = "Profile setup",
+                    text = "Complete Your Profile",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Main Title
-            Text(
-                text = "Personalize Your Experience",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Subtitle
             Text(
-                text = "A few details help us tailor your insights.",
+                text = "We'll use this data to calibrate your health baselines and daily recommendations.",
                 fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                fontWeight = FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 20.sp
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Name Field
-            Text(
-                text = "Name",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-
+            // Full Name Input
+            Text(text = "Full Name", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
             Spacer(modifier = Modifier.height(6.dp))
-
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -183,10 +170,7 @@ fun ProfileSetupScreen(
                     focusedTextColor = MaterialTheme.colorScheme.onBackground,
                     unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                 ),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Next
-                )
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -196,14 +180,8 @@ fun ProfileSetupScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Age Field
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Age",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    Text(text = "Age", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
                     Spacer(modifier = Modifier.height(6.dp))
                     OutlinedTextField(
                         value = age,
@@ -218,39 +196,36 @@ fun ProfileSetupScreen(
                             unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                             focusedTextColor = MaterialTheme.colorScheme.onBackground,
                             unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                        )
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next)
                     )
                 }
 
-                // Gender Dropdown Field
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Gender",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    Text(text = "Gender", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Box {
+                    Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(
                             value = gender,
-                            onValueChange = {},
+                            onValueChange = { },
                             readOnly = true,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { isGenderDropdownExpanded = true },
-                            enabled = false,
+                            singleLine = true,
                             shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                disabledContainerColor = MaterialTheme.colorScheme.surface,
-                                disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                                disabledTextColor = MaterialTheme.colorScheme.onBackground
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                focusedBorderColor = VitalTealPrimary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                             ),
                             trailingIcon = {
-                                DropdownArrowIcon(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clickable { isGenderDropdownExpanded = true }
+                                ChevronDownIcon(
+                                    modifier = Modifier.size(16.dp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         )
@@ -261,7 +236,7 @@ fun ProfileSetupScreen(
                         ) {
                             genderOptions.forEach { option ->
                                 DropdownMenuItem(
-                                    text = { Text(option) },
+                                    text = { Text(text = option) },
                                     onClick = {
                                         gender = option
                                         isGenderDropdownExpanded = false
@@ -280,14 +255,8 @@ fun ProfileSetupScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Height Field
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Height",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    Text(text = "Height", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
                     Spacer(modifier = Modifier.height(6.dp))
                     OutlinedTextField(
                         value = height,
@@ -302,18 +271,13 @@ fun ProfileSetupScreen(
                             unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                             focusedTextColor = MaterialTheme.colorScheme.onBackground,
                             unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                        )
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next)
                     )
                 }
 
-                // Weight Field
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Weight",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    Text(text = "Weight", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
                     Spacer(modifier = Modifier.height(6.dp))
                     OutlinedTextField(
                         value = weight,
@@ -328,43 +292,39 @@ fun ProfileSetupScreen(
                             unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                             focusedTextColor = MaterialTheme.colorScheme.onBackground,
                             unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                        )
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next)
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Activity Level Field
-            Text(
-                text = "Activity Level",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-
+            // Activity Level Dropdown
+            Text(text = "Daily Activity Level", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
             Spacer(modifier = Modifier.height(6.dp))
-
-            Box {
+            Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = activityLevel,
-                    onValueChange = {},
+                    onValueChange = { },
                     readOnly = true,
-                    enabled = false,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { isActivityDropdownExpanded = true },
+                    singleLine = true,
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        disabledContainerColor = MaterialTheme.colorScheme.surface,
-                        disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                        disabledTextColor = MaterialTheme.colorScheme.onBackground
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedBorderColor = VitalTealPrimary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                     ),
                     trailingIcon = {
-                        DropdownArrowIcon(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clickable { isActivityDropdownExpanded = true }
+                        ChevronDownIcon(
+                            modifier = Modifier.size(16.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 )
@@ -375,7 +335,7 @@ fun ProfileSetupScreen(
                 ) {
                     activityOptions.forEach { option ->
                         DropdownMenuItem(
-                            text = { Text(option) },
+                            text = { Text(text = option) },
                             onClick = {
                                 activityLevel = option
                                 isActivityDropdownExpanded = false
@@ -387,39 +347,78 @@ fun ProfileSetupScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // What are your health goals? Section
+            // Primary Health Goals Grid Selection
             Text(
-                text = "What are your health goals?",
-                fontSize = 16.sp,
+                text = "Primary Health Goals",
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Goal Options Cards
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                sampleHealthGoals.forEach { goal ->
-                    val isSelected = selectedGoals.contains(goal.id)
-                    GoalOptionCard(
-                        goal = goal,
-                        isSelected = isSelected,
-                        onClick = {
-                            if (isSelected) {
-                                selectedGoals.remove(goal.id)
-                            } else {
-                                selectedGoals.add(goal.id)
+                sampleHealthGoals.chunked(2).forEach { rowGoals ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        rowGoals.forEach { goal ->
+                            val isSelected = selectedGoals.contains(goal.id)
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        if (isSelected) {
+                                            selectedGoals.remove(goal.id)
+                                        } else {
+                                            selectedGoals.add(goal.id)
+                                        }
+                                    },
+                                shape = RoundedCornerShape(18.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected) Color(0xFFE6F4EA) else MaterialTheme.colorScheme.surface
+                                ),
+                                border = BorderStroke(
+                                    width = if (isSelected) 2.dp else 1.dp,
+                                    color = if (isSelected) VitalTealPrimary else MaterialTheme.colorScheme.outlineVariant
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    GoalIcon(
+                                        iconType = goal.iconType,
+                                        modifier = Modifier.size(20.dp),
+                                        color = if (isSelected) VitalTealPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = goal.title,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) VitalTealDark else MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
                             }
                         }
-                    )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(32.dp))
+        }
 
-            // Save & Continue Button
+        // Continue Button
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp)
+        ) {
             Button(
                 onClick = { onSaveAndContinue(name, age, height, weight) },
                 modifier = Modifier
@@ -432,80 +431,10 @@ fun ProfileSetupScreen(
                 )
             ) {
                 Text(
-                    text = "Save & Continue",
+                    text = "Save & Go to Dashboard",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
-        }
-    }
-}
-
-@Composable
-private fun GoalOptionCard(
-    goal: HealthGoal,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface
-            )
-            .border(
-                width = 1.dp,
-                color = if (isSelected) VitalTealPrimary else MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(16.dp)
-            )
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                GoalIcon(
-                    iconType = goal.iconType,
-                    modifier = Modifier.size(20.dp),
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Text(
-                    text = goal.title,
-                    fontSize = 15.sp,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(22.dp)
-                    .clip(CircleShape)
-                    .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
-                    .border(
-                        width = if (isSelected) 0.dp else 1.5.dp,
-                        color = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.onSurfaceVariant,
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isSelected) {
-                    CheckmarkIcon(
-                        modifier = Modifier.size(12.dp),
-                        color = Color.White
-                    )
-                }
             }
         }
     }
@@ -523,15 +452,13 @@ private fun GoalIcon(
 
         when (iconType) {
             GoalIconType.FITNESS -> {
-                drawCircle(color = color, radius = w * 0.18f, center = Offset(w * 0.25f, h * 0.25f))
-                drawCircle(color = color, radius = w * 0.18f, center = Offset(w * 0.75f, h * 0.75f))
-                drawLine(
-                    color = color,
-                    start = Offset(w * 0.32f, h * 0.32f),
-                    end = Offset(w * 0.68f, h * 0.68f),
-                    strokeWidth = 2.dp.toPx(),
-                    cap = StrokeCap.Round
-                )
+                val bar = Path().apply {
+                    moveTo(w * 0.15f, h * 0.5f)
+                    lineTo(w * 0.85f, h * 0.5f)
+                }
+                drawPath(path = bar, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+                drawCircle(color = color, radius = w * 0.15f, center = Offset(w * 0.20f, h * 0.5f))
+                drawCircle(color = color, radius = w * 0.15f, center = Offset(w * 0.80f, h * 0.5f))
             }
             GoalIconType.SLEEP -> {
                 val moonPath = Path().apply {
@@ -540,87 +467,30 @@ private fun GoalIcon(
                     cubicTo(w * 0.45f, h * 0.75f, w * 0.45f, h * 0.25f, w * 0.75f, h * 0.15f)
                     close()
                 }
-                drawPath(
-                    path = moonPath,
-                    color = color,
-                    style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                )
+                drawPath(path = moonPath, color = color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
             }
             GoalIconType.WEIGHT -> {
-                drawLine(
-                    color = color,
-                    start = Offset(w * 0.15f, h * 0.30f),
-                    end = Offset(w * 0.85f, h * 0.30f),
-                    strokeWidth = 2.dp.toPx(),
-                    cap = StrokeCap.Round
-                )
-                drawLine(
-                    color = color,
-                    start = Offset(w * 0.50f, h * 0.30f),
-                    end = Offset(w * 0.50f, h * 0.80f),
-                    strokeWidth = 2.dp.toPx(),
-                    cap = StrokeCap.Round
-                )
-                drawLine(
-                    color = color,
-                    start = Offset(w * 0.30f, h * 0.80f),
-                    end = Offset(w * 0.70f, h * 0.80f),
-                    strokeWidth = 2.dp.toPx(),
-                    cap = StrokeCap.Round
-                )
+                val scalePath = Path().apply {
+                    moveTo(w * 0.2f, h * 0.2f)
+                    lineTo(w * 0.8f, h * 0.2f)
+                    lineTo(w * 0.85f, h * 0.85f)
+                    lineTo(w * 0.15f, h * 0.85f)
+                    close()
+                }
+                drawPath(path = scalePath, color = color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
             }
             GoalIconType.WELLNESS -> {
                 val heartPath = Path().apply {
                     moveTo(w * 0.5f, h * 0.82f)
-                    cubicTo(
-                        w * 0.15f, h * 0.58f,
-                        w * 0.02f, h * 0.30f,
-                        w * 0.25f, h * 0.14f
-                    )
-                    cubicTo(
-                        w * 0.38f, h * 0.06f,
-                        w * 0.48f, h * 0.16f,
-                        w * 0.50f, h * 0.24f
-                    )
-                    cubicTo(
-                        w * 0.52f, h * 0.16f,
-                        w * 0.62f, h * 0.06f,
-                        w * 0.75f, h * 0.14f
-                    )
-                    cubicTo(
-                        w * 0.98f, h * 0.30f,
-                        w * 0.85f, h * 0.58f,
-                        w * 0.5f, h * 0.82f
-                    )
+                    cubicTo(w * 0.15f, h * 0.58f, w * 0.02f, h * 0.30f, w * 0.25f, h * 0.14f)
+                    cubicTo(w * 0.38f, h * 0.06f, w * 0.48f, h * 0.16f, w * 0.50f, h * 0.24f)
+                    cubicTo(w * 0.52f, h * 0.16f, w * 0.62f, h * 0.06f, w * 0.75f, h * 0.14f)
+                    cubicTo(w * 0.98f, h * 0.30f, w * 0.85f, h * 0.58f, w * 0.5f, h * 0.82f)
                     close()
                 }
-                drawPath(
-                    path = heartPath,
-                    color = color,
-                    style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                )
+                drawPath(path = heartPath, color = color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
             }
         }
-    }
-}
-
-@Composable
-private fun DropdownArrowIcon(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        val path = Path().apply {
-            moveTo(w * 0.2f, h * 0.35f)
-            lineTo(w * 0.5f, h * 0.65f)
-            lineTo(w * 0.8f, h * 0.35f)
-        }
-
-        drawPath(
-            path = path,
-            color = Color(0xFF6B7280),
-            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-        )
     }
 }
 
@@ -644,30 +514,30 @@ private fun BackArrowIcon(
         drawPath(
             path = path,
             color = color,
-            style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
     }
 }
 
 @Composable
-private fun CheckmarkIcon(
+private fun ChevronDownIcon(
     modifier: Modifier = Modifier,
-    color: Color = Color.White
+    color: Color = Color.Gray
 ) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
 
         val path = Path().apply {
-            moveTo(w * 0.2f, h * 0.5f)
-            lineTo(w * 0.45f, h * 0.75f)
-            lineTo(w * 0.8f, h * 0.25f)
+            moveTo(w * 0.2f, h * 0.35f)
+            lineTo(w * 0.5f, h * 0.65f)
+            lineTo(w * 0.8f, h * 0.35f)
         }
 
         drawPath(
             path = path,
             color = color,
-            style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+            style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
     }
 }

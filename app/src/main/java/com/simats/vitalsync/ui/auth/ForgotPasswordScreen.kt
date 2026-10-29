@@ -11,24 +11,27 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +53,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.auth.viewmodel.AuthUiState
+import com.simats.vitalsync.ui.auth.viewmodel.AuthViewModel
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -57,9 +62,12 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun ForgotPasswordScreen(
     modifier: Modifier = Modifier,
+    viewModel: AuthViewModel? = null,
     onBackClick: () -> Unit = {},
     onResetLinkSent: () -> Unit = {}
 ) {
+    val resetPasswordState by viewModel?.resetPasswordState?.collectAsState() ?: remember { mutableStateOf(AuthUiState()) }
+
     var email by remember { mutableStateOf("alex.morgan@email.com") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -67,8 +75,14 @@ fun ForgotPasswordScreen(
     var isPasswordVisible by remember { mutableStateOf(false) }
     var isConfirmPasswordVisible by remember { mutableStateOf(false) }
 
-    var errorMessage by remember { mutableStateOf("") }
-    var isSuccessBannerVisible by remember { mutableStateOf(false) }
+    var localErrorMessage by remember { mutableStateOf("") }
+
+    // Notify listener when password reset succeeds
+    LaunchedEffect(resetPasswordState.isSuccess) {
+        if (resetPasswordState.isSuccess) {
+            onResetLinkSent()
+        }
+    }
 
     Column(
         modifier = modifier
@@ -76,6 +90,7 @@ fun ForgotPasswordScreen(
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
             .padding(horizontal = 24.dp)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.Start,
@@ -161,7 +176,8 @@ fun ForgotPasswordScreen(
                 value = email,
                 onValueChange = {
                     email = it
-                    errorMessage = ""
+                    localErrorMessage = ""
+                    viewModel?.clearResetPasswordError()
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
@@ -203,7 +219,8 @@ fun ForgotPasswordScreen(
                 value = newPassword,
                 onValueChange = {
                     newPassword = it
-                    errorMessage = ""
+                    localErrorMessage = ""
+                    viewModel?.clearResetPasswordError()
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
@@ -249,7 +266,8 @@ fun ForgotPasswordScreen(
                 value = confirmPassword,
                 onValueChange = {
                     confirmPassword = it
-                    errorMessage = ""
+                    localErrorMessage = ""
+                    viewModel?.clearResetPasswordError()
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
@@ -280,8 +298,9 @@ fun ForgotPasswordScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Error Message Display
-            if (errorMessage.isNotBlank()) {
+            // Error Display Banner (Local or ViewModel)
+            val displayError = if (localErrorMessage.isNotBlank()) localErrorMessage else resetPasswordState.errorMessage
+            if (!displayError.isNullOrBlank()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -290,7 +309,7 @@ fun ForgotPasswordScreen(
                         .padding(12.dp)
                 ) {
                     Text(
-                        text = errorMessage,
+                        text = displayError,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFDC2626)
@@ -300,7 +319,7 @@ fun ForgotPasswordScreen(
             }
 
             // Success Confirmation Banner
-            if (isSuccessBannerVisible) {
+            if (resetPasswordState.isSuccess || !resetPasswordState.successMessage.isNullOrBlank()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -309,7 +328,7 @@ fun ForgotPasswordScreen(
                         .padding(14.dp)
                 ) {
                     Text(
-                        text = "Password reset successfully! You can now back to login.",
+                        text = resetPasswordState.successMessage ?: "Password reset successfully! You can now back to login.",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF166534)
@@ -318,40 +337,65 @@ fun ForgotPasswordScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Reset Password Button
+            // Reset Password Button (with Loading support)
             Button(
                 onClick = {
                     when {
                         email.isBlank() || !email.contains("@") -> {
-                            errorMessage = "Please enter a valid email address"
+                            localErrorMessage = "Please enter a valid email address"
                         }
                         newPassword.length < 6 -> {
-                            errorMessage = "Password must be at least 6 characters"
+                            localErrorMessage = "Password must be at least 6 characters"
                         }
                         newPassword != confirmPassword -> {
-                            errorMessage = "Passwords do not match"
+                            localErrorMessage = "Passwords do not match"
                         }
                         else -> {
-                            errorMessage = ""
-                            isSuccessBannerVisible = true
-                            onResetLinkSent()
+                            localErrorMessage = ""
+                            if (viewModel != null) {
+                                viewModel.resetPassword(email = email, newPassword = newPassword, confirmPassword = confirmPassword)
+                            } else {
+                                onResetLinkSent()
+                            }
                         }
                     }
                 },
+                enabled = !resetPasswordState.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = VitalTealDark,
-                    contentColor = Color.White
+                    contentColor = Color.White,
+                    disabledContainerColor = VitalTealDark.copy(alpha = 0.65f),
+                    disabledContentColor = Color.White.copy(alpha = 0.8f)
                 )
             ) {
-                Text(
-                    text = "Reset Password",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (resetPasswordState.isLoading) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Updating password...",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Reset Password",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

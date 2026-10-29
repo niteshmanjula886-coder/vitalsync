@@ -3,7 +3,6 @@ package com.simats.vitalsync.ui.gym
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,6 +23,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -34,14 +36,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,12 +65,16 @@ fun AddCustomExerciseScreen(
     var repsInput by remember { mutableStateOf("10") }
     var notesInput by remember { mutableStateOf("") }
 
+    var isMuscleDropdownExpanded by remember { mutableStateOf(false) }
+    val muscleGroups = listOf("Chest", "Back", "Shoulders", "Arms", "Legs", "Abs", "Cardio")
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFFAFCFB))
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
             .padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
@@ -98,7 +105,7 @@ fun AddCustomExerciseScreen(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = "Add Custom Exercise",
+                    text = "Create Custom Exercise",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
@@ -107,7 +114,7 @@ fun AddCustomExerciseScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Exercise Name Input
+            // Exercise Name Field
             Text(text = "Exercise Name", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
@@ -115,7 +122,7 @@ fun AddCustomExerciseScreen(
                 onValueChange = { exerciseNameInput = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                placeholder = { Text("e.g. Preacher Curl, Cable Crossover, T-Bar Row", fontSize = 14.sp, color = Color(0xFF9CA3AF)) },
+                placeholder = { Text("e.g. Cable Hammer Curls, Hack Squat", fontSize = 14.sp, color = Color(0xFF9CA3AF)) },
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
@@ -127,54 +134,67 @@ fun AddCustomExerciseScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Target Muscle Group Selector
-            Text(text = "Target Body Part / Muscle", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-            Spacer(modifier = Modifier.height(8.dp))
+            // Target Muscle Group Dropdown
+            Text(text = "Target Muscle Group", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            Spacer(modifier = Modifier.height(6.dp))
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = selectedMuscleGroup,
+                    onValueChange = { },
+                    readOnly = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isMuscleDropdownExpanded = true },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedTextColor = Color(0xFF111827),
+                        unfocusedTextColor = Color(0xFF111827),
+                        focusedBorderColor = VitalTealPrimary,
+                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                    ),
+                    trailingIcon = {
+                        ChevronDownIcon(modifier = Modifier.size(16.dp))
+                    }
+                )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf("Arms", "Chest", "Back", "Shoulders", "Legs", "Core").forEach { muscle ->
-                    val isSelected = selectedMuscleGroup == muscle
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(if (isSelected) VitalTealDark else Color(0xFFF1F5F9))
-                            .clickable { selectedMuscleGroup = muscle }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = muscle,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isSelected) Color.White else Color(0xFF475569)
+                DropdownMenu(
+                    expanded = isMuscleDropdownExpanded,
+                    onDismissRequest = { isMuscleDropdownExpanded = false }
+                ) {
+                    muscleGroups.forEach { muscle ->
+                        DropdownMenuItem(
+                            text = { Text(text = muscle) },
+                            onClick = {
+                                selectedMuscleGroup = muscle
+                                isMuscleDropdownExpanded = false
+                            }
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Default Weight & Reps Fields
+            // Default Working Weight & Reps
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Default Weight (kg)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(text = "Default Weight (kg)", fontSize = 12.sp, color = Color(0xFF374151), fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
                     OutlinedTextField(
                         value = weightInput,
                         onValueChange = { weightInput = it },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = Color.White,
                             unfocusedContainerColor = Color.White,
@@ -187,15 +207,15 @@ fun AddCustomExerciseScreen(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Target Reps", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(text = "Default Reps / Set", fontSize = 12.sp, color = Color(0xFF374151), fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
                     OutlinedTextField(
                         value = repsInput,
                         onValueChange = { repsInput = it },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = Color.White,
                             unfocusedContainerColor = Color.White,
@@ -208,16 +228,18 @@ fun AddCustomExerciseScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Notes Field
-            Text(text = "Notes / Form Cue (Optional)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            // Execution Notes Field
+            Text(text = "Form / Cue Notes (Optional)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = notesInput,
                 onValueChange = { notesInput = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("e.g. Squeeze at top contraction for 1 sec", fontSize = 14.sp, color = Color(0xFF9CA3AF)) },
+                singleLine = false,
+                maxLines = 3,
+                placeholder = { Text("e.g. Keep elbows tucked, pause 1s at top stretch", fontSize = 13.sp, color = Color(0xFF9CA3AF)) },
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
@@ -233,35 +255,72 @@ fun AddCustomExerciseScreen(
         }
 
         // Save Custom Exercise Button
-        Button(
-            onClick = {
-                val nameToUse = exerciseNameInput.ifBlank { "Custom Exercise" }
-                val customEx = Exercise(
-                    id = "custom_ex_" + System.currentTimeMillis(),
-                    name = nameToUse,
-                    targetMuscle = selectedMuscleGroup,
-                    defaultWeightKg = weightInput.toFloatOrNull() ?: 20f,
-                    defaultReps = repsInput.toIntOrNull() ?: 10,
-                    notes = notesInput
-                )
-                onSaveCustomExerciseSuccess(customEx)
-            },
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = VitalTealDark,
-                contentColor = Color.White
-            )
         ) {
+            Button(
+                onClick = {
+                    val customEx = Exercise(
+                        id = "custom_ex_" + System.currentTimeMillis(),
+                        name = if (exerciseNameInput.isBlank()) "My Custom Movement" else exerciseNameInput.trim(),
+                        targetMuscle = selectedMuscleGroup,
+                        defaultWeightKg = weightInput.toFloatOrNull() ?: 20f,
+                        defaultReps = repsInput.toIntOrNull() ?: 10,
+                        notes = notesInput.trim()
+                    )
+                    onSaveCustomExerciseSuccess(customEx)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = VitalTealDark,
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = "Save Custom Exercise",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = "Save Custom Exercise",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
+                text = "Custom exercises will be available in your routine exercise selector.",
+                fontSize = 11.sp,
+                color = Color(0xFF9CA3AF),
+                textAlign = TextAlign.Center
             )
         }
+    }
+}
+
+@Composable
+private fun ChevronDownIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color.Gray
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val path = Path().apply {
+            moveTo(w * 0.2f, h * 0.35f)
+            lineTo(w * 0.5f, h * 0.65f)
+            lineTo(w * 0.8f, h * 0.35f)
+        }
+
+        drawPath(
+            path = path,
+            color = color,
+            style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
     }
 }
 

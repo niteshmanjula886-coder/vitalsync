@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -73,6 +74,7 @@ fun ChangePasswordScreen(
             .background(Color(0xFFFAFCFB))
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
             .padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
@@ -113,16 +115,7 @@ fun ChangePasswordScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "Keep your account secure",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "Choose a strong password you don't use for any other account.",
+                text = "Ensure your account is using a strong and unique password.",
                 fontSize = 13.sp,
                 color = Color(0xFF6B7280)
             )
@@ -130,7 +123,7 @@ fun ChangePasswordScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Current Password
-            Text(text = "Current password", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
+            Text(text = "Current Password", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = currentPassword,
@@ -139,33 +132,33 @@ fun ChangePasswordScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 visualTransformation = if (isCurrentVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
                 colors = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor = Color.White,
-    unfocusedContainerColor = Color.White,
-    focusedTextColor = Color(0xFF111827),
-    unfocusedTextColor = Color(0xFF111827),
-    focusedBorderColor = VitalTealPrimary,
-    unfocusedBorderColor = Color(0xFFE5E7EB)
-),
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    focusedTextColor = Color(0xFF111827),
+                    unfocusedTextColor = Color(0xFF111827),
+                    focusedBorderColor = VitalTealPrimary,
+                    unfocusedBorderColor = Color(0xFFE5E7EB)
+                ),
                 trailingIcon = {
                     IconButton(onClick = { isCurrentVisible = !isCurrentVisible }) {
-                        EyeIcon(isVisible = isCurrentVisible, modifier = Modifier.size(18.dp))
+                        EyeVisibilityIcon(isVisible = isCurrentVisible, modifier = Modifier.size(20.dp))
                     }
-                },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next)
+                }
             )
 
+            Spacer(modifier = Modifier.height(6.dp))
+
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
                 Text(
                     text = "Forgot password?",
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF0F9F7A),
+                    fontWeight = FontWeight.Bold,
+                    color = VitalTealPrimary,
                     modifier = Modifier.clickable { onForgotPasswordClick() }
                 )
             }
@@ -173,7 +166,7 @@ fun ChangePasswordScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // New Password
-            Text(text = "New password", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
+            Text(text = "New Password", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = newPassword,
@@ -182,26 +175,26 @@ fun ChangePasswordScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 visualTransformation = if (isNewVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
                 colors = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor = Color.White,
-    unfocusedContainerColor = Color.White,
-    focusedTextColor = Color(0xFF111827),
-    unfocusedTextColor = Color(0xFF111827),
-    focusedBorderColor = VitalTealPrimary,
-    unfocusedBorderColor = Color(0xFFE5E7EB)
-),
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    focusedTextColor = Color(0xFF111827),
+                    unfocusedTextColor = Color(0xFF111827),
+                    focusedBorderColor = VitalTealPrimary,
+                    unfocusedBorderColor = Color(0xFFE5E7EB)
+                ),
                 trailingIcon = {
                     IconButton(onClick = { isNewVisible = !isNewVisible }) {
-                        EyeIcon(isVisible = isNewVisible, modifier = Modifier.size(18.dp))
+                        EyeVisibilityIcon(isVisible = isNewVisible, modifier = Modifier.size(20.dp))
                     }
-                },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next)
+                }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Confirm New Password
-            Text(text = "Confirm new password", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
+            // Confirm Password
+            Text(text = "Confirm New Password", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = confirmPassword,
@@ -210,87 +203,58 @@ fun ChangePasswordScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 visualTransformation = if (isConfirmVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White,
+                    focusedTextColor = Color(0xFF111827),
+                    unfocusedTextColor = Color(0xFF111827),
                     focusedBorderColor = VitalTealPrimary,
                     unfocusedBorderColor = Color(0xFFE5E7EB)
                 ),
                 trailingIcon = {
                     IconButton(onClick = { isConfirmVisible = !isConfirmVisible }) {
-                        EyeIcon(isVisible = isConfirmVisible, modifier = Modifier.size(18.dp))
+                        EyeVisibilityIcon(isVisible = isConfirmVisible, modifier = Modifier.size(20.dp))
                     }
-                },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done)
+                }
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Password Checklist
-            Text(text = "YOUR PASSWORD MUST INCLUDE:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9CA3AF), letterSpacing = 0.8.sp)
-            Spacer(modifier = Modifier.height(8.dp))
-            ChecklistItem("At least 8 characters", newPassword.length >= 8)
-            Spacer(modifier = Modifier.height(4.dp))
-            ChecklistItem("Uppercase and lowercase letters", newPassword.any { it.isUpperCase() } && newPassword.any { it.isLowerCase() })
-            Spacer(modifier = Modifier.height(4.dp))
-            ChecklistItem("At least 1 special character", newPassword.any { !it.isLetterOrDigit() })
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Logout Notice Box
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFFE6F4EA))
-                    .padding(14.dp)
-            ) {
-                Text(
-                    text = "After changing your password, you'll be signed out of your other devices.",
-                    fontSize = 12.sp,
-                    color = Color(0xFF065F46),
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
         }
 
-        // Update Password Button
-        Button(
-            onClick = onUpdatePasswordSuccess,
+        // Save Button
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = VitalTealDark,
-                contentColor = Color.White
-            )
         ) {
-            Text(
-                text = "Update password",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Button(
+                onClick = { onUpdatePasswordSuccess() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = VitalTealDark,
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = "Update Password",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun ChecklistItem(text: String, isMet: Boolean) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(text = if (isMet) "✓" else "•", fontSize = 13.sp, color = if (isMet) Color(0xFF0F9F7A) else Color(0xFF9CA3AF), fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text = text, fontSize = 12.sp, color = if (isMet) Color(0xFF0F9F7A) else Color(0xFF6B7280))
-    }
-}
-
-@Composable
-private fun EyeIcon(
+private fun EyeVisibilityIcon(
     isVisible: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    color: Color = Color.Gray
 ) {
     Canvas(modifier = modifier) {
         val w = size.width
@@ -303,12 +267,21 @@ private fun EyeIcon(
             close()
         }
 
-        drawPath(path = eyePath, color = Color(0xFF9CA3AF), style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-        drawCircle(color = Color(0xFF9CA3AF), radius = w * 0.20f, center = Offset(w * 0.5f, h * 0.5f))
+        drawPath(
+            path = eyePath,
+            color = color,
+            style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+
+        drawCircle(
+            color = color,
+            radius = w * 0.20f,
+            center = Offset(w * 0.5f, h * 0.5f)
+        )
 
         if (!isVisible) {
             drawLine(
-                color = Color(0xFF9CA3AF),
+                color = color,
                 start = Offset(w * 0.15f, h * 0.85f),
                 end = Offset(w * 0.85f, h * 0.15f),
                 strokeWidth = 1.8.dp.toPx(),

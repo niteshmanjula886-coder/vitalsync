@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,7 +45,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,6 +70,7 @@ fun AddReminderScreen(
             .background(Color(0xFFFAFCFB))
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
             .padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
@@ -100,7 +101,7 @@ fun AddReminderScreen(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = "Add Reminder",
+                    text = "Add Custom Reminder",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
@@ -109,23 +110,15 @@ fun AddReminderScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Reminder Name Field
-            Text(
-                text = "Reminder Title",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF374151)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
+            // Reminder Label
+            Text(text = "Reminder Label", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = reminderName,
                 onValueChange = { reminderName = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                placeholder = { Text("e.g. Drink Water, Medication", fontSize = 14.sp, color = Color(0xFF9CA3AF)) },
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White,
@@ -133,164 +126,12 @@ fun AddReminderScreen(
                     unfocusedTextColor = Color(0xFF111827),
                     focusedBorderColor = VitalTealPrimary,
                     unfocusedBorderColor = Color(0xFFE5E7EB)
-                ),
+                )
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Preset Quick Habit Chips
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf("🥛 Water", "🏃 Exercise", "🌙 Sleep", "💊 Meds").forEach { preset ->
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFFF1F5F9))
-                            .clickable { reminderName = preset.substring(3) }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(text = preset, fontSize = 12.sp, color = Color(0xFF475569), fontWeight = FontWeight.Medium)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Time Selector Card
-            Text(
-                text = "Time",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF374151)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = selectedTime,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Daily alert time",
-                            fontSize = 12.sp,
-                            color = Color(0xFF6B7280)
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFE6F4EA))
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = "Change Time",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F9F7A)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Repeat Days Section
-            Text(
-                text = "Repeat Schedule",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF374151)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    // Frequency Chips
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("Every day", "Mon–Fri", "Custom").forEach { freq ->
-                            val isFreqSelected = selectedFrequency == freq
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isFreqSelected) VitalTealDark else Color(0xFFF1F5F9))
-                                    .clickable { selectedFrequency = freq }
-                                    .padding(vertical = 8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = freq,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isFreqSelected) Color.White else Color(0xFF64748B)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // Day Circles (S M T W T F S)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        listOf("S", "M", "T", "W", "T", "F", "S").forEachIndexed { index, dayLabel ->
-                            val isDaySelected = selectedDays.contains(index)
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isDaySelected) VitalTealPrimary else Color(0xFFF1F5F9))
-                                    .clickable {
-                                        selectedDays = if (isDaySelected) selectedDays - index else selectedDays + index
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = dayLabel,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDaySelected) Color.White else Color(0xFF64748B)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Sound & Vibration Switch Card
+            // Target Time Selection Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -305,8 +146,78 @@ fun AddReminderScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text(text = "🔔 Sound & Vibration", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Text(text = "Play alert sound and vibrate phone", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "Trigger Time", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(text = selectedTime, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFE8F6F0))
+                            .clickable { }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(text = "Change Time", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Repeat Day Selector
+            Text(text = "Repeat Days", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                listOf("S", "M", "T", "W", "T", "F", "S").forEachIndexed { index, dayLabel ->
+                    val isSelected = selectedDays.contains(index)
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(if (isSelected) VitalTealDark else Color(0xFFF1F5F9))
+                            .clickable {
+                                selectedDays = if (isSelected) {
+                                    selectedDays - index
+                                } else {
+                                    selectedDays + index
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = dayLabel,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) Color.White else Color(0xFF4B5563)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Alert Sound & Vibration Toggle
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(text = "Sound & Vibration Alert", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "Notify with system alarm tone", fontSize = 11.sp, color = Color(0xFF6B7280))
                     }
 
                     Switch(
@@ -347,15 +258,6 @@ fun AddReminderScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = "Notifications will automatically be scheduled.",
-                fontSize = 11.sp,
-                color = Color(0xFF9CA3AF),
-                textAlign = TextAlign.Center
-            )
         }
     }
 }

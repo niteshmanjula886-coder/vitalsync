@@ -17,6 +17,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -25,10 +27,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.simats.vitalsync.data.Exercise
 import com.simats.vitalsync.data.FitnessRepository
 import com.simats.vitalsync.data.MealCategory
 import com.simats.vitalsync.data.WorkoutSplit
+import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.ui.activity.ActivityType
 import com.simats.vitalsync.ui.activity.CyclingTrackingScreen
 import com.simats.vitalsync.ui.activity.RunningTrackingScreen
@@ -36,6 +43,8 @@ import com.simats.vitalsync.ui.activity.StartActivityScreen
 import com.simats.vitalsync.ui.activity.ViewHistoryScreen
 import com.simats.vitalsync.ui.activity.WalkingTrackingScreen
 import com.simats.vitalsync.ui.activity.WorkoutTrackingScreen
+import com.simats.vitalsync.ui.activity.viewmodel.ActivityViewModel
+import com.simats.vitalsync.ui.activity.viewmodel.ActivityViewModelFactory
 import com.simats.vitalsync.ui.ai.AiChatHistoryScreen
 import com.simats.vitalsync.ui.ai.AiChatScreen
 import com.simats.vitalsync.ui.ai.WeeklyHealthReportScreen
@@ -43,6 +52,8 @@ import com.simats.vitalsync.ui.auth.ForgotPasswordScreen
 import com.simats.vitalsync.ui.auth.LoginScreen
 import com.simats.vitalsync.ui.auth.SignUpScreen
 import com.simats.vitalsync.ui.auth.WelcomeScreen
+import com.simats.vitalsync.ui.auth.viewmodel.AuthViewModel
+import com.simats.vitalsync.ui.auth.viewmodel.AuthViewModelFactory
 import com.simats.vitalsync.ui.gym.ActiveWorkoutSessionScreen
 import com.simats.vitalsync.ui.gym.AddCustomExerciseScreen
 import com.simats.vitalsync.ui.gym.ExerciseLibraryScreen
@@ -168,6 +179,15 @@ class MainActivity : ComponentActivity() {
             var isDarkModeEnabled by remember { mutableStateOf(false) }
 
             VitalsyncTheme(darkTheme = isDarkModeEnabled) {
+                val authViewModel: AuthViewModel = viewModel(
+                    factory = AuthViewModelFactory(applicationContext)
+                )
+                val activityViewModel: ActivityViewModel = viewModel(
+                    factory = ActivityViewModelFactory()
+                )
+                val sessionManager = remember { SessionManager.getInstance(applicationContext) }
+                val currentEmail = sessionManager.getUserEmail().ifBlank { "alex.morgan@email.com" }
+
                 var currentScreen by remember { mutableStateOf(ScreenState.SPLASH) }
                 var isNewUser by remember { mutableStateOf(false) }
                 var activeReadingType by remember { mutableStateOf(VitalReadingType.HEART_RATE) }
@@ -188,6 +208,40 @@ class MainActivity : ComponentActivity() {
                 var globalUserInitials by remember { mutableStateOf("AM") }
                 var globalUserAge by remember { mutableStateOf("28") }
                 var globalProfilePhotoBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+
+                LaunchedEffect(Unit) {
+                    sessionManager.getUser()?.let { user ->
+                        globalUserName = user.displayName
+                        globalUserInitials = user.initials
+                        user.age?.let { globalUserAge = it.toString() }
+                        user.height?.let { userHeightCm = it.toString() }
+                        user.weight?.let { userWeightKg = it.toString() }
+                    }
+                }
+
+                // Auto-logout observer on app resume / return from background
+                val lifecycleOwner = LocalLifecycleOwner.current
+                DisposableEffect(lifecycleOwner) {
+                    val observer = LifecycleEventObserver { _, event ->
+                        if (event == Lifecycle.Event.ON_RESUME) {
+                            if (sessionManager.checkAndPerformAutoLogout()) {
+                                authViewModel.checkSessionTimeout()
+                                currentScreen = ScreenState.LOGIN
+                            } else if (sessionManager.isLoggedIn()) {
+                                sessionManager.updateLastActiveTime()
+                            }
+                        }
+                    }
+                    lifecycleOwner.lifecycle.addObserver(observer)
+                    onDispose {
+                        lifecycleOwner.lifecycle.removeObserver(observer)
+                    }
+                }
+
+                // Keep session active on screen transitions
+                LaunchedEffect(currentScreen) {
+                    sessionManager.updateLastActiveTime()
+                }
 
                 Box(modifier = Modifier.fillMaxSize()) {
                     AnimatedContent(
@@ -232,7 +286,18 @@ class MainActivity : ComponentActivity() {
                             ScreenState.SPLASH -> {
                                 SplashScreen(
                                     splashDurationMillis = 2800L,
-                                    onTimeout = { currentScreen = ScreenState.ONBOARDING }
+                                    onTimeout = {
+                                        if (sessionManager.checkAndPerformAutoLogout()) {
+                                             authViewModel.checkSessionTimeout()
+                                            currentScreen = ScreenState.LOGIN
+                                        } else if (sessionManager.isLoggedIn()) {
+                                            sessionManager.updateLastActiveTime()
+                                            homeInitialTab = 0
+                                            currentScreen = ScreenState.MAIN
+                                        } else {
+                                            currentScreen = ScreenState.ONBOARDING
+                                        }
+                                    }
                                 )
                             }
                             ScreenState.ONBOARDING -> {
@@ -259,28 +324,61 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.LOGIN -> {
                                 LoginScreen(
+                                    viewModel = authViewModel,
+                                    onLoginSuccessWithUser = { user ->
+                                        user?.let {
+                                            globalUserName = it.displayName
+                                            globalUserInitials = it.initials
+                                            it.age?.let { a -> globalUserAge = a.toString() }
+                                            it.height?.let { h -> userHeightCm = h.toString() }
+                                            it.weight?.let { w -> userWeightKg = w.toString() }
+                                        }
+                                    },
                                     onLoginSuccess = {
                                         isNewUser = false
                                         homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN
                                     },
-                                    onNavigateToSignUp = { currentScreen = ScreenState.SIGNUP },
-                                    onForgotPasswordClick = { currentScreen = ScreenState.FORGOT_PASSWORD }
+                                    onNavigateToSignUp = {
+                                        authViewModel.resetSignUpState()
+                                        currentScreen = ScreenState.SIGNUP
+                                    },
+                                    onForgotPasswordClick = {
+                                        authViewModel.resetPasswordState()
+                                        currentScreen = ScreenState.FORGOT_PASSWORD
+                                    }
                                 )
                             }
                             ScreenState.SIGNUP -> {
                                 SignUpScreen(
-                                    onBackClick = { currentScreen = ScreenState.LOGIN },
+                                    viewModel = authViewModel,
+                                    onBackClick = {
+                                        authViewModel.resetLoginState()
+                                        currentScreen = ScreenState.LOGIN
+                                    },
+                                    onSignUpSuccessWithUser = { user ->
+                                        user?.let {
+                                            globalUserName = it.displayName
+                                            globalUserInitials = it.initials
+                                        }
+                                    },
                                     onSignUpSuccess = {
                                         isNewUser = true
                                         currentScreen = ScreenState.PROFILE_SETUP
                                     },
-                                    onNavigateToLogin = { currentScreen = ScreenState.LOGIN }
+                                    onNavigateToLogin = {
+                                        authViewModel.resetLoginState()
+                                        currentScreen = ScreenState.LOGIN
+                                    }
                                 )
                             }
                             ScreenState.FORGOT_PASSWORD -> {
                                 ForgotPasswordScreen(
-                                    onBackClick = { currentScreen = ScreenState.LOGIN },
+                                    viewModel = authViewModel,
+                                    onBackClick = {
+                                        authViewModel.resetLoginState()
+                                        currentScreen = ScreenState.LOGIN
+                                    },
                                     onResetLinkSent = { }
                                 )
                             }
@@ -335,7 +433,11 @@ class MainActivity : ComponentActivity() {
                                     onOpenNutritionTrackerClick = { currentScreen = ScreenState.NUTRITION_DASHBOARD },
                                     onOpenProgressAnalyticsClick = { currentScreen = ScreenState.FITNESS_PROGRESS },
                                     onViewWorkoutHistoryClick = { currentScreen = ScreenState.WORKOUT_HISTORY },
-                                    onLogoutClick = { currentScreen = ScreenState.LOGIN }
+                                    onLogoutClick = {
+                                        authViewModel.logout()
+                                        sessionManager.clearSession()
+                                        currentScreen = ScreenState.LOGIN
+                                    }
                                 )
                             }
                             ScreenState.GYM_SPLIT_SELECT -> {
@@ -709,6 +811,8 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.ACTIVITY_DETAIL -> {
                                 ActivityDetailScreen(
+                                    viewModel = activityViewModel,
+                                    userEmail = currentEmail,
                                     onBackClick = {
                                         homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN
@@ -736,29 +840,79 @@ class MainActivity : ComponentActivity() {
                             ScreenState.WALKING_TRACKING -> {
                                 WalkingTrackingScreen(
                                     onBackClick = { currentScreen = ScreenState.START_ACTIVITY },
-                                    onFinishTracking = { currentScreen = ScreenState.ACTIVITY_DETAIL }
+                                    onFinishTracking = { currentScreen = ScreenState.ACTIVITY_DETAIL },
+                                    onFinishTrackingWithData = { dur, dist, cal, pace, hr, steps ->
+                                        activityViewModel.recordSession(
+                                            email = currentEmail,
+                                            activityType = "walking",
+                                            durationSeconds = dur,
+                                            distanceKm = dist,
+                                            caloriesBurned = cal,
+                                            avgPace = pace,
+                                            avgHeartRate = hr,
+                                            steps = steps
+                                        )
+                                    }
                                 )
                             }
                             ScreenState.RUNNING_TRACKING -> {
                                 RunningTrackingScreen(
                                     onBackClick = { currentScreen = ScreenState.START_ACTIVITY },
-                                    onFinishTracking = { currentScreen = ScreenState.ACTIVITY_DETAIL }
+                                    onFinishTracking = { currentScreen = ScreenState.ACTIVITY_DETAIL },
+                                    onFinishTrackingWithData = { dur, dist, cal, pace, hr, steps ->
+                                        activityViewModel.recordSession(
+                                            email = currentEmail,
+                                            activityType = "running",
+                                            durationSeconds = dur,
+                                            distanceKm = dist,
+                                            caloriesBurned = cal,
+                                            avgPace = pace,
+                                            avgHeartRate = hr,
+                                            steps = steps
+                                        )
+                                    }
                                 )
                             }
                             ScreenState.CYCLING_TRACKING -> {
                                 CyclingTrackingScreen(
                                     onBackClick = { currentScreen = ScreenState.START_ACTIVITY },
-                                    onFinishTracking = { currentScreen = ScreenState.ACTIVITY_DETAIL }
+                                    onFinishTracking = { currentScreen = ScreenState.ACTIVITY_DETAIL },
+                                    onFinishTrackingWithData = { dur, dist, cal, pace, hr, steps ->
+                                        activityViewModel.recordSession(
+                                            email = currentEmail,
+                                            activityType = "cycling",
+                                            durationSeconds = dur,
+                                            distanceKm = dist,
+                                            caloriesBurned = cal,
+                                            avgPace = pace,
+                                            avgHeartRate = hr,
+                                            steps = steps
+                                        )
+                                    }
                                 )
                             }
                             ScreenState.WORKOUT_TRACKING -> {
                                 WorkoutTrackingScreen(
                                     onBackClick = { currentScreen = ScreenState.START_ACTIVITY },
-                                    onFinishTracking = { currentScreen = ScreenState.ACTIVITY_DETAIL }
+                                    onFinishTracking = { currentScreen = ScreenState.ACTIVITY_DETAIL },
+                                    onFinishTrackingWithData = { dur, dist, cal, pace, hr, steps ->
+                                        activityViewModel.recordSession(
+                                            email = currentEmail,
+                                            activityType = "workout",
+                                            durationSeconds = dur,
+                                            distanceKm = dist,
+                                            caloriesBurned = cal,
+                                            avgPace = pace,
+                                            avgHeartRate = hr,
+                                            steps = steps
+                                        )
+                                    }
                                 )
                             }
                             ScreenState.VIEW_HISTORY -> {
                                 ViewHistoryScreen(
+                                    viewModel = activityViewModel,
+                                    userEmail = currentEmail,
                                     onBackClick = { currentScreen = viewHistoryPreviousScreen }
                                 )
                             }
@@ -813,6 +967,8 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.EDIT_STEP_GOAL -> {
                                 EditStepGoalScreen(
+                                    viewModel = activityViewModel,
+                                    userEmail = currentEmail,
                                     onBackClick = { currentScreen = ScreenState.STEP_COUNT_DETAIL },
                                     onSaveGoalSuccess = { currentScreen = ScreenState.STEP_COUNT_DETAIL }
                                 )

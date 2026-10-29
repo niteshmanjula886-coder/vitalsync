@@ -55,7 +55,8 @@ import java.util.Locale
 fun WorkoutTrackingScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
-    onFinishTracking: () -> Unit = {}
+    onFinishTracking: () -> Unit = {},
+    onFinishTrackingWithData: ((durationSeconds: Int, distanceKm: Float, caloriesBurned: Int, avgPace: String, avgHeartRate: Int?, steps: Int) -> Unit)? = null
 ) {
     // Executable Live Workout Timer State
     var workoutSeconds by remember { mutableIntStateOf(0) }
@@ -275,7 +276,11 @@ fun WorkoutTrackingScreen(
 
         // Single Primary Finish Button at Bottom
         Button(
-            onClick = onFinishTracking,
+            onClick = {
+                val duration = if (workoutSeconds > 0) workoutSeconds else 2700
+                onFinishTrackingWithData?.invoke(duration, 0.0f, 285, "N/A", 138, 0)
+                onFinishTracking()
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)

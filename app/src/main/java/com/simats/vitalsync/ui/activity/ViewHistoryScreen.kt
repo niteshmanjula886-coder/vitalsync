@@ -23,9 +23,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +45,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.activity.viewmodel.ActivityViewModel
+import com.simats.vitalsync.ui.activity.viewmodel.HistoryUiState
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -79,6 +84,8 @@ private val sampleHistoryData = listOf(
 fun ViewHistoryScreen(
     modifier: Modifier = Modifier,
     initialFilter: String = "All",
+    viewModel: ActivityViewModel? = null,
+    userEmail: String = "alex.morgan@email.com",
     onBackClick: () -> Unit = {}
 ) {
     var selectedFilter by remember { mutableStateOf(initialFilter) }
@@ -86,8 +93,36 @@ fun ViewHistoryScreen(
     var isDatePickerExpanded by remember { mutableStateOf(false) }
     var selectedDayTag by remember { mutableStateOf("All Days") }
 
-    val filteredItems = remember(selectedFilter, selectedDayTag) {
-        sampleHistoryData.filter { item ->
+    // Load History from ViewModel
+    LaunchedEffect(userEmail) {
+        viewModel?.loadHistory(userEmail)
+    }
+
+    val historyState by (viewModel?.historyState?.collectAsState() ?: remember { mutableStateOf(HistoryUiState()) })
+
+    val activeHistoryList = remember(historyState.history) {
+        if (historyState.history.isNotEmpty()) {
+            historyState.history.map { item ->
+                HistoryItem(
+                    id = item.id,
+                    category = item.category,
+                    dateGroup = item.dateGroup,
+                    dayTag = item.dayTag,
+                    icon = item.icon,
+                    title = item.title,
+                    value = item.value,
+                    unit = item.unit,
+                    status = item.status,
+                    time = item.time
+                )
+            }
+        } else {
+            sampleHistoryData
+        }
+    }
+
+    val filteredItems = remember(selectedFilter, selectedDayTag, activeHistoryList) {
+        activeHistoryList.filter { item ->
             val matchesFilter = selectedFilter == "All" || item.category.equals(selectedFilter, ignoreCase = true)
             val matchesDay = selectedDayTag == "All Days" || item.dayTag == selectedDayTag
             matchesFilter && matchesDay
@@ -144,7 +179,15 @@ fun ViewHistoryScreen(
                     .clickable { isDatePickerExpanded = !isDatePickerExpanded },
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "📅", fontSize = 16.sp)
+                if (historyState.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = VitalTealDark,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(text = "📅", fontSize = 16.sp)
+                }
             }
         }
 
@@ -398,45 +441,58 @@ private fun HistoryCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(text = icon, fontSize = 20.sp)
+
                 Spacer(modifier = Modifier.width(12.dp))
+
                 Column {
-                    Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                    Text(text = time, fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                    Text(
+                        text = title,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = time,
+                        fontSize = 11.sp,
+                        color = Color(0xFF9CA3AF)
+                    )
                 }
             }
 
             Column(horizontalAlignment = Alignment.End) {
                 Row(verticalAlignment = Alignment.Bottom) {
-                    Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(
+                        text = value,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = unit, fontSize = 11.sp, color = Color(0xFF6B7280))
+                    Text(
+                        text = unit,
+                        fontSize = 12.sp,
+                        color = Color(0xFF6B7280),
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
                 }
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFFE6F4EA))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(text = status, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                val badgeColor = when (status) {
+                    "Optimal" -> Color(0xFF0F9F7A)
+                    "Normal" -> Color(0xFF10B981)
+                    else -> Color(0xFF6B7280)
                 }
+
+                Text(
+                    text = status,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = badgeColor
+                )
             }
         }
-    }
-}
-
-@Composable
-private fun ChevronDownIcon(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        val path = Path().apply {
-            moveTo(w * 0.2f, h * 0.3f)
-            lineTo(w * 0.5f, h * 0.7f)
-            lineTo(w * 0.8f, h * 0.3f)
-        }
-
-        drawPath(path = path, color = Color(0xFF374151), style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 
@@ -455,6 +511,25 @@ private fun BackArrowIcon(
             moveTo(w * 0.45f, h * 0.25f)
             lineTo(w * 0.25f, h * 0.5f)
             lineTo(w * 0.45f, h * 0.75f)
+        }
+
+        drawPath(path = path, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Composable
+private fun ChevronDownIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF6B7280)
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        val path = Path().apply {
+            moveTo(w * 0.25f, h * 0.35f)
+            lineTo(w * 0.5f, h * 0.65f)
+            lineTo(w * 0.75f, h * 0.35f)
         }
 
         drawPath(path = path, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))

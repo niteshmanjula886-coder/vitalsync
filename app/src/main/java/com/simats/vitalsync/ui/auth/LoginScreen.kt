@@ -22,11 +22,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +51,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.model.auth.User
+import com.simats.vitalsync.ui.auth.viewmodel.AuthUiState
+import com.simats.vitalsync.ui.auth.viewmodel.AuthViewModel
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -55,13 +61,27 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
+    viewModel: AuthViewModel? = null,
     onLoginSuccess: () -> Unit = {},
+    onLoginSuccessWithUser: (User?) -> Unit = {},
     onNavigateToSignUp: () -> Unit = {},
     onForgotPasswordClick: () -> Unit = {}
 ) {
+    val loginState by viewModel?.loginState?.collectAsState() ?: remember { mutableStateOf(AuthUiState()) }
+    val sessionExpiredNotice by viewModel?.sessionExpiredNotice?.collectAsState() ?: remember { mutableStateOf<String?>(null) }
+
     var email by remember { mutableStateOf("alex.morgan@email.com") }
     var password by remember { mutableStateOf("1234567890") }
     var isPasswordVisible by remember { mutableStateOf(false) }
+
+    // Trigger success callback when login succeeds
+    LaunchedEffect(loginState.isSuccess) {
+        if (loginState.isSuccess) {
+            onLoginSuccessWithUser(loginState.user)
+            onLoginSuccess()
+            viewModel?.resetLoginState()
+        }
+    }
 
     Column(
         modifier = modifier
@@ -122,6 +142,29 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Session Expired Banner (Auto-Logout Notice)
+            if (!sessionExpiredNotice.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFEF3C7))
+                        .padding(14.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "⏱️", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = sessionExpiredNotice ?: "",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF92400E)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             // Email Label
             Text(
                 text = "Email",
@@ -135,7 +178,10 @@ fun LoginScreen(
             // Email Outlined TextField
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = {
+                    email = it
+                    viewModel?.clearLoginError()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
@@ -174,7 +220,10 @@ fun LoginScreen(
             // Password Outlined TextField
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = {
+                    password = it
+                    viewModel?.clearLoginError()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
@@ -220,25 +269,72 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // Error Message Banner (from ViewModel)
+            if (!loginState.errorMessage.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFEE2E2))
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = loginState.errorMessage ?: "",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFDC2626)
+                    )
+                }
+            }
 
-            // Login Button
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Login Button (with Loading Spinner support)
             Button(
-                onClick = onLoginSuccess,
+                onClick = {
+                    if (viewModel != null) {
+                        viewModel.login(email = email, password = password)
+                    } else {
+                        onLoginSuccess()
+                    }
+                },
+                enabled = !loginState.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = VitalTealDark,
-                    contentColor = Color.White
+                    contentColor = Color.White,
+                    disabledContainerColor = VitalTealDark.copy(alpha = 0.65f),
+                    disabledContentColor = Color.White.copy(alpha = 0.8f)
                 )
             ) {
-                Text(
-                    text = "Login",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (loginState.isLoading) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Logging in...",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Login",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
 
@@ -351,7 +447,7 @@ private fun SparkleIconSmall(modifier: Modifier = Modifier) {
         val path = Path().apply {
             moveTo(w * 0.5f, 0f)
             quadraticTo(w * 0.5f, h * 0.5f, w, h * 0.5f)
-            quadraticTo(w * 0.5f, h * 0.5f, w * 0.5f, h)
+            quadraticTo(w * 0.5f, h * 0.5f, w, h * 0.5f)
             quadraticTo(w * 0.5f, h * 0.5f, 0f, h * 0.5f)
             quadraticTo(w * 0.5f, h * 0.5f, w * 0.5f, 0f)
             close()

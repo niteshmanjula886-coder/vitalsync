@@ -59,7 +59,8 @@ import java.util.Locale
 fun CyclingTrackingScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
-    onFinishTracking: () -> Unit = {}
+    onFinishTracking: () -> Unit = {},
+    onFinishTrackingWithData: ((durationSeconds: Int, distanceKm: Float, caloriesBurned: Int, avgPace: String, avgHeartRate: Int?, steps: Int) -> Unit)? = null
 ) {
     // Executable Live Timer State
     var trackingSeconds by remember { mutableIntStateOf(0) }
@@ -319,7 +320,11 @@ fun CyclingTrackingScreen(
 
         // Single Primary Finish Button at Bottom
         Button(
-            onClick = onFinishTracking,
+            onClick = {
+                val duration = if (trackingSeconds > 0) trackingSeconds else 2100
+                onFinishTrackingWithData?.invoke(duration, 12.0f, 280, "2:40", 138, 0)
+                onFinishTracking()
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
