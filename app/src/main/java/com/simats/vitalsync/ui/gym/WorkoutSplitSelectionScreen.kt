@@ -44,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.WorkoutSplit
+import com.simats.vitalsync.ui.gym.viewmodel.GymViewModel
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -51,6 +52,7 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun WorkoutSplitSelectionScreen(
     modifier: Modifier = Modifier,
+    viewModel: GymViewModel? = null,
     onBackClick: () -> Unit = {},
     onStartSplitWorkout: (WorkoutSplit) -> Unit = {}
 ) {
@@ -204,7 +206,7 @@ fun WorkoutSplitSelectionScreen(
             )
         ) {
             Text(
-                text = "Start ${selectedSplit.displayName} Routine",
+                text = "Start Workout Session",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -214,11 +216,11 @@ fun WorkoutSplitSelectionScreen(
 
 private fun getSplitIcon(split: WorkoutSplit): String {
     return when (split) {
-        WorkoutSplit.PUSH -> "💪"
-        WorkoutSplit.PULL -> "🏋️"
+        WorkoutSplit.PUSH -> "🏋️"
+        WorkoutSplit.PULL -> "🧗"
         WorkoutSplit.LEGS -> "🦵"
-        WorkoutSplit.UPPER_BODY -> "👕"
-        WorkoutSplit.LOWER_BODY -> "👟"
+        WorkoutSplit.UPPER_BODY -> "💪"
+        WorkoutSplit.LOWER_BODY -> "🏃"
         WorkoutSplit.FULL_BODY -> "🔥"
         WorkoutSplit.CUSTOM -> "⚡"
     }

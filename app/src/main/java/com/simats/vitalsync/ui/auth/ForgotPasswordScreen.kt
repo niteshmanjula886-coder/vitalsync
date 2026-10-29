@@ -68,7 +68,7 @@ fun ForgotPasswordScreen(
 ) {
     val resetPasswordState by viewModel?.resetPasswordState?.collectAsState() ?: remember { mutableStateOf(AuthUiState()) }
 
-    var email by remember { mutableStateOf("alex.morgan@email.com") }
+    var email by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
 

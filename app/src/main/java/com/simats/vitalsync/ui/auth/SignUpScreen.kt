@@ -72,9 +72,9 @@ fun SignUpScreen(
 ) {
     val signUpState by viewModel?.signUpState?.collectAsState() ?: remember { mutableStateOf(AuthUiState()) }
 
-    var name by remember { mutableStateOf("Alex Morgan") }
-    var email by remember { mutableStateOf("alex.morgan@email.com") }
-    var password by remember { mutableStateOf("1234567890") }
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var isTermsAccepted by remember { mutableStateOf(true) }
     var validationError by remember { mutableStateOf<String?>(null) }

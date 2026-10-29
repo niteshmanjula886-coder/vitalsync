@@ -20,6 +20,9 @@ object RetrofitClient {
     @Volatile
     private var activityApiServiceInstance: ActivityApiService? = null
 
+    @Volatile
+    private var gymApiServiceInstance: GymApiService? = null
+
     private val okHttpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -44,6 +47,7 @@ object RetrofitClient {
                 retrofitInstance = null
                 authApiServiceInstance = null
                 activityApiServiceInstance = null
+                gymApiServiceInstance = null
             }
         }
     }
@@ -69,6 +73,13 @@ object RetrofitClient {
         get() = activityApiServiceInstance ?: synchronized(this) {
             activityApiServiceInstance ?: getRetrofit().create(ActivityApiService::class.java).also {
                 activityApiServiceInstance = it
+            }
+        }
+
+    val gymApiService: GymApiService
+        get() = gymApiServiceInstance ?: synchronized(this) {
+            gymApiServiceInstance ?: getRetrofit().create(GymApiService::class.java).also {
+                gymApiServiceInstance = it
             }
         }
 }

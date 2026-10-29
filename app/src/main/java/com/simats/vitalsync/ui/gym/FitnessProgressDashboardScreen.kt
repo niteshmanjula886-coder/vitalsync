@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,12 +23,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,13 +50,37 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.gym.viewmodel.GymProgressUiState
+import com.simats.vitalsync.ui.gym.viewmodel.GymViewModel
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import java.util.Locale
 
 @Composable
 fun FitnessProgressDashboardScreen(
     modifier: Modifier = Modifier,
+    viewModel: GymViewModel? = null,
+    userEmail: String = "alex.morgan@email.com",
     onBackClick: () -> Unit = {}
 ) {
+    val progressState by viewModel?.progressState?.collectAsState() ?: remember { mutableStateOf(GymProgressUiState()) }
+
+    LaunchedEffect(userEmail) {
+        viewModel?.loadGymProgress(userEmail)
+    }
+
+    val progress = progressState.progress
+    val weeklyWorkouts = progress?.weeklyWorkouts ?: 4
+    val weeklyTarget = progress?.weeklyTargetWorkouts ?: 5
+    val weeklyVolKg: Float = progress?.weeklyVolumeKg ?: 18500f
+    val formattedVol = if (weeklyVolKg >= 1000f) {
+        String.format(Locale.US, "%.1fk", weeklyVolKg / 1000f)
+    } else {
+        weeklyVolKg.toInt().toString()
+    }
+    val calBurned = progress?.totalCaloriesBurned ?: 1420
+    val streakDays = progress?.currentStreakDays ?: 3
+    val favoriteSplit = progress?.favoriteSplit ?: "Push"
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -91,14 +119,28 @@ fun FitnessProgressDashboardScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        if (progressState.isLoading && progress == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 30.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = Color(0xFF0F9F7A),
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+        }
+
         // Weekly Summary Stats Row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            ProgressMiniCard("Workouts", "4", "this week", Color(0xFF0F9F7A), Modifier.weight(1f))
-            ProgressMiniCard("Volume", "18.5k", "total kg", Color(0xFF38BDF8), Modifier.weight(1f))
-            ProgressMiniCard("Avg Protein", "128g", "/ day", Color(0xFF7C3AED), Modifier.weight(1f))
+            ProgressMiniCard("Workouts", "$weeklyWorkouts", "this week", Color(0xFF0F9F7A), Modifier.weight(1f))
+            ProgressMiniCard("Volume", formattedVol, "total kg", Color(0xFF38BDF8), Modifier.weight(1f))
+            ProgressMiniCard("Streak", "$streakDays d", "current streak", Color(0xFF7C3AED), Modifier.weight(1f))
         }
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -117,9 +159,10 @@ fun FitnessProgressDashboardScreen(
                 ) {
                     Column {
                         Text(text = "Weekly Workout Frequency", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Text(text = "4 sessions completed", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "$weeklyWorkouts sessions completed", fontSize = 12.sp, color = Color(0xFF6B7280))
                     }
-                    Text(text = "80% Goal", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                    val percent = if (weeklyTarget > 0) (weeklyWorkouts * 100 / weeklyTarget).coerceAtMost(100) else 80
+                    Text(text = "$percent% Goal", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -187,8 +230,11 @@ fun FitnessProgressDashboardScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "Training Volume Trend", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                    Text(text = "↑ 14% vs last week", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                    Column {
+                        Text(text = "Training Volume Trend", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "Favorite Routine: $favoriteSplit", fontSize = 12.sp, color = Color(0xFF6B7280))
+                    }
+                    Text(text = "Burned: $calBurned kcal", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

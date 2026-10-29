@@ -23,11 +23,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +48,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.Exercise
+import com.simats.vitalsync.ui.gym.viewmodel.ExercisesUiState
+import com.simats.vitalsync.ui.gym.viewmodel.GymViewModel
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -53,6 +58,8 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 fun ExerciseLibraryScreen(
     modifier: Modifier = Modifier,
     exerciseList: List<Exercise> = emptyList(),
+    viewModel: GymViewModel? = null,
+    userEmail: String = "alex.morgan@email.com",
     onBackClick: () -> Unit = {},
     onExerciseSelected: (Exercise) -> Unit = {},
     onCreateCustomExerciseClick: () -> Unit = {}
@@ -60,8 +67,22 @@ fun ExerciseLibraryScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedMuscleFilter by remember { mutableStateOf("All") }
 
-    val filteredExercises = remember(searchQuery, selectedMuscleFilter, exerciseList) {
-        exerciseList.filter { ex ->
+    LaunchedEffect(userEmail) {
+        viewModel?.loadExercises(userEmail)
+    }
+
+    val exercisesState by (viewModel?.exercisesState?.collectAsState() ?: remember { mutableStateOf(ExercisesUiState()) })
+
+    val activeExercises: List<Exercise> = remember(exercisesState.exercises, exerciseList) {
+        if (exercisesState.exercises.isNotEmpty()) {
+            exercisesState.exercises.map { it.toExercise() }
+        } else {
+            exerciseList
+        }
+    }
+
+    val filteredExercises = remember(searchQuery, selectedMuscleFilter, activeExercises) {
+        activeExercises.filter { ex ->
             val matchesQuery = ex.name.contains(searchQuery, ignoreCase = true) || ex.targetMuscle.contains(searchQuery, ignoreCase = true)
             val matchesFilter = selectedMuscleFilter == "All" || ex.targetMuscle.contains(selectedMuscleFilter, ignoreCase = true)
             matchesQuery && matchesFilter
@@ -109,6 +130,15 @@ fun ExerciseLibraryScreen(
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
                 )
+
+                if (exercisesState.isLoading) {
+                    Spacer(modifier = Modifier.width(12.dp))
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = VitalTealDark,
+                        strokeWidth = 2.dp
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -213,7 +243,7 @@ fun ExerciseLibraryScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // Add Custom Exercise Button
+        // Add Custom Exercise Action Button at Bottom
         Button(
             onClick = onCreateCustomExerciseClick,
             modifier = Modifier
@@ -227,8 +257,8 @@ fun ExerciseLibraryScreen(
             )
         ) {
             Text(
-                text = "+ Add Custom Exercise",
-                fontSize = 15.sp,
+                text = "+ Create Custom Exercise",
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
         }

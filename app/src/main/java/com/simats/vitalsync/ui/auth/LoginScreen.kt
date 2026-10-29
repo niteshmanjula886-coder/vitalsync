@@ -70,8 +70,8 @@ fun LoginScreen(
     val loginState by viewModel?.loginState?.collectAsState() ?: remember { mutableStateOf(AuthUiState()) }
     val sessionExpiredNotice by viewModel?.sessionExpiredNotice?.collectAsState() ?: remember { mutableStateOf<String?>(null) }
 
-    var email by remember { mutableStateOf("alex.morgan@email.com") }
-    var password by remember { mutableStateOf("1234567890") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
 
     // Trigger success callback when login succeeds

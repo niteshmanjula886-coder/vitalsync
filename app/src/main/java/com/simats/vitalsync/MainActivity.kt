@@ -60,6 +60,8 @@ import com.simats.vitalsync.ui.gym.ExerciseLibraryScreen
 import com.simats.vitalsync.ui.gym.FitnessProgressDashboardScreen
 import com.simats.vitalsync.ui.gym.WorkoutHistoryScreen
 import com.simats.vitalsync.ui.gym.WorkoutSplitSelectionScreen
+import com.simats.vitalsync.ui.gym.viewmodel.GymViewModel
+import com.simats.vitalsync.ui.gym.viewmodel.GymViewModelFactory
 import com.simats.vitalsync.ui.home.HomeScreen
 import com.simats.vitalsync.ui.nutrition.AddCustomFoodScreen
 import com.simats.vitalsync.ui.nutrition.DailyMealHistoryScreen
@@ -184,6 +186,9 @@ class MainActivity : ComponentActivity() {
                 )
                 val activityViewModel: ActivityViewModel = viewModel(
                     factory = ActivityViewModelFactory()
+                )
+                val gymViewModel: GymViewModel = viewModel(
+                    factory = GymViewModelFactory()
                 )
                 val sessionManager = remember { SessionManager.getInstance(applicationContext) }
                 val currentEmail = sessionManager.getUserEmail().ifBlank { "alex.morgan@email.com" }
@@ -442,6 +447,7 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.GYM_SPLIT_SELECT -> {
                                 WorkoutSplitSelectionScreen(
+                                    viewModel = gymViewModel,
                                     onBackClick = {
                                         homeInitialTab = 4
                                         currentScreen = ScreenState.MAIN
@@ -455,6 +461,8 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.EXERCISE_LIBRARY -> {
                                 ExerciseLibraryScreen(
+                                    viewModel = gymViewModel,
+                                    userEmail = currentEmail,
                                     exerciseList = repository.getExerciseLibrary(),
                                     onBackClick = { currentScreen = ScreenState.ACTIVE_WORKOUT },
                                     onExerciseSelected = { ex ->
@@ -466,6 +474,8 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.CREATE_CUSTOM_EXERCISE -> {
                                 AddCustomExerciseScreen(
+                                    viewModel = gymViewModel,
+                                    userEmail = currentEmail,
                                     onBackClick = { currentScreen = ScreenState.EXERCISE_LIBRARY },
                                     onSaveCustomExerciseSuccess = { customEx ->
                                         repository.addCustomExercise(customEx)
@@ -484,6 +494,7 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onAddExerciseClick = { currentScreen = ScreenState.EXERCISE_LIBRARY },
                                     onFinishSession = { session ->
+                                        gymViewModel.saveWorkoutSession(currentEmail, session)
                                         repository.saveWorkoutSession(session)
                                         homeInitialTab = 4
                                         currentScreen = ScreenState.MAIN
@@ -492,6 +503,8 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.WORKOUT_HISTORY -> {
                                 WorkoutHistoryScreen(
+                                    viewModel = gymViewModel,
+                                    userEmail = currentEmail,
                                     workoutSessions = repository.getAllWorkoutSessions(),
                                     onBackClick = {
                                         homeInitialTab = 4
@@ -581,6 +594,8 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.FITNESS_PROGRESS -> {
                                 FitnessProgressDashboardScreen(
+                                    viewModel = gymViewModel,
+                                    userEmail = currentEmail,
                                     onBackClick = {
                                         homeInitialTab = 4
                                         currentScreen = ScreenState.MAIN

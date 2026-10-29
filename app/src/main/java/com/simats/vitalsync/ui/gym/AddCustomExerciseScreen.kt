@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
@@ -30,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +51,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.Exercise
+import com.simats.vitalsync.ui.gym.viewmodel.AddExerciseUiState
+import com.simats.vitalsync.ui.gym.viewmodel.GymViewModel
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -56,9 +60,13 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun AddCustomExerciseScreen(
     modifier: Modifier = Modifier,
+    viewModel: GymViewModel? = null,
+    userEmail: String = "alex.morgan@email.com",
     onBackClick: () -> Unit = {},
     onSaveCustomExerciseSuccess: (Exercise) -> Unit = {}
 ) {
+    val addExerciseState by viewModel?.addExerciseState?.collectAsState() ?: remember { mutableStateOf(AddExerciseUiState()) }
+
     var exerciseNameInput by remember { mutableStateOf("") }
     var selectedMuscleGroup by remember { mutableStateOf("Arms") }
     var weightInput by remember { mutableStateOf("25") }
@@ -261,18 +269,48 @@ fun AddCustomExerciseScreen(
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
         ) {
+            if (addExerciseState.errorMessage != null) {
+                Text(
+                    text = addExerciseState.errorMessage ?: "",
+                    color = Color(0xFFEF4444),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
             Button(
                 onClick = {
-                    val customEx = Exercise(
-                        id = "custom_ex_" + System.currentTimeMillis(),
-                        name = if (exerciseNameInput.isBlank()) "My Custom Movement" else exerciseNameInput.trim(),
-                        targetMuscle = selectedMuscleGroup,
-                        defaultWeightKg = weightInput.toFloatOrNull() ?: 20f,
-                        defaultReps = repsInput.toIntOrNull() ?: 10,
-                        notes = notesInput.trim()
-                    )
-                    onSaveCustomExerciseSuccess(customEx)
+                    val finalName = if (exerciseNameInput.isBlank()) "My Custom Movement" else exerciseNameInput.trim()
+                    val finalWeight = weightInput.toFloatOrNull() ?: 20f
+                    val finalReps = repsInput.toIntOrNull() ?: 10
+                    val finalNotes = notesInput.trim()
+
+                    if (viewModel != null) {
+                        viewModel.addCustomExercise(
+                            email = userEmail,
+                            name = finalName,
+                            targetMuscle = selectedMuscleGroup,
+                            defaultWeightKg = finalWeight,
+                            defaultReps = finalReps,
+                            notes = finalNotes,
+                            onSuccess = { savedEx ->
+                                onSaveCustomExerciseSuccess(savedEx)
+                            }
+                        )
+                    } else {
+                        val customEx = Exercise(
+                            id = "custom_ex_" + System.currentTimeMillis(),
+                            name = finalName,
+                            targetMuscle = selectedMuscleGroup,
+                            defaultWeightKg = finalWeight,
+                            defaultReps = finalReps,
+                            notes = finalNotes
+                        )
+                        onSaveCustomExerciseSuccess(customEx)
+                    }
                 },
+                enabled = !addExerciseState.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
@@ -282,11 +320,19 @@ fun AddCustomExerciseScreen(
                     contentColor = Color.White
                 )
             ) {
-                Text(
-                    text = "Save Custom Exercise",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (addExerciseState.isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Save Custom Exercise",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
