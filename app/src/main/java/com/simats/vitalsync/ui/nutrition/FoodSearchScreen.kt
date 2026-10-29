@@ -23,11 +23,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +50,8 @@ import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.FoodCategory
 import com.simats.vitalsync.data.FoodItem
 import com.simats.vitalsync.data.MealCategory
+import com.simats.vitalsync.ui.nutrition.viewmodel.FoodsUiState
+import com.simats.vitalsync.ui.nutrition.viewmodel.NutritionViewModel
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -54,6 +59,8 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun FoodSearchScreen(
     modifier: Modifier = Modifier,
+    viewModel: NutritionViewModel? = null,
+    userEmail: String = "alex.morgan@email.com",
     mealCategory: MealCategory = MealCategory.BREAKFAST,
     foodDatabase: List<FoodItem> = emptyList(),
     onBackClick: () -> Unit = {},
@@ -63,8 +70,20 @@ fun FoodSearchScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategoryFilter by remember { mutableStateOf("All") }
 
-    val filteredFoods = remember(searchQuery, selectedCategoryFilter, foodDatabase) {
-        foodDatabase.filter { food ->
+    val foodsState by viewModel?.foodsState?.collectAsState() ?: remember { mutableStateOf(FoodsUiState()) }
+
+    LaunchedEffect(userEmail) {
+        viewModel?.loadFoods(userEmail)
+    }
+
+    val currentFoodDatabase = if (viewModel != null && foodsState.foods.isNotEmpty()) {
+        foodsState.foods.map { it.toFoodItem() }
+    } else {
+        foodDatabase
+    }
+
+    val filteredFoods = remember(searchQuery, selectedCategoryFilter, currentFoodDatabase) {
+        currentFoodDatabase.filter { food ->
             val matchesQuery = food.name.contains(searchQuery, ignoreCase = true)
             val matchesFilter = when (selectedCategoryFilter) {
                 "High Protein" -> food.proteinGrams >= 10f
@@ -168,6 +187,20 @@ fun FoodSearchScreen(
             }
 
             Spacer(modifier = Modifier.height(20.dp))
+
+            if (foodsState.isLoading && currentFoodDatabase.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 30.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = VitalTealPrimary,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+            }
 
             // Food Items List
             filteredFoods.forEach { food ->

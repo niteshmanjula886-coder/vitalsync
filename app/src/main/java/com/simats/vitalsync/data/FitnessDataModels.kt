@@ -4,6 +4,7 @@ enum class WorkoutSplit(val displayName: String, val description: String) {
     PUSH("Push", "Chest, Shoulders & Triceps"),
     PULL("Pull", "Back, Biceps & Rear Delts"),
     LEGS("Legs", "Quads, Hamstrings, Glutes & Calves"),
+    HIIT("HIIT & Cardio", "High-Intensity Interval & Endurance"),
     UPPER_BODY("Upper Body", "Chest, Back, Shoulders & Arms"),
     LOWER_BODY("Lower Body", "Quads, Hamstrings, Glutes & Calves"),
     FULL_BODY("Full Body", "All major muscle groups"),

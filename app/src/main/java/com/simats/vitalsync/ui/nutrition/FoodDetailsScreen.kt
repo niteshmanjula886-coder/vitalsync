@@ -24,10 +24,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +51,8 @@ import com.simats.vitalsync.data.FoodCategory
 import com.simats.vitalsync.data.FoodItem
 import com.simats.vitalsync.data.MealCategory
 import com.simats.vitalsync.data.MealEntry
+import com.simats.vitalsync.ui.nutrition.viewmodel.LogMealUiState
+import com.simats.vitalsync.ui.nutrition.viewmodel.NutritionViewModel
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -57,12 +61,16 @@ import java.util.Locale
 @Composable
 fun FoodDetailsScreen(
     modifier: Modifier = Modifier,
+    viewModel: NutritionViewModel? = null,
+    userEmail: String = "alex.morgan@email.com",
     foodItem: FoodItem = FoodItem("f1", "Whole Egg (Boiled)", FoodCategory.EGG, 1f, "large egg (50g)", 78, 6.3f, 0.6f, 5.3f),
     initialMealCategory: MealCategory = MealCategory.BREAKFAST,
     dateString: String = "2025-10-15",
     onBackClick: () -> Unit = {},
     onLogMealSuccess: (MealEntry) -> Unit = {}
 ) {
+    val logMealState by viewModel?.logMealState?.collectAsState() ?: remember { mutableStateOf(LogMealUiState()) }
+
     var quantityMultiplier by remember { mutableFloatStateOf(1.0f) }
     var selectedMealCategory by remember { mutableStateOf(initialMealCategory) }
 
@@ -108,7 +116,7 @@ fun FoodDetailsScreen(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = "Food Details & Serving",
+                    text = "Nutrition Breakdown",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
@@ -117,204 +125,195 @@ fun FoodDetailsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Food Name & Category Card
+            // Food Title & Indicator Badge
+            Text(
+                text = foodItem.name,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111827)
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = when (foodItem.category) {
+                        FoodCategory.NON_VEG -> "🔴 Non-Vegetarian"
+                        FoodCategory.EGG -> "🟡 Egg"
+                        FoodCategory.VEGAN -> "🌱 Vegan"
+                        else -> "🟢 Vegetarian"
+                    },
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF6B7280)
+                )
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Text(
+                    text = "· 1 serving = ${foodItem.servingUnit}",
+                    fontSize = 12.sp,
+                    color = Color(0xFF9CA3AF)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Big Calories Hero Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                colors = CardDefaults.cardColors(containerColor = VitalTealDark),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = foodItem.name,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFE8F6F0))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = foodItem.category.name,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F9F7A)
-                            )
-                        }
-                    }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "TOTAL ENERGY",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFA7F3D0),
+                        letterSpacing = 0.8.sp
+                    )
 
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "Standard serving unit: ${foodItem.servingUnit}",
-                        fontSize = 13.sp,
-                        color = Color(0xFF6B7280)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Quantity Incrementor Box Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F6F0)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "SERVING QUANTITY",
-                        fontSize = 11.sp,
+                        text = "$calculatedCalories",
+                        fontSize = 42.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F9F7A),
-                        letterSpacing = 0.8.sp
+                        color = Color.White
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "kilocalories",
+                        fontSize = 13.sp,
+                        color = Color(0xFFA7F3D0)
+                    )
 
+                    Spacer(modifier = Modifier.height(20.dp))
+                    HorizontalDivider(color = Color(0x30FFFFFF))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 3 Macros in Hero
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(Color.White)
-                                .clickable { if (quantityMultiplier > 0.5f) quantityMultiplier -= 0.5f },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = "−", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "Protein", fontSize = 11.sp, color = Color(0xFFA7F3D0))
+                            Text(text = String.format(Locale.US, "%.1fg", calculatedProtein), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "${String.format(Locale.US, "%.1f", quantityMultiplier)}x",
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
-                            )
-                            Text(
-                                text = foodItem.servingUnit,
-                                fontSize = 12.sp,
-                                color = Color(0xFF6B7280)
-                            )
+                            Text(text = "Carbs", fontSize = 11.sp, color = Color(0xFFA7F3D0))
+                            Text(text = String.format(Locale.US, "%.1fg", calculatedCarbs), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
 
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(Color.White)
-                                .clickable { quantityMultiplier += 0.5f },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = "+", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "Fat", fontSize = 11.sp, color = Color(0xFFA7F3D0))
+                            Text(text = String.format(Locale.US, "%.1fg", calculatedFat), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Calculated Nutrition Values
+            // Portion Multiplier Stepper Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Calculated Nutrition Summary",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(text = "Total Calories", fontSize = 14.sp, color = Color(0xFF6B7280))
-                        Text(text = "$calculatedCalories kcal", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(text = "Portion Size", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "Adjust servings eaten", fontSize = 12.sp, color = Color(0xFF6B7280))
                     }
 
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF1F5F9))
+                                .clickable {
+                                    if (quantityMultiplier > 0.5f) quantityMultiplier -= 0.5f
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "−", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(text = "Protein", fontSize = 14.sp, color = Color(0xFF6B7280))
-                        Text(text = String.format("%.1fg", calculatedProtein), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
-                    }
+                        Spacer(modifier = Modifier.width(14.dp))
 
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
+                        Text(
+                            text = String.format(Locale.US, "%.1fx", quantityMultiplier),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF111827)
+                        )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(text = "Carbohydrates", fontSize = 14.sp, color = Color(0xFF6B7280))
-                        Text(text = String.format("%.1fg", calculatedCarbs), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-                    }
+                        Spacer(modifier = Modifier.width(14.dp))
 
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(text = "Fat", fontSize = 14.sp, color = Color(0xFF6B7280))
-                        Text(text = String.format("%.1fg", calculatedFat), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF1F5F9))
+                                .clickable {
+                                    quantityMultiplier += 0.5f
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "+", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Meal Category Target Selector
+            // Target Meal Category Selector
             Text(
-                text = "Log to Meal Category",
+                text = "Log Under Category",
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF374151),
-                modifier = Modifier.align(Alignment.Start)
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111827),
+                modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                MealCategory.entries.forEach { category ->
-                    val isCatSelected = selectedMealCategory == category
+                MealCategory.entries.forEach { cat ->
+                    val isCatSelected = selectedMealCategory == cat
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .background(if (isCatSelected) VitalTealDark else Color(0xFFF1F5F9))
-                            .clickable { selectedMealCategory = category }
+                            .clickable { selectedMealCategory = cat }
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "${category.icon} ${category.displayName}",
+                            text = "${cat.icon} ${cat.displayName}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isCatSelected) Color.White else Color(0xFF475569)
@@ -327,36 +326,81 @@ fun FoodDetailsScreen(
         }
 
         // Log Meal Button
-        Button(
-            onClick = {
-                val entry = MealEntry(
-                    id = System.currentTimeMillis().toString(),
-                    category = selectedMealCategory,
-                    foodItem = foodItem,
-                    quantity = quantityMultiplier,
-                    calculatedCalories = calculatedCalories,
-                    calculatedProtein = calculatedProtein,
-                    calculatedCarbs = calculatedCarbs,
-                    calculatedFat = calculatedFat,
-                    dateString = dateString
-                )
-                onLogMealSuccess(entry)
-            },
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = VitalTealDark,
-                contentColor = Color.White
-            )
         ) {
-            Text(
-                text = "Log Meal Entry",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
+            if (logMealState.errorMessage != null) {
+                Text(
+                    text = logMealState.errorMessage ?: "",
+                    color = Color(0xFFEF4444),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
+            Button(
+                onClick = {
+                    val rawDate = if (dateString.contains("·")) dateString.substringAfter("·").trim() else dateString.trim()
+                    val finalDate = if (rawDate.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) rawDate else java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date())
+
+                    if (viewModel != null) {
+                        viewModel.logMeal(
+                            email = userEmail,
+                            foodId = foodItem.id,
+                            category = selectedMealCategory.name,
+                            quantity = quantityMultiplier,
+                            calculatedCalories = calculatedCalories,
+                            calculatedProtein = calculatedProtein,
+                            calculatedCarbs = calculatedCarbs,
+                            calculatedFat = calculatedFat,
+                            dateString = finalDate,
+                            onSuccess = { loggedEntry ->
+                                onLogMealSuccess(loggedEntry)
+                            }
+                        )
+                    } else {
+                        val entry = MealEntry(
+                            id = System.currentTimeMillis().toString(),
+                            category = selectedMealCategory,
+                            foodItem = foodItem,
+                            quantity = quantityMultiplier,
+                            calculatedCalories = calculatedCalories,
+                            calculatedProtein = calculatedProtein,
+                            calculatedCarbs = calculatedCarbs,
+                            calculatedFat = calculatedFat,
+                            dateString = finalDate
+                        )
+                        onLogMealSuccess(entry)
+                    }
+                },
+                enabled = !logMealState.isLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = VitalTealDark,
+                    contentColor = Color.White
+                )
+            ) {
+                if (logMealState.isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Log Meal Entry",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }

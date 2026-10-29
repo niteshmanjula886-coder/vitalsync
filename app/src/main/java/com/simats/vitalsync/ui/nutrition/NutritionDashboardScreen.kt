@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -28,6 +27,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +49,9 @@ import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.MealCategory
 import com.simats.vitalsync.data.MealEntry
 import com.simats.vitalsync.data.NutritionGoal
+import com.simats.vitalsync.ui.nutrition.viewmodel.MealsUiState
+import com.simats.vitalsync.ui.nutrition.viewmodel.NutritionGoalUiState
+import com.simats.vitalsync.ui.nutrition.viewmodel.NutritionViewModel
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 import kotlin.math.max
@@ -51,6 +59,8 @@ import kotlin.math.max
 @Composable
 fun NutritionDashboardScreen(
     modifier: Modifier = Modifier,
+    viewModel: NutritionViewModel? = null,
+    userEmail: String = "alex.morgan@email.com",
     dateString: String = "Today · Oct 15",
     goal: NutritionGoal = NutritionGoal(),
     loggedMeals: List<MealEntry> = emptyList(),
@@ -60,13 +70,36 @@ fun NutritionDashboardScreen(
     onViewMealHistoryClick: () -> Unit = {},
     onNutritionSettingsClick: () -> Unit = {}
 ) {
-    val totalCalories = loggedMeals.sumOf { it.calculatedCalories }
-    val totalProtein = loggedMeals.sumOf { it.calculatedProtein.toDouble() }.toFloat()
-    val totalCarbs = loggedMeals.sumOf { it.calculatedCarbs.toDouble() }.toFloat()
-    val totalFat = loggedMeals.sumOf { it.calculatedFat.toDouble() }.toFloat()
+    val rawDate = remember(dateString) {
+        val trimmed = if (dateString.contains("·")) dateString.substringAfter("·").trim() else dateString.trim()
+        if (trimmed.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) trimmed else java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+    }
 
-    val caloriesRemaining = max(0, goal.dailyCalorieTarget - totalCalories)
-    val proteinRemaining = max(0f, goal.dailyProteinTarget - totalProtein)
+    val mealsState by viewModel?.mealsState?.collectAsState() ?: remember { mutableStateOf(MealsUiState()) }
+    val goalState by viewModel?.goalState?.collectAsState() ?: remember { mutableStateOf(NutritionGoalUiState()) }
+    var deletedMealIds by remember { mutableStateOf(setOf<String>()) }
+
+    LaunchedEffect(userEmail, rawDate) {
+        viewModel?.loadMeals(userEmail, rawDate)
+        viewModel?.loadNutritionGoal(userEmail)
+    }
+
+    val activeGoal = goalState.goal?.toNutritionGoal() ?: goal
+    val hasLoadedFromBackend = mealsState.date.isNotBlank() || mealsState.errorMessage != null
+    val baseMeals = if (viewModel != null && (hasLoadedFromBackend || mealsState.meals.isNotEmpty())) {
+        mealsState.meals.map { it.toMealEntry() }
+    } else {
+        loggedMeals
+    }
+    val activeMeals = baseMeals.filter { it.id !in deletedMealIds }
+
+    val totalCalories = activeMeals.sumOf { it.calculatedCalories }
+    val totalProtein = activeMeals.sumOf { it.calculatedProtein.toDouble() }.toFloat()
+    val totalCarbs = activeMeals.sumOf { it.calculatedCarbs.toDouble() }.toFloat()
+    val totalFat = activeMeals.sumOf { it.calculatedFat.toDouble() }.toFloat()
+
+    val caloriesRemaining = max(0, activeGoal.dailyCalorieTarget - totalCalories)
+    val proteinRemaining = max(0f, activeGoal.dailyProteinTarget - totalProtein)
 
     Column(
         modifier = modifier
@@ -187,7 +220,7 @@ fun NutritionDashboardScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "$totalCalories / ${goal.dailyCalorieTarget}",
+                            text = "$totalCalories / ${activeGoal.dailyCalorieTarget}",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -213,7 +246,7 @@ fun NutritionDashboardScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "${totalProtein.toInt()}g / ${goal.dailyProteinTarget.toInt()}g",
+                            text = "${totalProtein.toInt()}g / ${activeGoal.dailyProteinTarget.toInt()}g",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -229,7 +262,7 @@ fun NutritionDashboardScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Protein Progress Bar
-                val proteinRatio = (totalProtein / goal.dailyProteinTarget).coerceIn(0f, 1f)
+                val proteinRatio = (totalProtein / activeGoal.dailyProteinTarget).coerceIn(0f, 1f)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -255,9 +288,9 @@ fun NutritionDashboardScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            MacroMiniCard("Protein", "${totalProtein.toInt()}g", "/ ${goal.dailyProteinTarget.toInt()}g", Color(0xFF38BDF8), Modifier.weight(1f))
-            MacroMiniCard("Carbs", "${totalCarbs.toInt()}g", "/ ${goal.dailyCarbsTarget.toInt()}g", Color(0xFFF59E0B), Modifier.weight(1f))
-            MacroMiniCard("Fat", "${totalFat.toInt()}g", "/ ${goal.dailyFatTarget.toInt()}g", Color(0xFFEC4899), Modifier.weight(1f))
+            MacroMiniCard("Protein", "${totalProtein.toInt()}g", "/ ${activeGoal.dailyProteinTarget.toInt()}g", Color(0xFF38BDF8), Modifier.weight(1f))
+            MacroMiniCard("Carbs", "${totalCarbs.toInt()}g", "/ ${activeGoal.dailyCarbsTarget.toInt()}g", Color(0xFFF59E0B), Modifier.weight(1f))
+            MacroMiniCard("Fat", "${totalFat.toInt()}g", "/ ${activeGoal.dailyFatTarget.toInt()}g", Color(0xFFEC4899), Modifier.weight(1f))
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -273,7 +306,7 @@ fun NutritionDashboardScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         MealCategory.entries.forEach { category ->
-            val categoryMeals = loggedMeals.filter { it.category == category }
+            val categoryMeals = activeMeals.filter { it.category == category }
             val categoryCals = categoryMeals.sumOf { it.calculatedCalories }
             val categoryProtein = categoryMeals.sumOf { it.calculatedProtein.toDouble() }.toFloat()
 
@@ -360,8 +393,13 @@ fun NutritionDashboardScreen(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(Color(0xFFFEE2E2))
-                                        .clickable { onDeleteMealEntry(meal.id) }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        .clickable {
+                                            deletedMealIds = deletedMealIds + meal.id
+                                            viewModel?.deleteMeal(userEmail, meal.id, rawDate)
+                                            onDeleteMealEntry(meal.id)
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         TrashBinIcon(modifier = Modifier.size(13.dp), color = Color(0xFFDC2626))

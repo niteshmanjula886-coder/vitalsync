@@ -113,7 +113,7 @@ fun WorkoutSplitSelectionScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Pick a workout routine to load pre-configured target exercises.",
+                text = "Pick a workout routine to load pre-configured target exercises or create a custom workout.",
                 fontSize = 13.sp,
                 color = Color(0xFF6B7280)
             )
@@ -219,6 +219,7 @@ private fun getSplitIcon(split: WorkoutSplit): String {
         WorkoutSplit.PUSH -> "🏋️"
         WorkoutSplit.PULL -> "🧗"
         WorkoutSplit.LEGS -> "🦵"
+        WorkoutSplit.HIIT -> "⏱️"
         WorkoutSplit.UPPER_BODY -> "💪"
         WorkoutSplit.LOWER_BODY -> "🏃"
         WorkoutSplit.FULL_BODY -> "🔥"

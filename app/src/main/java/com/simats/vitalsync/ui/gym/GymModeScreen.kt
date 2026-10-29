@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -364,14 +363,14 @@ fun GymModeScreen(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            listOf("Push", "Pull", "Legs", "HIIT", "+ Custom Split").forEach { split ->
+            listOf("Push", "Pull", "Legs", "HIIT", "+ Custom Workout").forEach { split ->
                 val isSelected = selectedSplitName == split
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
                         .background(if (isSelected) VitalTealDark else MaterialTheme.colorScheme.surface)
                         .clickable {
-                            if (split == "+ Custom Split") {
+                            if (split == "+ Custom Workout") {
                                 onStartWorkoutSplitClick()
                             } else {
                                 selectedSplitName = split
@@ -463,6 +462,26 @@ fun GymModeScreen(
             }
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Add Custom Exercise / Movement Button for Current Selected Routine
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.secondary)
+                .clickable { onStartWorkoutSplitClick() }
+                .padding(vertical = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "+ Add Custom Exercise to $selectedSplitName Routine",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
 
         // Action Buttons Row (Log Set | Finish Session)
@@ -490,7 +509,7 @@ fun GymModeScreen(
                     .weight(1f)
                     .height(52.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = VitalTealDark)
+                colors = ButtonDefaults.buttonColors(containerColor = VitalTealDark, contentColor = Color.White)
             ) {
                 Text(text = "Finish Session", fontSize = 14.sp, fontWeight = FontWeight.Bold)
             }

@@ -1,4 +1,4 @@
-package com.simats/vitalsync
+package com.simats.vitalsync
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.simats.vitalsync.data.Exercise
 import com.simats.vitalsync.data.FitnessRepository
 import com.simats.vitalsync.data.MealCategory
@@ -43,12 +44,16 @@ import com.simats.vitalsync.ui.auth.ForgotPasswordScreen
 import com.simats.vitalsync.ui.auth.LoginScreen
 import com.simats.vitalsync.ui.auth.SignUpScreen
 import com.simats.vitalsync.ui.auth.WelcomeScreen
+import com.simats.vitalsync.ui.auth.viewmodel.AuthViewModel
+import com.simats.vitalsync.ui.auth.viewmodel.AuthViewModelFactory
 import com.simats.vitalsync.ui.gym.ActiveWorkoutSessionScreen
 import com.simats.vitalsync.ui.gym.AddCustomExerciseScreen
 import com.simats.vitalsync.ui.gym.ExerciseLibraryScreen
 import com.simats.vitalsync.ui.gym.FitnessProgressDashboardScreen
 import com.simats.vitalsync.ui.gym.WorkoutHistoryScreen
 import com.simats.vitalsync.ui.gym.WorkoutSplitSelectionScreen
+import com.simats.vitalsync.ui.gym.viewmodel.GymViewModel
+import com.simats.vitalsync.ui.gym.viewmodel.GymViewModelFactory
 import com.simats.vitalsync.ui.home.HomeScreen
 import com.simats.vitalsync.ui.nutrition.AddCustomFoodScreen
 import com.simats.vitalsync.ui.nutrition.DailyMealHistoryScreen
@@ -56,6 +61,8 @@ import com.simats.vitalsync.ui.nutrition.FoodDetailsScreen
 import com.simats.vitalsync.ui.nutrition.FoodSearchScreen
 import com.simats.vitalsync.ui.nutrition.NutritionDashboardScreen
 import com.simats.vitalsync.ui.nutrition.NutritionSettingsScreen
+import com.simats.vitalsync.ui.nutrition.viewmodel.NutritionViewModel
+import com.simats.vitalsync.ui.nutrition.viewmodel.NutritionViewModelFactory
 import com.simats.vitalsync.ui.onboarding.OnboardingScreen
 import com.simats.vitalsync.ui.profile.AboutVitalSyncScreen
 import com.simats.vitalsync.ui.profile.AddReminderScreen
@@ -168,6 +175,21 @@ class MainActivity : ComponentActivity() {
             var isDarkModeEnabled by remember { mutableStateOf(false) }
 
             VitalsyncTheme(darkTheme = isDarkModeEnabled) {
+                // Instantiate ViewModels via their custom Factories
+                val authViewModel: AuthViewModel = viewModel(
+                    factory = AuthViewModelFactory(applicationContext)
+                )
+                val gymViewModel: GymViewModel = viewModel(
+                    factory = GymViewModelFactory()
+                )
+                val nutritionViewModel: NutritionViewModel = viewModel(
+                    factory = NutritionViewModelFactory()
+                )
+
+                // Current logged-in user email (defaults to "alex.morgan@email.com")
+                val currentUser = authViewModel.getLoggedInUser()
+                val currentEmail = currentUser?.email ?: "alex.morgan@email.com"
+
                 var currentScreen by remember { mutableStateOf(ScreenState.SPLASH) }
                 var isNewUser by remember { mutableStateOf(false) }
                 var activeReadingType by remember { mutableStateOf(VitalReadingType.HEART_RATE) }
@@ -189,12 +211,14 @@ class MainActivity : ComponentActivity() {
                 var globalUserAge by remember { mutableStateOf("28") }
                 var globalProfilePhotoBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
+                // Reactive Recomposition Trigger for Nutrition Meals
+                var nutritionRefreshTrigger by remember { mutableIntStateOf(0) }
+
                 Box(modifier = Modifier.fillMaxSize()) {
                     AnimatedContent(
                         targetState = currentScreen,
                         transitionSpec = {
                             if (initialState == ScreenState.SPLASH && targetState == ScreenState.ONBOARDING) {
-                                // Modern Apple / Material 3 Shared Axis Scale-Dissolve Transition
                                 (fadeIn(animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing)) +
                                     scaleIn(
                                         animationSpec = spring(
@@ -208,7 +232,6 @@ class MainActivity : ComponentActivity() {
                                             scaleOut(animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing), targetScale = 1.05f)
                                     )
                             } else {
-                                // Premium Apple iOS-inspired Spring Pop Screen Transition (92% -> 100% Scale + Subtle Fade)
                                 (fadeIn(animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)) +
                                     scaleIn(
                                         animationSpec = spring(
@@ -232,7 +255,13 @@ class MainActivity : ComponentActivity() {
                             ScreenState.SPLASH -> {
                                 SplashScreen(
                                     splashDurationMillis = 2800L,
-                                    onTimeout = { currentScreen = ScreenState.ONBOARDING }
+                                    onTimeout = {
+                                        currentScreen = if (authViewModel.isLoggedIn()) {
+                                            ScreenState.MAIN
+                                        } else {
+                                            ScreenState.ONBOARDING
+                                        }
+                                    }
                                 )
                             }
                             ScreenState.ONBOARDING -> {
@@ -259,10 +288,22 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.LOGIN -> {
                                 LoginScreen(
+                                    viewModel = authViewModel,
                                     onLoginSuccess = {
                                         isNewUser = false
                                         homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN
+                                    },
+                                    onLoginSuccessWithUser = { user ->
+                                        if (user != null) {
+                                            globalUserName = user.displayName ?: user.email
+                                            val parts = globalUserName.trim().split(" ")
+                                            globalUserInitials = if (parts.size >= 2) {
+                                                (parts[0].take(1) + parts[1].take(1)).uppercase()
+                                            } else {
+                                                parts.firstOrNull()?.take(2)?.uppercase() ?: "AM"
+                                            }
+                                        }
                                     },
                                     onNavigateToSignUp = { currentScreen = ScreenState.SIGNUP },
                                     onForgotPasswordClick = { currentScreen = ScreenState.FORGOT_PASSWORD }
@@ -270,16 +311,32 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.SIGNUP -> {
                                 SignUpScreen(
+                                    viewModel = authViewModel,
                                     onBackClick = { currentScreen = ScreenState.LOGIN },
-                                    onSignUpSuccess = {
+                                    onSignUpSuccess = { signedName ->
                                         isNewUser = true
+                                        if (signedName.isNotBlank()) {
+                                            globalUserName = signedName
+                                        }
                                         currentScreen = ScreenState.PROFILE_SETUP
+                                    },
+                                    onSignUpSuccessWithUser = { user ->
+                                        if (user != null) {
+                                            globalUserName = user.displayName ?: user.email
+                                            val parts = globalUserName.trim().split(" ")
+                                            globalUserInitials = if (parts.size >= 2) {
+                                                (parts[0].take(1) + parts[1].take(1)).uppercase()
+                                            } else {
+                                                parts.firstOrNull()?.take(2)?.uppercase() ?: "AM"
+                                            }
+                                        }
                                     },
                                     onNavigateToLogin = { currentScreen = ScreenState.LOGIN }
                                 )
                             }
                             ScreenState.FORGOT_PASSWORD -> {
                                 ForgotPasswordScreen(
+                                    viewModel = authViewModel,
                                     onBackClick = { currentScreen = ScreenState.LOGIN },
                                     onResetLinkSent = { }
                                 )
@@ -314,6 +371,7 @@ class MainActivity : ComponentActivity() {
                                     userHeight = userHeightCm,
                                     userWeight = userWeightKg,
                                     userPhotoBitmap = globalProfilePhotoBitmap,
+                                    onWellnessScoreClick = { currentScreen = ScreenState.WEEKLY_REPORT },
                                     onVitalsClick = { currentScreen = ScreenState.VITAL_SIGNS },
                                     onHeartRateClick = { currentScreen = ScreenState.HEART_RATE_DETAIL },
                                     onBloodPressureClick = { currentScreen = ScreenState.BLOOD_PRESSURE_DETAIL },
@@ -334,11 +392,15 @@ class MainActivity : ComponentActivity() {
                                     onOpenNutritionTrackerClick = { currentScreen = ScreenState.NUTRITION_DASHBOARD },
                                     onOpenProgressAnalyticsClick = { currentScreen = ScreenState.FITNESS_PROGRESS },
                                     onViewWorkoutHistoryClick = { currentScreen = ScreenState.WORKOUT_HISTORY },
-                                    onLogoutClick = { currentScreen = ScreenState.LOGIN }
+                                    onLogoutClick = {
+                                        authViewModel.logout()
+                                        currentScreen = ScreenState.LOGIN
+                                    }
                                 )
                             }
                             ScreenState.GYM_SPLIT_SELECT -> {
                                 WorkoutSplitSelectionScreen(
+                                    viewModel = gymViewModel,
                                     onBackClick = {
                                         homeInitialTab = 4
                                         currentScreen = ScreenState.MAIN
@@ -352,6 +414,8 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.EXERCISE_LIBRARY -> {
                                 ExerciseLibraryScreen(
+                                    viewModel = gymViewModel,
+                                    userEmail = currentEmail,
                                     exerciseList = repository.getExerciseLibrary(),
                                     onBackClick = { currentScreen = ScreenState.ACTIVE_WORKOUT },
                                     onExerciseSelected = { ex ->
@@ -363,6 +427,8 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.CREATE_CUSTOM_EXERCISE -> {
                                 AddCustomExerciseScreen(
+                                    viewModel = gymViewModel,
+                                    userEmail = currentEmail,
                                     onBackClick = { currentScreen = ScreenState.EXERCISE_LIBRARY },
                                     onSaveCustomExerciseSuccess = { customEx ->
                                         repository.addCustomExercise(customEx)
@@ -381,6 +447,7 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onAddExerciseClick = { currentScreen = ScreenState.EXERCISE_LIBRARY },
                                     onFinishSession = { session ->
+                                        gymViewModel.saveWorkoutSession(currentEmail, session)
                                         repository.saveWorkoutSession(session)
                                         homeInitialTab = 4
                                         currentScreen = ScreenState.MAIN
@@ -389,6 +456,8 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.WORKOUT_HISTORY -> {
                                 WorkoutHistoryScreen(
+                                    viewModel = gymViewModel,
+                                    userEmail = currentEmail,
                                     workoutSessions = repository.getAllWorkoutSessions(),
                                     onBackClick = {
                                         homeInitialTab = 4
@@ -403,10 +472,15 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.NUTRITION_DASHBOARD -> {
                                 val today = repository.getTodayDateString()
+                                val todayMeals = remember(today, nutritionRefreshTrigger) {
+                                    repository.getMealEntriesForDate(today)
+                                }
                                 NutritionDashboardScreen(
+                                    viewModel = nutritionViewModel,
+                                    userEmail = currentEmail,
                                     dateString = "Today · $today",
                                     goal = repository.getNutritionGoal(),
-                                    loggedMeals = repository.getMealEntriesForDate(today),
+                                    loggedMeals = todayMeals,
                                     onBackClick = {
                                         homeInitialTab = 4
                                         currentScreen = ScreenState.MAIN
@@ -415,12 +489,18 @@ class MainActivity : ComponentActivity() {
                                         selectedMealCategory = category
                                         currentScreen = ScreenState.FOOD_SEARCH
                                     },
+                                    onDeleteMealEntry = { id ->
+                                        repository.deleteMealEntry(id, today)
+                                        nutritionRefreshTrigger++
+                                    },
                                     onViewMealHistoryClick = { currentScreen = ScreenState.DAILY_MEAL_HISTORY },
                                     onNutritionSettingsClick = { currentScreen = ScreenState.NUTRITION_SETTINGS }
                                 )
                             }
                             ScreenState.FOOD_SEARCH -> {
                                 FoodSearchScreen(
+                                    viewModel = nutritionViewModel,
+                                    userEmail = currentEmail,
                                     mealCategory = selectedMealCategory,
                                     foodDatabase = repository.getFoodDatabase(),
                                     onBackClick = { currentScreen = ScreenState.NUTRITION_DASHBOARD },
@@ -433,6 +513,8 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.CREATE_CUSTOM_FOOD -> {
                                 AddCustomFoodScreen(
+                                    viewModel = nutritionViewModel,
+                                    userEmail = currentEmail,
                                     onBackClick = { currentScreen = ScreenState.FOOD_SEARCH },
                                     onSaveCustomFoodSuccess = { newFood ->
                                         repository.addCustomFoodItem(newFood)
@@ -444,30 +526,40 @@ class MainActivity : ComponentActivity() {
                             ScreenState.FOOD_DETAILS -> {
                                 val today = repository.getTodayDateString()
                                 FoodDetailsScreen(
+                                    viewModel = nutritionViewModel,
+                                    userEmail = currentEmail,
                                     foodItem = activeFoodItem,
                                     initialMealCategory = selectedMealCategory,
                                     dateString = today,
                                     onBackClick = { currentScreen = ScreenState.FOOD_SEARCH },
                                     onLogMealSuccess = { mealEntry ->
                                         repository.saveMealEntry(mealEntry)
+                                        nutritionRefreshTrigger++
                                         currentScreen = ScreenState.NUTRITION_DASHBOARD
                                     }
                                 )
                             }
                             ScreenState.DAILY_MEAL_HISTORY -> {
                                 val today = repository.getTodayDateString()
+                                val todayMeals = remember(today, nutritionRefreshTrigger) {
+                                    repository.getMealEntriesForDate(today)
+                                }
                                 DailyMealHistoryScreen(
+                                    viewModel = nutritionViewModel,
+                                    userEmail = currentEmail,
                                     dateString = "Today · $today",
-                                    loggedMeals = repository.getMealEntriesForDate(today),
+                                    loggedMeals = todayMeals,
                                     onBackClick = { currentScreen = ScreenState.NUTRITION_DASHBOARD },
                                     onDeleteMealEntry = { id ->
                                         repository.deleteMealEntry(id, today)
-                                        currentScreen = ScreenState.NUTRITION_DASHBOARD
+                                        nutritionRefreshTrigger++
                                     }
                                 )
                             }
                             ScreenState.NUTRITION_SETTINGS -> {
                                 NutritionSettingsScreen(
+                                    viewModel = nutritionViewModel,
+                                    userEmail = currentEmail,
                                     initialGoal = repository.getNutritionGoal(),
                                     onBackClick = { currentScreen = ScreenState.NUTRITION_DASHBOARD },
                                     onSaveGoalsSuccess = { updatedGoal ->
@@ -503,7 +595,7 @@ class MainActivity : ComponentActivity() {
                             ScreenState.WEEKLY_REPORT -> {
                                 WeeklyHealthReportScreen(
                                     onBackClick = {
-                                        homeInitialTab = 2
+                                        homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN
                                     }
                                 )

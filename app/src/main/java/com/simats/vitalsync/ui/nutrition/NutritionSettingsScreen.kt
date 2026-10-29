@@ -21,12 +21,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,7 +48,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.DietaryPreference
+import com.simats.vitalsync.data.FitnessGoal
 import com.simats.vitalsync.data.NutritionGoal
+import com.simats.vitalsync.ui.nutrition.viewmodel.NutritionGoalUiState
+import com.simats.vitalsync.ui.nutrition.viewmodel.NutritionViewModel
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -53,10 +60,14 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun NutritionSettingsScreen(
     modifier: Modifier = Modifier,
+    viewModel: NutritionViewModel? = null,
+    userEmail: String = "alex.morgan@email.com",
     initialGoal: NutritionGoal = NutritionGoal(),
     onBackClick: () -> Unit = {},
     onSaveGoalsSuccess: (NutritionGoal) -> Unit = {}
 ) {
+    val goalState by viewModel?.goalState?.collectAsState() ?: remember { mutableStateOf(NutritionGoalUiState()) }
+
     var ageInput by remember { mutableStateOf("${initialGoal.age}") }
     var weightInput by remember { mutableStateOf("${initialGoal.weightKg}") }
     var heightInput by remember { mutableStateOf("${initialGoal.heightCm}") }
@@ -65,6 +76,24 @@ fun NutritionSettingsScreen(
 
     var selectedGoal by remember { mutableStateOf(initialGoal.fitnessGoal) }
     var selectedDietPref by remember { mutableStateOf(initialGoal.dietaryPreference) }
+
+    LaunchedEffect(userEmail) {
+        viewModel?.loadNutritionGoal(userEmail)
+    }
+
+    LaunchedEffect(goalState.goal) {
+        goalState.goal?.let { g ->
+            ageInput = "${g.age}"
+            weightInput = "${g.weightKg}"
+            heightInput = "${g.heightCm}"
+            calorieTargetInput = "${g.dailyCalorieTarget}"
+            proteinTargetInput = "${g.dailyProteinTarget.toInt()}"
+            val fg = try { FitnessGoal.valueOf(g.fitnessGoal.uppercase()) } catch (_: Exception) { FitnessGoal.MUSCLE_GAIN }
+            val dp = try { DietaryPreference.valueOf(g.dietaryPreference.uppercase()) } catch (_: Exception) { DietaryPreference.NON_VEGETARIAN }
+            selectedGoal = fg
+            selectedDietPref = dp
+        }
+    }
 
     Column(
         modifier = modifier
@@ -103,7 +132,7 @@ fun NutritionSettingsScreen(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = "Nutrition & Fitness Goals",
+                    text = "Nutrition Targets & Goals",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
@@ -112,9 +141,9 @@ fun NutritionSettingsScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Section 1: User Metrics
-            Text(text = "Body Metrics", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-            Spacer(modifier = Modifier.height(10.dp))
+            // User Demographics Row
+            Text(text = "Physical Demographics", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -171,7 +200,7 @@ fun NutritionSettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = MaterialTheme.colorScheme.surface,
                             unfocusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -184,15 +213,64 @@ fun NutritionSettingsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Section 2: Targets
-            Text(text = "Daily Targets", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-            Spacer(modifier = Modifier.height(10.dp))
+            // Fitness Goal Selection
+            Text(text = "Primary Fitness Goal", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FitnessGoal.entries.forEach { fGoal ->
+                    val isGoalSelected = selectedGoal == fGoal
+                    Button(
+                        onClick = { selectedGoal = fGoal },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isGoalSelected) VitalTealDark else MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (isGoalSelected) Color.White else MaterialTheme.colorScheme.onBackground
+                        )
+                    ) {
+                        Text(text = fGoal.displayName, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Dietary Preference Selection
+            Text(text = "Dietary Preference", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                DietaryPreference.entries.forEach { pref ->
+                    val isPrefSelected = selectedDietPref == pref
+                    Button(
+                        onClick = { selectedDietPref = pref },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isPrefSelected) VitalTealDark else MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (isPrefSelected) Color.White else MaterialTheme.colorScheme.onBackground
+                        )
+                    ) {
+                        Text(text = pref.name.substring(0, 3), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Macro & Calorie Targets
+            Text(text = "Daily Calorie & Protein Targets", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "Calorie Target (kcal)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -247,6 +325,16 @@ fun NutritionSettingsScreen(
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
         ) {
+            if (goalState.errorMessage != null) {
+                Text(
+                    text = goalState.errorMessage ?: "",
+                    color = Color(0xFFEF4444),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
             Button(
                 onClick = {
                     val updated = initialGoal.copy(
@@ -258,8 +346,20 @@ fun NutritionSettingsScreen(
                         fitnessGoal = selectedGoal,
                         dietaryPreference = selectedDietPref
                     )
-                    onSaveGoalsSuccess(updated)
+
+                    if (viewModel != null) {
+                        viewModel.saveNutritionGoal(
+                            email = userEmail,
+                            goal = updated,
+                            onSuccess = {
+                                onSaveGoalsSuccess(updated)
+                            }
+                        )
+                    } else {
+                        onSaveGoalsSuccess(updated)
+                    }
                 },
+                enabled = !goalState.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
@@ -269,11 +369,19 @@ fun NutritionSettingsScreen(
                     contentColor = Color.White
                 )
             ) {
-                Text(
-                    text = "Save Goals & Targets",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (goalState.isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Save Goals & Targets",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))

@@ -23,10 +23,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,18 +48,42 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.MealCategory
 import com.simats.vitalsync.data.MealEntry
+import com.simats.vitalsync.ui.nutrition.viewmodel.MealsUiState
+import com.simats.vitalsync.ui.nutrition.viewmodel.NutritionViewModel
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
 @Composable
 fun DailyMealHistoryScreen(
     modifier: Modifier = Modifier,
+    viewModel: NutritionViewModel? = null,
+    userEmail: String = "alex.morgan@email.com",
     dateString: String = "Today · Oct 15",
     loggedMeals: List<MealEntry> = emptyList(),
     onBackClick: () -> Unit = {},
     onDeleteMealEntry: (String) -> Unit = {}
 ) {
-    val totalCalories = loggedMeals.sumOf { it.calculatedCalories }
-    val totalProtein = loggedMeals.sumOf { it.calculatedProtein.toDouble() }.toFloat()
+    val rawDate = remember(dateString) {
+        val trimmed = if (dateString.contains("·")) dateString.substringAfter("·").trim() else dateString.trim()
+        if (trimmed.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) trimmed else java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+    }
+
+    val mealsState by viewModel?.mealsState?.collectAsState() ?: remember { mutableStateOf(MealsUiState()) }
+    var deletedMealIds by remember { mutableStateOf(setOf<String>()) }
+
+    LaunchedEffect(userEmail, rawDate) {
+        viewModel?.loadMeals(userEmail, rawDate)
+    }
+
+    val hasLoadedFromBackend = mealsState.date.isNotBlank() || mealsState.errorMessage != null
+    val baseMeals = if (viewModel != null && (hasLoadedFromBackend || mealsState.meals.isNotEmpty())) {
+        mealsState.meals.map { it.toMealEntry() }
+    } else {
+        loggedMeals
+    }
+    val activeMeals = baseMeals.filter { it.id !in deletedMealIds }
+
+    val totalCalories = activeMeals.sumOf { it.calculatedCalories }
+    val totalProtein = activeMeals.sumOf { it.calculatedProtein.toDouble() }.toFloat()
 
     Column(
         modifier = modifier
@@ -121,7 +152,7 @@ fun DailyMealHistoryScreen(
             ) {
                 Column {
                     Text(text = dateString, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                    Text(text = "${loggedMeals.size} logged items", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(text = "${activeMeals.size} logged items", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 Column(horizontalAlignment = Alignment.End) {
@@ -133,7 +164,19 @@ fun DailyMealHistoryScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        if (loggedMeals.isEmpty()) {
+        if (mealsState.isLoading && activeMeals.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 40.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+        } else if (activeMeals.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -148,7 +191,7 @@ fun DailyMealHistoryScreen(
             }
         } else {
             MealCategory.entries.forEach { category ->
-                val categoryMeals = loggedMeals.filter { it.category == category }
+                val categoryMeals = activeMeals.filter { it.category == category }
                 if (categoryMeals.isNotEmpty()) {
                     Text(
                         text = category.displayName,
@@ -194,7 +237,11 @@ fun DailyMealHistoryScreen(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(Color(0xFFFEE2E2))
-                                        .clickable { onDeleteMealEntry(meal.id) }
+                                        .clickable {
+                                            deletedMealIds = deletedMealIds + meal.id
+                                            viewModel?.deleteMeal(userEmail, meal.id, rawDate)
+                                            onDeleteMealEntry(meal.id)
+                                        }
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
