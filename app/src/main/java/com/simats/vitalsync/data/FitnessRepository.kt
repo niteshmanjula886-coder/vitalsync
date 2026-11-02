@@ -11,7 +11,13 @@ data class ActivitySessionRecord(
     val durationSeconds: Int,
     val distanceKm: Float,
     val caloriesBurned: Int,
-    val dateString: String = "2025-10-15"
+    val dateString: String = "2025-10-15",
+    val sessionUuid: String = java.util.UUID.randomUUID().toString(),
+    val targetType: String = "time",
+    val targetValue: Int = 45,
+    val steps: Int = 0,
+    val avgPace: String = "00:00 /km",
+    val trackingSource: String = "phone_sensor"
 )
 
 data class ActivityStatsSummary(
@@ -98,7 +104,13 @@ class FitnessRepository private constructor(context: Context) {
                         durationSeconds = obj.getInt("durationSeconds"),
                         distanceKm = obj.getDouble("distanceKm").toFloat(),
                         caloriesBurned = obj.getInt("caloriesBurned"),
-                        dateString = obj.optString("dateString", "2025-10-15")
+                        dateString = obj.optString("dateString", "2025-10-15"),
+                        sessionUuid = obj.optString("sessionUuid", java.util.UUID.randomUUID().toString()),
+                        targetType = obj.optString("targetType", "time"),
+                        targetValue = obj.optInt("targetValue", 45),
+                        steps = obj.optInt("steps", 0),
+                        avgPace = obj.optString("avgPace", "00:00 /km"),
+                        trackingSource = obj.optString("trackingSource", "phone_sensor")
                     )
                 )
             }
@@ -119,6 +131,12 @@ class FitnessRepository private constructor(context: Context) {
                 put("distanceKm", r.distanceKm)
                 put("caloriesBurned", r.caloriesBurned)
                 put("dateString", r.dateString)
+                put("sessionUuid", r.sessionUuid)
+                put("targetType", r.targetType)
+                put("targetValue", r.targetValue)
+                put("steps", r.steps)
+                put("avgPace", r.avgPace)
+                put("trackingSource", r.trackingSource)
             }
             array.put(obj)
         }

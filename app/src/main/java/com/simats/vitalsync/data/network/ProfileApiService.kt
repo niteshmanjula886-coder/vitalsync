@@ -1,4 +1,4 @@
-﻿package com.simats.vitalsync.data.network
+package com.simats.vitalsync.data.network
 
 import com.simats.vitalsync.data.model.profile.AddReminderRequest
 import com.simats.vitalsync.data.model.profile.AppSettingsResponse
@@ -131,6 +131,12 @@ interface ProfileApiService {
 
     @GET("settings/app_version.php")
     suspend fun getAppVersion(): Response<AppVersionResponse>
+
+    @GET("reports/weekly_report.php")
+    suspend fun getWeeklyHealthReport(
+        @Query("user_id") userId: Int? = null,
+        @Query("email") email: String? = null
+    ): Response<com.simats.vitalsync.data.model.profile.WeeklyReportResponse>
 
     @GET("settings/support.php")
     suspend fun getSupportTickets(

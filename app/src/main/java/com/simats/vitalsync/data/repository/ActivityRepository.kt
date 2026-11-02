@@ -129,6 +129,31 @@ class ActivityRepository(
     }.flowOn(Dispatchers.IO)
 
     /**
+     * Save workout session directly to activity/save_workout_session.php
+     */
+    fun saveWorkoutSession(request: RecordSessionRequest): Flow<Resource<String>> = flow {
+        emit(Resource.Loading)
+        try {
+            val response = apiService.saveWorkoutSession(request)
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null && body.success) {
+                    emit(Resource.Success(body.message.ifBlank { "Workout session saved successfully" }))
+                } else {
+                    emit(Resource.Error(body?.message ?: "Failed to save workout session", response.code()))
+                }
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()) ?: "Error saving workout session (${response.code()})"
+                emit(Resource.Error(errorMsg, response.code()))
+            }
+        } catch (e: IOException) {
+            emit(Resource.Error("Network error connecting to backend.", throwable = e))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.localizedMessage ?: "Unexpected error", throwable = e))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    /**
      * Fetch activity sessions history list
      */
     fun getSessions(email: String, activityType: String? = null, limit: Int = 30): Flow<Resource<List<ActivitySession>>> = flow {
@@ -188,4 +213,3 @@ class ActivityRepository(
         }
     }
 }
-

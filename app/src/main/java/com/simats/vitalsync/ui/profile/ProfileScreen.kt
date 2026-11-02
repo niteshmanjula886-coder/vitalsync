@@ -54,6 +54,7 @@ fun ProfileScreen(
     userAge: String = "--",
     userHeight: String = "--",
     userWeight: String = "--",
+    userPrimaryGoal: String? = null,
     userPhotoBitmap: ImageBitmap? = null,
     onEditProfileClick: () -> Unit = {},
     onPersonalInformationClick: () -> Unit = {},
@@ -146,6 +147,7 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         // Goal Badge
+        val goalText = if (!userPrimaryGoal.isNullOrBlank()) "Goal: $userPrimaryGoal" else "Goal: No Goal Set"
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(20.dp))
@@ -153,7 +155,7 @@ fun ProfileScreen(
                 .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
             Text(
-                text = "Goal: Improve Fitness",
+                text = goalText,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary

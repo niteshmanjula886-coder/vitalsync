@@ -182,6 +182,16 @@ data class AppSettingsDto(
     val aiInsights: Boolean = true,
     @SerializedName("usage_analytics")
     val usageAnalytics: Boolean = false,
+    @SerializedName("ai_insights_enabled")
+    val aiInsightsEnabled: Boolean = true,
+    @SerializedName("user_analytics_enabled")
+    val userAnalyticsEnabled: Boolean = false,
+    @SerializedName("reminder_water_interval")
+    val reminderWaterInterval: Int = 120,
+    @SerializedName("reminder_workout_enabled")
+    val reminderWorkoutEnabled: Boolean = true,
+    @SerializedName("reminder_sleep_enabled")
+    val reminderSleepEnabled: Boolean = true,
     @SerializedName("updated_at")
     val updatedAt: String? = null
 )
@@ -217,7 +227,17 @@ data class UpdateAppSettingsRequest(
     @SerializedName("ai_insights")
     val aiInsights: Boolean? = null,
     @SerializedName("usage_analytics")
-    val usageAnalytics: Boolean? = null
+    val usageAnalytics: Boolean? = null,
+    @SerializedName("ai_insights_enabled")
+    val aiInsightsEnabled: Boolean? = null,
+    @SerializedName("user_analytics_enabled")
+    val userAnalyticsEnabled: Boolean? = null,
+    @SerializedName("reminder_water_interval")
+    val reminderWaterInterval: Int? = null,
+    @SerializedName("reminder_workout_enabled")
+    val reminderWorkoutEnabled: Boolean? = null,
+    @SerializedName("reminder_sleep_enabled")
+    val reminderSleepEnabled: Boolean? = null
 )
 
 data class HealthPermissionsDto(
@@ -400,4 +420,59 @@ data class BaseProfileResponse(
     val success: Boolean = false,
     @SerializedName("message")
     val message: String? = null
+)
+
+data class WeeklyReportDto(
+    @SerializedName("week_start_date")
+    val weekStartDate: String = "",
+    @SerializedName("week_end_date")
+    val weekEndDate: String = "",
+    @SerializedName("wellness_score")
+    val wellnessScore: Int = 0,
+    @SerializedName("performance_category")
+    val performanceCategory: String = "low",
+    @SerializedName("category_label")
+    val categoryLabel: String = "Low",
+    @SerializedName("summary_text")
+    val summaryText: String = "",
+    @SerializedName("metrics")
+    val metrics: WeeklyReportMetricsDto? = null
+)
+
+data class WeeklyReportMetricsDto(
+    @SerializedName("heart_rate_avg")
+    val heartRateAvg: String = "-- BPM",
+    @SerializedName("heart_rate_status")
+    val heartRateStatus: String = "No Data",
+    @SerializedName("bp_avg")
+    val bpAvg: String = "--/--",
+    @SerializedName("bp_status")
+    val bpStatus: String = "No Data",
+    @SerializedName("spo2_avg")
+    val spo2Avg: String = "--%",
+    @SerializedName("spo2_status")
+    val spo2Status: String = "No Data",
+    @SerializedName("sleep_quality")
+    val sleepQuality: String = "--",
+    @SerializedName("sleep_status")
+    val sleepStatus: String = "No Data",
+    @SerializedName("hydration_total")
+    val hydrationTotal: String = "-- ml",
+    @SerializedName("hydration_status")
+    val hydrationStatus: String = "No Data",
+    @SerializedName("activity_steps")
+    val activitySteps: String = "-- steps",
+    @SerializedName("activity_status")
+    val activityStatus: String = "No Data"
+)
+
+data class WeeklyReportResponse(
+    @SerializedName("status")
+    val status: String = "success",
+    @SerializedName("success")
+    val success: Boolean = true,
+    @SerializedName("message")
+    val message: String = "",
+    @SerializedName("data")
+    val data: WeeklyReportDto? = null
 )

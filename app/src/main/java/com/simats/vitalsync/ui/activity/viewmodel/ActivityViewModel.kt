@@ -111,18 +111,31 @@ class ActivityViewModel(
         caloriesBurned: Int,
         avgPace: String,
         avgHeartRate: Int? = null,
-        steps: Int = 0
+        steps: Int = 0,
+        sessionUuid: String = java.util.UUID.randomUUID().toString(),
+        targetType: String = "time",
+        targetValue: Int = 45,
+        trackingSource: String = "phone_sensor",
+        startTime: String? = null,
+        endTime: String? = null,
+        onComplete: (() -> Unit)? = null
     ) {
         viewModelScope.launch {
             val req = RecordSessionRequest(
                 email = email,
+                sessionUuid = sessionUuid,
                 activityType = activityType,
                 durationSeconds = durationSeconds,
+                targetType = targetType,
+                targetValue = targetValue,
                 distanceKm = distanceKm,
                 caloriesBurned = caloriesBurned,
                 avgPace = avgPace,
                 avgHeartRate = avgHeartRate,
-                steps = steps
+                steps = steps,
+                trackingSource = trackingSource,
+                startTime = startTime,
+                endTime = endTime
             )
             repository.recordSession(req).collect { res ->
                 when (res) {
@@ -132,8 +145,12 @@ class ActivityViewModel(
                         // Refresh summary and history
                         loadSummary(email)
                         loadSessions(email)
+                        onComplete?.invoke()
                     }
-                    is Resource.Error -> _saveSessionState.update { it.copy(isLoading = false, isSuccess = false, errorMessage = res.message) }
+                    is Resource.Error -> {
+                        _saveSessionState.update { it.copy(isLoading = false, isSuccess = false, errorMessage = res.message) }
+                        onComplete?.invoke()
+                    }
                 }
             }
         }

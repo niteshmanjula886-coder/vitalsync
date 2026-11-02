@@ -109,15 +109,26 @@ fun BmiResultScreen(
             Spacer(modifier = Modifier.height(36.dp))
 
             // Animated Circular BMI Gauge Ring
+            val bmiVal = bmiValue.toFloatOrNull() ?: 22.4f
+            val gaugeFraction = ((bmiVal - 15f) / 20f).coerceIn(0.05f, 1f)
+            val expectedAngle = 260f * gaugeFraction
             var targetGaugeAngle by remember { mutableFloatStateOf(0f) }
-            LaunchedEffect(Unit) {
-                targetGaugeAngle = 260f
+            LaunchedEffect(bmiValue) {
+                targetGaugeAngle = expectedAngle
             }
             val animatedGaugeAngle by animateFloatAsState(
                 targetValue = targetGaugeAngle,
                 animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
                 label = "BmiResultGaugeAnimation"
             )
+
+            val (badgeBg, badgeTextColor) = when (bmiCategory.lowercase()) {
+                "underweight" -> Color(0xFFEFF6FF) to Color(0xFF2563EB)
+                "normal", "healthy range", "healthy" -> Color(0xFFE6F4EA) to Color(0xFF0F9F7A)
+                "overweight" -> Color(0xFFFFFBEB) to Color(0xFFD97706)
+                "obese" -> Color(0xFFFEF2F2) to Color(0xFFDC2626)
+                else -> Color(0xFFF3F4F6) to Color(0xFF6B7280)
+            }
 
             Box(
                 modifier = Modifier.size(150.dp),
@@ -138,7 +149,7 @@ fun BmiResultScreen(
                         style = Stroke(width = strokePx, cap = StrokeCap.Round)
                     )
                     drawArc(
-                        color = Color(0xFF0F9F7A),
+                        color = badgeTextColor,
                         startAngle = -220f,
                         sweepAngle = animatedGaugeAngle,
                         useCenter = false,
@@ -159,7 +170,7 @@ fun BmiResultScreen(
                         text = "BMI Score",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF0F9F7A)
+                        color = badgeTextColor
                     )
                 }
             }
@@ -170,14 +181,14 @@ fun BmiResultScreen(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFFE6F4EA))
+                    .background(badgeBg)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text(
                     text = bmiCategory,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F9F7A)
+                    color = badgeTextColor
                 )
             }
 
@@ -244,7 +255,7 @@ fun BmiResultScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(text = "Calculated BMI", fontSize = 14.sp, color = Color(0xFF6B7280))
-                        Text(text = "$bmiValue ($bmiCategory)", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                        Text(text = "$bmiValue ($bmiCategory)", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = badgeTextColor)
                     }
                 }
             }

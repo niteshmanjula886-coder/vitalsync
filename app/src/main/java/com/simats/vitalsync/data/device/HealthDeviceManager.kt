@@ -34,6 +34,7 @@ import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import com.simats.vitalsync.data.network.RetrofitClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -179,6 +180,47 @@ class HealthDeviceManager private constructor(private val context: Context) {
     // Callback invoked when a real health measurement is received, to persist to MySQL database
     var onReadingReceivedListener: ((type: String, val1: Float, val2: Float?, text: String, unit: String) -> Unit)? = null
 
+    var userEmail: String? = null
+    private val pendingSyncVitals = mutableListOf<com.simats.vitalsync.data.model.vitals.SyncVitalReadingItem>()
+    private var syncJob: Job? = null
+
+    private fun scheduleVitalsSync(item: com.simats.vitalsync.data.model.vitals.SyncVitalReadingItem) {
+        synchronized(pendingSyncVitals) {
+            pendingSyncVitals.add(item)
+            if (pendingSyncVitals.size >= 5) {
+                flushPendingVitals()
+            } else if (syncJob == null || syncJob?.isCompleted == true) {
+                syncJob = scope.launch {
+                    delay(8000)
+                    flushPendingVitals()
+                }
+            }
+        }
+    }
+
+    private fun flushPendingVitals() {
+        val email = userEmail ?: return
+        val batch: List<com.simats.vitalsync.data.model.vitals.SyncVitalReadingItem>
+        synchronized(pendingSyncVitals) {
+            if (pendingSyncVitals.isEmpty()) return
+            batch = pendingSyncVitals.toList()
+            pendingSyncVitals.clear()
+        }
+        scope.launch {
+            try {
+                val api = RetrofitClient.vitalsApiService
+                val req = com.simats.vitalsync.data.model.vitals.SyncVitalsRequest(
+                    email = email,
+                    macAddress = _connectedDeviceAddress.value,
+                    readings = batch
+                )
+                api.syncVitals(req)
+            } catch (e: Exception) {
+                Log.w(TAG, "Background sync vitals error: ${e.message}")
+            }
+        }
+    }
+
     // Health Connect Client
     private val healthConnectClient: HealthConnectClient? by lazy {
         try {
@@ -220,8 +262,10 @@ class HealthDeviceManager private constructor(private val context: Context) {
                         val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE)
                         Log.d(TAG, "Bond state changed for ${device?.address}: $bondState")
                         if (bondState == BluetoothDevice.BOND_BONDED && device?.address == lastTargetDevice?.address) {
-                            // Resume or refresh connection after bonding
-                            activeGatt?.discoverServices()
+                            try {
+                                activeGatt?.discoverServices()
+                            } catch (_: SecurityException) {
+                            }
                         }
                     }
                 }
@@ -542,6 +586,12 @@ class HealthDeviceManager private constructor(private val context: Context) {
             if (data.isEmpty()) return
             _lastSyncTimestamp.value = System.currentTimeMillis()
 
+            val header = data[0].toInt() and 0xFF
+            if (header == 0xAB || header == 0xA5 || header == 0xBA) {
+                parseVendorPacket(data)
+                return
+            }
+
             when (characteristic.uuid) {
                 UUID_HEART_RATE_MEASUREMENT -> {
                     // Standard Bluetooth SIG Heart Rate Measurement Parsing (0x2A37)
@@ -557,6 +607,13 @@ class HealthDeviceManager private constructor(private val context: Context) {
                     if (hr in 35..240) {
                         _liveMetrics.value = _liveMetrics.value.copy(heartRate = hr)
                         onReadingReceivedListener?.invoke("heart_rate", hr.toFloat(), null, "$hr BPM", "bpm")
+                        scheduleVitalsSync(
+                            com.simats.vitalsync.data.model.vitals.SyncVitalReadingItem(
+                                heartRate = hr,
+                                source = "bluetooth",
+                                loggedAt = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                            )
+                        )
                     }
                 }
 
@@ -574,25 +631,42 @@ class HealthDeviceManager private constructor(private val context: Context) {
                         if (sys in 50..260 && dia in 30..180 && sys > dia) {
                             _liveMetrics.value = _liveMetrics.value.copy(bloodPressure = Pair(sys, dia))
                             onReadingReceivedListener?.invoke("blood_pressure", sys.toFloat(), dia.toFloat(), "$sys/$dia mmHg", "mmHg")
+                            scheduleVitalsSync(
+                                com.simats.vitalsync.data.model.vitals.SyncVitalReadingItem(
+                                    systolicBp = sys,
+                                    diastolicBp = dia,
+                                    source = "bluetooth",
+                                    loggedAt = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                                )
+                            )
                         }
                     }
                 }
 
                 UUID_SPO2_CONTINUOUS, UUID_SPO2_SPOT_CHECK -> {
                     // Standard Bluetooth SIG Pulse Oximeter Parsing (0x2A5F / 0x2A5E)
+                    var foundSpo2: Int? = null
                     if (data.size >= 4) {
                         val rawSpo2 = parseSFloat(data[1], data[2]).toInt()
                         if (rawSpo2 in 65..100) {
-                            _liveMetrics.value = _liveMetrics.value.copy(spo2 = rawSpo2)
-                            onReadingReceivedListener?.invoke("spo2", rawSpo2.toFloat(), null, "$rawSpo2%", "%")
+                            foundSpo2 = rawSpo2
                         }
                     } else if (data.size >= 2) {
-                        // Fallback for consumer finger oximeter raw percentage
                         val raw = data[1].toInt() and 0xFF
                         if (raw in 70..100) {
-                            _liveMetrics.value = _liveMetrics.value.copy(spo2 = raw)
-                            onReadingReceivedListener?.invoke("spo2", raw.toFloat(), null, "$raw%", "%")
+                            foundSpo2 = raw
                         }
+                    }
+                    if (foundSpo2 != null) {
+                        _liveMetrics.value = _liveMetrics.value.copy(spo2 = foundSpo2)
+                        onReadingReceivedListener?.invoke("spo2", foundSpo2.toFloat(), null, "$foundSpo2%", "%")
+                        scheduleVitalsSync(
+                            com.simats.vitalsync.data.model.vitals.SyncVitalReadingItem(
+                                spo2 = foundSpo2,
+                                source = "bluetooth",
+                                loggedAt = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                            )
+                        )
                     }
                 }
 
@@ -628,6 +702,93 @@ class HealthDeviceManager private constructor(private val context: Context) {
                 UUID_BATTERY_LEVEL -> {
                     val level = data[0].toInt() and 0xFF
                     _batteryLevel.value = level.coerceIn(0, 100)
+                }
+            }
+        }
+
+        private fun parseVendorPacket(data: ByteArray) {
+            val header = data[0].toInt() and 0xFF
+            when (header) {
+                0xAB -> {
+                    // Vendor 0xAB packet (Fitpro / Y68 / LH719 / generic bands)
+                    if (data.size >= 5) {
+                        val hr = data.getOrNull(4)?.toInt()?.and(0xFF) ?: 0
+                        if (hr in 35..240) {
+                            _liveMetrics.value = _liveMetrics.value.copy(heartRate = hr)
+                            onReadingReceivedListener?.invoke("heart_rate", hr.toFloat(), null, "$hr BPM", "bpm")
+                            scheduleVitalsSync(
+                                com.simats.vitalsync.data.model.vitals.SyncVitalReadingItem(
+                                    heartRate = hr,
+                                    source = "bluetooth",
+                                    loggedAt = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                                )
+                            )
+                        }
+                    }
+                    if (data.size >= 6) {
+                        val spo2 = data.getOrNull(5)?.toInt()?.and(0xFF) ?: 0
+                        if (spo2 in 70..100) {
+                            _liveMetrics.value = _liveMetrics.value.copy(spo2 = spo2)
+                            onReadingReceivedListener?.invoke("spo2", spo2.toFloat(), null, "$spo2%", "%")
+                            scheduleVitalsSync(
+                                com.simats.vitalsync.data.model.vitals.SyncVitalReadingItem(
+                                    spo2 = spo2,
+                                    source = "bluetooth",
+                                    loggedAt = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                                )
+                            )
+                        }
+                    }
+                    if (data.size >= 8) {
+                        val sys = data.getOrNull(6)?.toInt()?.and(0xFF) ?: 0
+                        val dia = data.getOrNull(7)?.toInt()?.and(0xFF) ?: 0
+                        if (sys in 60..240 && dia in 40..160 && sys > dia) {
+                            _liveMetrics.value = _liveMetrics.value.copy(bloodPressure = Pair(sys, dia))
+                            onReadingReceivedListener?.invoke("blood_pressure", sys.toFloat(), dia.toFloat(), "$sys/$dia mmHg", "mmHg")
+                            scheduleVitalsSync(
+                                com.simats.vitalsync.data.model.vitals.SyncVitalReadingItem(
+                                    systolicBp = sys,
+                                    diastolicBp = dia,
+                                    source = "bluetooth",
+                                    loggedAt = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                                )
+                            )
+                        }
+                    }
+                }
+                0xA5 -> {
+                    // Vendor 0xA5 packet
+                    if (data.size >= 5) {
+                        val hr = data.getOrNull(4)?.toInt()?.and(0xFF) ?: (data.getOrNull(3)?.toInt()?.and(0xFF) ?: 0)
+                        if (hr in 35..240) {
+                            _liveMetrics.value = _liveMetrics.value.copy(heartRate = hr)
+                            onReadingReceivedListener?.invoke("heart_rate", hr.toFloat(), null, "$hr BPM", "bpm")
+                            scheduleVitalsSync(
+                                com.simats.vitalsync.data.model.vitals.SyncVitalReadingItem(
+                                    heartRate = hr,
+                                    source = "bluetooth",
+                                    loggedAt = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                                )
+                            )
+                        }
+                    }
+                }
+                0xBA -> {
+                    // Vendor 0xBA packet
+                    if (data.size >= 4) {
+                        val hr = data.getOrNull(3)?.toInt()?.and(0xFF) ?: (data.getOrNull(2)?.toInt()?.and(0xFF) ?: 0)
+                        if (hr in 35..240) {
+                            _liveMetrics.value = _liveMetrics.value.copy(heartRate = hr)
+                            onReadingReceivedListener?.invoke("heart_rate", hr.toFloat(), null, "$hr BPM", "bpm")
+                            scheduleVitalsSync(
+                                com.simats.vitalsync.data.model.vitals.SyncVitalReadingItem(
+                                    heartRate = hr,
+                                    source = "bluetooth",
+                                    loggedAt = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                                )
+                            )
+                        }
+                    }
                 }
             }
         }

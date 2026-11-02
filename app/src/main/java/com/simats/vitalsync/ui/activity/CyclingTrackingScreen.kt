@@ -29,12 +29,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,16 +42,15 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.simats.vitalsync.data.FitnessRepository
+import com.simats.vitalsync.data.sensor.WorkoutTrackingService
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
-import kotlinx.coroutines.delay
 import java.util.Locale
-import kotlin.math.sin
 
 @Composable
 fun CyclingTrackingScreen(
@@ -60,41 +58,40 @@ fun CyclingTrackingScreen(
     targetGoalTab: String = "Distance",
     targetMinutes: Int = 30,
     targetDistanceKm: Float = 10.0f,
+    userWeightKg: Float = 70.0f,
     onBackClick: () -> Unit = {},
     onFinishTracking: () -> Unit = {},
     onFinishTrackingWithData: ((durationSeconds: Int, distanceKm: Float, caloriesBurned: Int, avgPace: String, avgHeartRate: Int?, steps: Int) -> Unit)? = null
 ) {
-    // Executable Live Timer State
-    var trackingSeconds by remember { mutableIntStateOf(0) }
-    var isTimerRunning by remember { mutableStateOf(true) }
+    val context = LocalContext.current
+    val workoutEngine = remember { WorkoutTrackingService.getInstance(context) }
+    val telemetry by workoutEngine.telemetry.collectAsState()
 
-    LaunchedEffect(isTimerRunning) {
-        while (isTimerRunning) {
-            delay(1000L)
-            trackingSeconds++
+    LaunchedEffect(targetGoalTab, targetMinutes, targetDistanceKm, userWeightKg) {
+        workoutEngine.startWorkout(
+            activityType = "Cycling",
+            targetType = targetGoalTab,
+            targetMinutes = targetMinutes,
+            targetDistanceKm = targetDistanceKm,
+            userWeightKg = userWeightKg
+        )
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            workoutEngine.stopWorkout()
         }
     }
 
-    val formattedDynamicTime = FitnessRepository.formatDurationDynamic(trackingSeconds)
-
-    // Live Real-Time Cycling Distance & Metrics Calculations (~20.0 km/h speed)
-    val liveDistanceKm = trackingSeconds * 0.00555f
-    val liveCalories = (liveDistanceKm * 32f).toInt()
-    val liveCurrentSpeedKmH = if (isTimerRunning) {
-        (20.0f + sin(trackingSeconds * 0.1f) * 2.2f).coerceAtLeast(0f)
-    } else {
-        0.0f
-    }
-
-    // Live Progress Column Ratio Calculation
-    val targetRatio = if (targetGoalTab == "Distance") {
-        if (targetDistanceKm > 0f) (liveDistanceKm / targetDistanceKm).coerceIn(0f, 1f) else 0f
-    } else {
-        if (targetMinutes > 0) ((trackingSeconds / 60f) / targetMinutes.toFloat()).coerceIn(0f, 1f) else 0f
-    }
+    val trackingSeconds = telemetry.durationSeconds
+    val formattedDynamicTime = telemetry.formattedDuration
+    val liveDistanceKm = telemetry.distanceKm
+    val liveCalories = telemetry.caloriesBurned
+    val liveCurrentSpeedKmH = telemetry.currentSpeedKmH
+    val liveAvgSpeedKmH = telemetry.avgSpeedKmH
 
     val animatedGoalProgress by animateFloatAsState(
-        targetValue = targetRatio,
+        targetValue = telemetry.progressRatio,
         animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
         label = "CyclingGoalProgressAnimation"
     )
@@ -148,58 +145,117 @@ fun CyclingTrackingScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (isTimerRunning) Color(0xFFE6F4EA) else Color(0xFFFEF3C7))
-                        .clickable { isTimerRunning = !isTimerRunning }
+                        .background(if (!telemetry.isPaused) Color(0xFFE6F4EA) else Color(0xFFFEF3C7))
+                        .clickable { 
+                            if (telemetry.isPaused) workoutEngine.resumeWorkout() else workoutEngine.pauseWorkout() 
+                        }
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = if (isTimerRunning) "• In progress" else "⏸ Paused",
+                        text = if (!telemetry.isPaused) "• In progress" else "⏸ Paused",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isTimerRunning) Color(0xFF0F9F7A) else Color(0xFFD97706)
+                        color = if (!telemetry.isPaused) Color(0xFF0F9F7A) else Color(0xFFD97706)
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Dual Live Header: Timer & Current Speed
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
+            // Live Timer Banner
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = formattedDynamicTime, fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                    Text(text = "Elapsed Time", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🚴 Outdoor Cycling", fontSize = 13.sp, color = Color(0xFF6B7280))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFE8F6F0))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = if (targetGoalTab == "Distance") "Target: ${String.format(Locale.US, "%.1f", targetDistanceKm)} km" else "Target: $targetMinutes min",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F9F7A)
+                        )
+                    }
                 }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = String.format(Locale.US, "%.1f", liveCurrentSpeedKmH), fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
-                    Text(text = "Current Speed km/h", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = formattedDynamicTime,
+                    fontSize = 52.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
+
+                Text(
+                    text = "Elapsed Time",
+                    fontSize = 12.sp,
+                    color = Color(0xFF9CA3AF)
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (telemetry.isPaused) Color(0xFFFEF3C7) else Color(0xFFE8F6F0))
+                        .clickable {
+                            if (telemetry.isPaused) workoutEngine.resumeWorkout() else workoutEngine.pauseWorkout()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = if (telemetry.isPaused) "▶ Resume" else "⏸ Pause",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (telemetry.isPaused) Color(0xFFD97706) else Color(0xFF0F9F7A)
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            // Live Metrics Row
+            // Live Metrics Grid (2x2)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text(text = "Live Distance", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                    Text(text = String.format(Locale.US, "%.2f km", liveDistanceKm), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(text = "Live Distance", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = String.format(Locale.US, "%.2f km", liveDistanceKm), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                 }
 
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(text = "Current Speed", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = String.format(Locale.US, "%.1f km/h", liveCurrentSpeedKmH), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Column {
-                    Text(text = "Average Speed", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                    Text(text = "20 km/h", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(text = "Average Speed", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = String.format(Locale.US, "%.1f km/h", liveAvgSpeedKmH), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                 }
 
-                Column {
-                    Text(text = "Active Calories", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                    Text(text = "$liveCalories kcal", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(text = "Active Calories", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = "$liveCalories kcal", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                 }
             }
 
@@ -256,8 +312,7 @@ fun CyclingTrackingScreen(
                             val remaining = (targetDistanceKm - liveDistanceKm).coerceAtLeast(0f)
                             "${String.format(Locale.US, "%.2f", liveDistanceKm)} of ${String.format(Locale.US, "%.1f", targetDistanceKm)} km · ${String.format(Locale.US, "%.2f", remaining)} km remaining"
                         } else {
-                            val remSecs = (targetMinutes * 60 - trackingSeconds).coerceAtLeast(0)
-                            "$formattedDynamicTime of ${targetMinutes}m · ${FitnessRepository.formatDurationDynamic(remSecs)} remaining"
+                            "$formattedDynamicTime of ${targetMinutes}m · ${telemetry.remainingFormatted}"
                         },
                         fontSize = 12.sp,
                         color = Color(0xFF6B7280)
@@ -312,7 +367,7 @@ fun CyclingTrackingScreen(
                         Column(horizontalAlignment = Alignment.End) {
                             Text(text = "AVG SPEED", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A), letterSpacing = 0.8.sp)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = "20.0 km/h", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(text = String.format(Locale.US, "%.1f km/h", liveAvgSpeedKmH), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                         }
                     }
                 }
@@ -324,7 +379,15 @@ fun CyclingTrackingScreen(
         // Single Primary Finish Button at Bottom
         Button(
             onClick = {
-                onFinishTrackingWithData?.invoke(trackingSeconds, liveDistanceKm, liveCalories, "2:40", 138, 0)
+                val completed = workoutEngine.finishWorkout()
+                onFinishTrackingWithData?.invoke(
+                    completed.durationSeconds,
+                    completed.distanceKm,
+                    completed.caloriesBurned,
+                    completed.avgPace,
+                    138,
+                    completed.steps
+                )
                 onFinishTracking()
             },
             modifier = Modifier

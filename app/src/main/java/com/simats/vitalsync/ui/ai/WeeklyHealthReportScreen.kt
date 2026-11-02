@@ -63,7 +63,6 @@ private val DarkYellowMid = Color(0xFFD97706)
 private val LightYellowMidBg = Color(0xFFFEF3C7)
 
 private val DarkRedLow = Color(0xFFDC2626)
-private val LightRedLowBg = Color(0xFFFEE2E2)
 
 enum class MetricStatusType {
     NORMAL,
@@ -74,8 +73,28 @@ enum class MetricStatusType {
 @Composable
 fun WeeklyHealthReportScreen(
     modifier: Modifier = Modifier,
-    onBackClick: () -> Unit = {}
+    wellnessScore: Int = 0,
+    wellnessStatus: String = "No Data",
+    heartRateAvg: String = "-- BPM",
+    heartRateStatus: String = "No Data",
+    bpAvg: String = "--/--",
+    bpStatus: String = "No Data",
+    spo2Avg: String = "--%",
+    spo2Status: String = "No Data",
+    sleepQuality: String = "--",
+    sleepStatus: String = "No Data",
+    hydrationTotal: String = "-- ml",
+    hydrationStatus: String = "No Data",
+    activitySteps: String = "-- steps",
+    activityStatus: String = "No Data",
+    aiObservationText: String = "No weekly vital logs recorded yet. Start tracking or connect a smartwatch to view clinical observations.",
+    showAiInsights: Boolean = true,
+    onBackClick: () -> Unit = {},
+    onDownloadPdfClick: () -> Unit = {},
+    onShareSummaryClick: () -> Unit = {}
 ) {
+    val isDataAvailable = wellnessScore > 0 || heartRateAvg != "-- BPM"
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -135,7 +154,7 @@ fun WeeklyHealthReportScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Overall Vital Performance · October 9–15, 2025",
+                text = "Overall Vital Performance",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -191,7 +210,7 @@ fun WeeklyHealthReportScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = "82",
+                                text = if (wellnessScore > 0) "$wellnessScore" else "--",
                                 fontSize = 26.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground
@@ -215,7 +234,7 @@ fun WeeklyHealthReportScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Overall vital performance is Good (+6% increase from last week).",
+                            text = if (isDataAvailable) "Overall vital performance is $wellnessStatus." else "Log vitals or sync a smartwatch to generate your weekly wellness score.",
                             fontSize = 13.sp,
                             color = Color(0xFF7C3AED),
                             fontWeight = FontWeight.Bold,
@@ -250,14 +269,14 @@ fun WeeklyHealthReportScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(LightGreenNormalBg)
+                                .background(if (isDataAvailable) LightGreenNormalBg else MaterialTheme.colorScheme.surfaceVariant)
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "↑ 6% Normal",
+                                text = if (isDataAvailable) wellnessStatus else "No Data",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = DarkGreenNormal
+                                color = if (isDataAvailable) DarkGreenNormal else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -283,13 +302,18 @@ fun WeeklyHealthReportScreen(
                         val h = size.height
 
                         val fullPath = Path().apply {
-                            moveTo(0f, h * 0.7f)
-                            lineTo(w * 0.15f, h * 0.4f)
-                            lineTo(w * 0.30f, h * 0.5f)
-                            lineTo(w * 0.45f, h * 0.35f)
-                            lineTo(w * 0.60f, h * 0.40f)
-                            lineTo(w * 0.75f, h * 0.20f)
-                            lineTo(w, h * 0.30f)
+                            if (isDataAvailable) {
+                                moveTo(0f, h * 0.7f)
+                                lineTo(w * 0.15f, h * 0.4f)
+                                lineTo(w * 0.30f, h * 0.5f)
+                                lineTo(w * 0.45f, h * 0.35f)
+                                lineTo(w * 0.60f, h * 0.40f)
+                                lineTo(w * 0.75f, h * 0.20f)
+                                lineTo(w, h * 0.30f)
+                            } else {
+                                moveTo(0f, h * 0.5f)
+                                lineTo(w, h * 0.5f)
+                            }
                         }
 
                         val pathMeasure = PathMeasure()
@@ -308,13 +332,16 @@ fun WeeklyHealthReportScreen(
                             drawPath(
                                 path = fillPath,
                                 brush = Brush.verticalGradient(
-                                    colors = listOf(DarkGreenNormal.copy(alpha = 0.30f), DarkGreenNormal.copy(alpha = 0.0f))
+                                    colors = listOf(
+                                        if (isDataAvailable) DarkGreenNormal.copy(alpha = 0.30f) else Color.Gray.copy(alpha = 0.10f),
+                                        Color.Transparent
+                                    )
                                 )
                             )
 
                             drawPath(
                                 path = animatedPath,
-                                color = DarkGreenNormal,
+                                color = if (isDataAvailable) DarkGreenNormal else Color.Gray,
                                 style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                             )
                         }
@@ -340,17 +367,17 @@ fun WeeklyHealthReportScreen(
             ) {
                 ReportMetricCard(
                     title = "Heart Rate Avg",
-                    value = "76 BPM",
-                    statusText = "Normal",
-                    statusType = MetricStatusType.NORMAL,
+                    value = heartRateAvg,
+                    statusText = heartRateStatus,
+                    statusType = if (heartRateAvg != "-- BPM") MetricStatusType.NORMAL else MetricStatusType.LOW,
                     modifier = Modifier.weight(1f)
                 )
 
                 ReportMetricCard(
                     title = "Blood Pressure",
-                    value = "132/86",
-                    statusText = "Mid / Elevated",
-                    statusType = MetricStatusType.MID,
+                    value = bpAvg,
+                    statusText = bpStatus,
+                    statusType = if (bpAvg != "--/--") MetricStatusType.NORMAL else MetricStatusType.LOW,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -364,17 +391,17 @@ fun WeeklyHealthReportScreen(
             ) {
                 ReportMetricCard(
                     title = "SpO₂ Avg",
-                    value = "92%",
-                    statusText = "Low Rate Alert",
-                    statusType = MetricStatusType.LOW,
+                    value = spo2Avg,
+                    statusText = spo2Status,
+                    statusType = if (spo2Avg != "--%") MetricStatusType.NORMAL else MetricStatusType.LOW,
                     modifier = Modifier.weight(1f)
                 )
 
                 ReportMetricCard(
                     title = "Sleep Quality",
-                    value = "7h 32m",
-                    statusText = "Score 88 Normal",
-                    statusType = MetricStatusType.NORMAL,
+                    value = sleepQuality,
+                    statusText = sleepStatus,
+                    statusType = if (sleepQuality != "--") MetricStatusType.NORMAL else MetricStatusType.LOW,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -388,17 +415,17 @@ fun WeeklyHealthReportScreen(
             ) {
                 ReportMetricCard(
                     title = "Hydration",
-                    value = "1,250 ml",
-                    statusText = "5/8 Mid Goal",
-                    statusType = MetricStatusType.MID,
+                    value = hydrationTotal,
+                    statusText = hydrationStatus,
+                    statusType = if (hydrationTotal != "-- ml") MetricStatusType.NORMAL else MetricStatusType.LOW,
                     modifier = Modifier.weight(1f)
                 )
 
                 ReportMetricCard(
                     title = "Activity Steps",
-                    value = "3,120 steps",
-                    statusText = "Low Goal Alert",
-                    statusType = MetricStatusType.LOW,
+                    value = activitySteps,
+                    statusText = activityStatus,
+                    statusType = if (activitySteps != "-- steps") MetricStatusType.NORMAL else MetricStatusType.LOW,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -406,6 +433,7 @@ fun WeeklyHealthReportScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // AI Weekly Summary & Recommendations Card
+            if (showAiInsights) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
@@ -427,10 +455,7 @@ fun WeeklyHealthReportScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "• Heart Rate & Sleep remain in the optimal Green Normal range.\n" +
-                            "• Blood Pressure & Hydration are in the Yellow Mid range.\n" +
-                            "• SpO₂ & Daily Step Count dipped into the Red Low Alert range this week.\n" +
-                            "• Recommendation: Take brief walk breaks and maintain continuous hydration.",
+                        text = aiObservationText,
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onBackground,
                         lineHeight = 20.sp
@@ -439,6 +464,7 @@ fun WeeklyHealthReportScreen(
             }
 
             Spacer(modifier = Modifier.height(28.dp))
+            }
         }
 
         // Action Buttons Footer
@@ -453,7 +479,7 @@ fun WeeklyHealthReportScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Button(
-                    onClick = { },
+                    onClick = onDownloadPdfClick,
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
@@ -463,18 +489,18 @@ fun WeeklyHealthReportScreen(
                         contentColor = Color.White
                     )
                 ) {
-                    Text(text = "Download PDF Report", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Download PDF Report", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
 
                 OutlinedButton(
-                    onClick = { },
+                    onClick = onShareSummaryClick,
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = VitalTealDark)
                 ) {
-                    Text(text = "Share Summary", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Share Summary", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -501,7 +527,7 @@ private fun ReportMetricCard(
     val (statusColor, statusBgColor) = when (statusType) {
         MetricStatusType.NORMAL -> Pair(DarkGreenNormal, LightGreenNormalBg)
         MetricStatusType.MID -> Pair(DarkYellowMid, LightYellowMidBg)
-        MetricStatusType.LOW -> Pair(DarkRedLow, LightRedLowBg)
+        MetricStatusType.LOW -> Pair(Color(0xFF6B7280), Color(0xFFF1F5F9))
     }
 
     Card(
@@ -560,23 +586,8 @@ private fun ReportMetricCard(
                 val h = size.height
 
                 val fullPath = Path().apply {
-                    when (statusType) {
-                        MetricStatusType.NORMAL -> {
-                            moveTo(0f, h * 0.7f)
-                            quadraticTo(w * 0.25f, h * 0.2f, w * 0.5f, h * 0.5f)
-                            quadraticTo(w * 0.75f, h * 0.8f, w, h * 0.2f)
-                        }
-                        MetricStatusType.MID -> {
-                            moveTo(0f, h * 0.4f)
-                            quadraticTo(w * 0.25f, h * 0.6f, w * 0.5f, h * 0.3f)
-                            quadraticTo(w * 0.75f, h * 0.7f, w, h * 0.5f)
-                        }
-                        MetricStatusType.LOW -> {
-                            moveTo(0f, h * 0.2f)
-                            quadraticTo(w * 0.25f, h * 0.5f, w * 0.5f, h * 0.7f)
-                            quadraticTo(w * 0.75f, h * 0.4f, w, h * 0.85f)
-                        }
-                    }
+                    moveTo(0f, h * 0.5f)
+                    lineTo(w, h * 0.5f)
                 }
 
                 val pathMeasure = PathMeasure()

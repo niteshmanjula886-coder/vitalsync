@@ -304,3 +304,101 @@ data class DeleteVitalReadingResponse(
     val message: String? = null
 )
 
+data class TrendDayDto(
+    @SerializedName("day")
+    val day: String = "M",
+    @SerializedName("date")
+    val date: String = "",
+    @SerializedName("bpm")
+    val bpm: Int? = null,
+    @SerializedName("max_bpm")
+    val maxBpm: Int? = null,
+    @SerializedName("min_bpm")
+    val minBpm: Int? = null,
+    @SerializedName("category")
+    val category: String = "empty",
+    @SerializedName("has_data")
+    val hasData: Boolean = false,
+    @SerializedName("is_today")
+    val isToday: Boolean = false
+)
+
+data class VitalAnalyticsData(
+    @SerializedName("user_id")
+    val userId: Int = 0,
+    @SerializedName("timeframe")
+    val timeframe: String = "week",
+    @SerializedName("metric")
+    val metric: String = "heart_rate",
+    @SerializedName("current_bpm")
+    val currentBpm: Int? = null,
+    @SerializedName("formatted_time")
+    val formattedTime: String = "--",
+    @SerializedName("bpm_status")
+    val bpmStatus: String = "No data",
+    @SerializedName("status_level")
+    val statusLevel: String = "empty",
+    @SerializedName("average_bpm")
+    val averageBpm: Int? = null,
+    @SerializedName("highest_bpm")
+    val highestBpm: Int? = null,
+    @SerializedName("lowest_bpm")
+    val lowestBpm: Int? = null,
+    @SerializedName("resting_bpm")
+    val restingBpm: Int? = null,
+    @SerializedName("trend_days")
+    val trendDays: List<TrendDayDto> = emptyList(),
+    @SerializedName("has_trend_data")
+    val hasTrendData: Boolean = false,
+    @SerializedName("ai_insight")
+    val aiInsight: String = "No readings recorded this week. Wear your smartwatch to track baseline trends."
+)
+
+data class VitalAnalyticsResponse(
+    @SerializedName("status")
+    val status: String = "error",
+    @SerializedName("success")
+    val success: Boolean = false,
+    @SerializedName("message")
+    val message: String = "",
+    @SerializedName("data")
+    val data: VitalAnalyticsData? = null
+)
+
+data class SyncVitalReadingItem(
+    @SerializedName("heart_rate")
+    val heartRate: Int? = null,
+    @SerializedName("spo2")
+    val spo2: Int? = null,
+    @SerializedName("systolic_bp")
+    val systolicBp: Int? = null,
+    @SerializedName("diastolic_bp")
+    val diastolicBp: Int? = null,
+    @SerializedName("source")
+    val source: String = "bluetooth",
+    @SerializedName("logged_at")
+    val loggedAt: String? = null
+)
+
+data class SyncVitalsRequest(
+    @SerializedName("user_id")
+    val userId: Int? = null,
+    @SerializedName("email")
+    val email: String? = null,
+    @SerializedName("mac_address")
+    val macAddress: String? = null,
+    @SerializedName("readings")
+    val readings: List<SyncVitalReadingItem> = emptyList()
+)
+
+data class SyncVitalsResponse(
+    @SerializedName("status")
+    val status: String = "error",
+    @SerializedName("success")
+    val success: Boolean = false,
+    @SerializedName("message")
+    val message: String = "",
+    @SerializedName("synced_count")
+    val syncedCount: Int = 0
+)
+

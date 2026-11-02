@@ -259,8 +259,10 @@ fun ViewHistoryScreen(
                                     color = Color(0xFF111827)
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
+                                val stepsSubtext = if (record.steps > 0) "${String.format(Locale.US, "%,d", record.steps)} steps · " else ""
+                                val paceSubtext = if (record.avgPace.isNotBlank() && record.avgPace != "00:00 /km") " · ${record.avgPace}" else ""
                                 Text(
-                                    text = "Duration: $durationStr · ${record.caloriesBurned} kcal",
+                                    text = "${stepsSubtext}Duration: $durationStr · ${record.caloriesBurned} kcal$paceSubtext",
                                     fontSize = 12.sp,
                                     color = Color(0xFF0F9F7A),
                                     fontWeight = FontWeight.Medium

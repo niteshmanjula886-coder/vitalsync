@@ -55,17 +55,28 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun UpdateMetricsScreen(
     modifier: Modifier = Modifier,
+    initialHeightCm: String = "175",
+    initialWeightKg: String = "68.5",
     onBackClick: () -> Unit = {},
     onSaveMetricsSuccess: (bmi: String, category: String, height: String, weight: String) -> Unit = { _, _, _, _ -> }
 ) {
-    var heightInput by remember { mutableStateOf("175") }
-    var weightInput by remember { mutableStateOf("68.5") }
+    var heightInput by remember { mutableStateOf(initialHeightCm) }
+    var weightInput by remember { mutableStateOf(initialWeightKg) }
     var waistInput by remember { mutableStateOf("78") }
 
     // Calculate live BMI
     val heightM = (heightInput.toFloatOrNull() ?: 175f) / 100f
     val weightKg = weightInput.toFloatOrNull() ?: 68.5f
-    val calculatedBmi = if (heightM > 0) String.format("%.1f", weightKg / (heightM * heightM)) else "22.4"
+    val bmiVal = if (heightM > 0f) weightKg / (heightM * heightM) else 0f
+    val calculatedBmi = if (bmiVal > 0f) String.format(java.util.Locale.US, "%.1f", bmiVal) else "--"
+
+    val (categoryText, categoryColor, categoryBg) = when {
+        bmiVal <= 0f -> Triple("Not calculated", Color(0xFF6B7280), Color(0xFFF3F4F6))
+        bmiVal < 18.5f -> Triple("Underweight", Color(0xFF2563EB), Color(0xFFEFF6FF))
+        bmiVal < 25.0f -> Triple("Healthy Range", Color(0xFF0F9F7A), Color(0xFFE8F6F0))
+        bmiVal < 30.0f -> Triple("Overweight", Color(0xFFD97706), Color(0xFFFFFBEB))
+        else -> Triple("Obese", Color(0xFFDC2626), Color(0xFFFEF2F2))
+    }
 
     Column(
         modifier = modifier
@@ -147,14 +158,14 @@ fun UpdateMetricsScreen(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF0F9F7A))
+                            .background(categoryBg)
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            text = "Healthy Range",
+                            text = categoryText,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = categoryColor
                         )
                     }
                 }
@@ -277,7 +288,7 @@ fun UpdateMetricsScreen(
         ) {
             Button(
                 onClick = {
-                    onSaveMetricsSuccess(calculatedBmi, "Healthy Range", heightInput, weightInput)
+                    onSaveMetricsSuccess(calculatedBmi, categoryText, heightInput, weightInput)
                 },
                 modifier = Modifier
                     .fillMaxWidth()

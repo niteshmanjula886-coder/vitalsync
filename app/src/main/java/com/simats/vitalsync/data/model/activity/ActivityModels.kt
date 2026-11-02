@@ -96,6 +96,9 @@ data class ActivitySession(
     @SerializedName("id")
     val id: Int = 0,
 
+    @SerializedName("session_uuid")
+    val sessionUuid: String = "",
+
     @SerializedName("activity_type")
     val activityType: String = "WALKING",
 
@@ -104,6 +107,12 @@ data class ActivitySession(
 
     @SerializedName("duration_formatted")
     val durationFormatted: String = "",
+
+    @SerializedName("target_type")
+    val targetType: String = "time",
+
+    @SerializedName("target_value")
+    val targetValue: Int = 45,
 
     @SerializedName("distance_km")
     val distanceKm: Float = 0f,
@@ -120,6 +129,9 @@ data class ActivitySession(
     @SerializedName("steps")
     val steps: Int = 0,
 
+    @SerializedName("tracking_source")
+    val trackingSource: String = "phone_sensor",
+
     @SerializedName("start_time")
     val startTime: String = "",
 
@@ -134,11 +146,20 @@ data class RecordSessionRequest(
     @SerializedName("email")
     val email: String? = null,
 
+    @SerializedName("session_uuid")
+    val sessionUuid: String? = null,
+
     @SerializedName("activity_type")
     val activityType: String,
 
     @SerializedName("duration_seconds")
     val durationSeconds: Int,
+
+    @SerializedName("target_type")
+    val targetType: String? = "time",
+
+    @SerializedName("target_value")
+    val targetValue: Int? = 45,
 
     @SerializedName("distance_km")
     val distanceKm: Float,
@@ -154,6 +175,9 @@ data class RecordSessionRequest(
 
     @SerializedName("steps")
     val steps: Int = 0,
+
+    @SerializedName("tracking_source")
+    val trackingSource: String? = "phone_sensor",
 
     @SerializedName("start_time")
     val startTime: String? = null,

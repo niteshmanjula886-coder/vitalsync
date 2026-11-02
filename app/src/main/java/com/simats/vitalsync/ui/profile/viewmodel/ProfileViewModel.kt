@@ -28,21 +28,21 @@ import java.io.File
 
 data class ProfileUiState(
     val userId: Int = 0,
-    val fullName: String = "Alex Morgan",
-    val initials: String = "AM",
-    val primaryGoal: String = "Improve Fitness",
-    val age: Int = 28,
-    val heightCm: Double = 175.0,
-    val weightKg: Double = 68.5,
-    val bloodGroup: String = "O+",
-    val phone: String = "+1 555-0192",
-    val dob: String = "1997-05-14",
-    val gender: String = "Male",
-    val email: String = "alex.morgan@email.com",
-    val targetSteps: Int = 10000,
-    val targetSleepHours: Double = 8.0,
-    val targetWaterMl: Int = 2500,
-    val targetCalories: Int = 2200,
+    val fullName: String = "",
+    val initials: String = "--",
+    val primaryGoal: String? = null,
+    val age: Int? = null,
+    val heightCm: Double? = null,
+    val weightKg: Double? = null,
+    val bloodGroup: String? = null,
+    val phone: String? = null,
+    val dob: String? = null,
+    val gender: String? = null,
+    val email: String = "",
+    val targetSteps: Int? = null,
+    val targetSleepHours: Double? = null,
+    val targetWaterMl: Int? = null,
+    val targetCalories: Int? = null,
     val pushNotifications: Boolean = true,
     val vitalAlerts: Boolean = true,
     val dailyReminders: Boolean = true,
@@ -82,8 +82,19 @@ data class AppSettingsUiState(
     val dataSyncInterval: Int = 15,
     val aiInsights: Boolean = true,
     val usageAnalytics: Boolean = false,
+    val aiInsightsEnabled: Boolean = true,
+    val userAnalyticsEnabled: Boolean = false,
+    val reminderWaterInterval: Int = 120,
+    val reminderWorkoutEnabled: Boolean = true,
+    val reminderSleepEnabled: Boolean = true,
     val errorMessage: String? = null,
     val successMessage: String? = null
+)
+
+data class WeeklyReportUiState(
+    val isLoading: Boolean = false,
+    val report: com.simats.vitalsync.data.model.profile.WeeklyReportDto? = null,
+    val errorMessage: String? = null
 )
 
 data class HealthPermissionsUiState(
@@ -152,6 +163,9 @@ class ProfileViewModel(
     private val _appSettingsState = MutableStateFlow(AppSettingsUiState())
     val appSettingsState: StateFlow<AppSettingsUiState> = _appSettingsState.asStateFlow()
 
+    private val _weeklyReportState = MutableStateFlow(WeeklyReportUiState())
+    val weeklyReportState: StateFlow<WeeklyReportUiState> = _weeklyReportState.asStateFlow()
+
     private val _healthPermissionsState = MutableStateFlow(HealthPermissionsUiState())
     val healthPermissionsState: StateFlow<HealthPermissionsUiState> = _healthPermissionsState.asStateFlow()
 
@@ -176,13 +190,15 @@ class ProfileViewModel(
                     }
                     is Resource.Success -> {
                         val user = resource.data
-                        val name = user.name ?: "Alex Morgan"
-                        val parts = name.trim().split(" ")
-                        val initialsStr = if (parts.size >= 2) {
-                            (parts[0].take(1) + parts[1].take(1)).uppercase()
-                        } else {
-                            parts.firstOrNull()?.take(2)?.uppercase() ?: "AM"
-                        }
+                        val name = user.name ?: ""
+                        val initialsStr = if (name.isNotBlank()) {
+                            val parts = name.trim().split(" ")
+                            if (parts.size >= 2) {
+                                (parts[0].take(1) + parts[1].take(1)).uppercase()
+                            } else {
+                                parts.firstOrNull()?.take(2)?.uppercase() ?: "--"
+                            }
+                        } else "--"
 
                         _profileState.update {
                             it.copy(
@@ -507,7 +523,12 @@ class ProfileViewModel(
                                 darkMode = s.darkMode,
                                 dataSyncInterval = s.dataSyncInterval,
                                 aiInsights = s.aiInsights,
+                                aiInsightsEnabled = s.aiInsightsEnabled,
                                 usageAnalytics = s.usageAnalytics,
+                                userAnalyticsEnabled = s.userAnalyticsEnabled,
+                                reminderWaterInterval = s.reminderWaterInterval,
+                                reminderWorkoutEnabled = s.reminderWorkoutEnabled,
+                                reminderSleepEnabled = s.reminderSleepEnabled,
                                 errorMessage = null
                             )
                         }
@@ -530,6 +551,9 @@ class ProfileViewModel(
         darkMode: Boolean? = null,
         aiInsights: Boolean? = null,
         usageAnalytics: Boolean? = null,
+        reminderWaterInterval: Int? = null,
+        reminderWorkoutEnabled: Boolean? = null,
+        reminderSleepEnabled: Boolean? = null,
         userId: Int? = null,
         email: String? = null
     ) {
@@ -541,7 +565,12 @@ class ProfileViewModel(
                 metricUnits = metricUnits ?: current.metricUnits,
                 darkMode = darkMode ?: current.darkMode,
                 aiInsights = aiInsights ?: current.aiInsights,
+                aiInsightsEnabled = aiInsights ?: current.aiInsightsEnabled,
                 usageAnalytics = usageAnalytics ?: current.usageAnalytics,
+                userAnalyticsEnabled = usageAnalytics ?: current.userAnalyticsEnabled,
+                reminderWaterInterval = reminderWaterInterval ?: current.reminderWaterInterval,
+                reminderWorkoutEnabled = reminderWorkoutEnabled ?: current.reminderWorkoutEnabled,
+                reminderSleepEnabled = reminderSleepEnabled ?: current.reminderSleepEnabled,
                 successMessage = "Settings updated"
             )
         }
@@ -556,7 +585,12 @@ class ProfileViewModel(
                 metricUnits = metricUnits,
                 darkMode = darkMode,
                 aiInsights = aiInsights,
-                usageAnalytics = usageAnalytics
+                aiInsightsEnabled = aiInsights,
+                usageAnalytics = usageAnalytics,
+                userAnalyticsEnabled = usageAnalytics,
+                reminderWaterInterval = reminderWaterInterval,
+                reminderWorkoutEnabled = reminderWorkoutEnabled,
+                reminderSleepEnabled = reminderSleepEnabled
             )
             profileRepository.updateAppSettings(req).collect { resource ->
                 when (resource) {
@@ -572,7 +606,12 @@ class ProfileViewModel(
                                 darkMode = s.darkMode,
                                 dataSyncInterval = s.dataSyncInterval,
                                 aiInsights = s.aiInsights,
+                                aiInsightsEnabled = s.aiInsightsEnabled,
                                 usageAnalytics = s.usageAnalytics,
+                                userAnalyticsEnabled = s.userAnalyticsEnabled,
+                                reminderWaterInterval = s.reminderWaterInterval,
+                                reminderWorkoutEnabled = s.reminderWorkoutEnabled,
+                                reminderSleepEnabled = s.reminderSleepEnabled,
                                 successMessage = "Settings saved to cloud",
                                 errorMessage = null
                             )
@@ -583,6 +622,21 @@ class ProfileViewModel(
                             it.copy(errorMessage = resource.message)
                         }
                     }
+                }
+            }
+        }
+    }
+
+    fun fetchWeeklyHealthReport(userId: Int? = null, email: String? = null) {
+        viewModelScope.launch {
+            _weeklyReportState.update { it.copy(isLoading = true, errorMessage = null) }
+            val resolvedUid = userId ?: _profileState.value.userId
+            val resolvedEmail = email ?: _profileState.value.email
+            profileRepository.getWeeklyHealthReport(userId = resolvedUid, email = resolvedEmail).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> _weeklyReportState.update { it.copy(isLoading = true) }
+                    is Resource.Success -> _weeklyReportState.update { it.copy(isLoading = false, report = resource.data, errorMessage = null) }
+                    is Resource.Error -> _weeklyReportState.update { it.copy(isLoading = false, errorMessage = resource.message) }
                 }
             }
         }
@@ -889,5 +943,6 @@ class ProfileViewModel(
         _loginSessionsState.update { it.copy(errorMessage = null, successMessage = null) }
         _notificationsState.update { it.copy(errorMessage = null, successMessage = null) }
         _supportState.update { it.copy(errorMessage = null, successMessage = null) }
+        _weeklyReportState.update { it.copy(errorMessage = null) }
     }
 }

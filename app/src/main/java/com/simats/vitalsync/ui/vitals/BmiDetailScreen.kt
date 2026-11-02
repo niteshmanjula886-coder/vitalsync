@@ -5,11 +5,13 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -51,6 +54,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 @Composable
 fun BmiDetailScreen(
@@ -62,6 +68,54 @@ fun BmiDetailScreen(
     onBackClick: () -> Unit = {},
     onUpdateMetricsClick: () -> Unit = {}
 ) {
+    // 1. Dynamic BMI and category calculation
+    val hFloat = heightCm.toFloatOrNull() ?: 0f
+    val wFloat = weightKg.toFloatOrNull() ?: 0f
+    val liveBmi = if (hFloat > 50f && wFloat > 15f) {
+        wFloat / ((hFloat / 100f) * (hFloat / 100f))
+    } else {
+        bmiValue.toFloatOrNull() ?: 22.4f
+    }
+    val liveBmiFormatted = String.format(Locale.US, "%.1f", liveBmi)
+
+    val dynamicCategory = when {
+        liveBmi < 18.5f -> "Underweight"
+        liveBmi <= 24.9f -> "Healthy Range"
+        liveBmi <= 29.9f -> "Overweight"
+        else -> "Obese"
+    }
+
+    val dynamicCategoryColor = when {
+        liveBmi < 18.5f -> Color(0xFF38BDF8) // Sky Blue
+        liveBmi <= 24.9f -> Color(0xFF0F9F7A) // Vibrant Emerald/Teal
+        liveBmi <= 29.9f -> Color(0xFFF59E0B) // Amber
+        else -> Color(0xFFEF4444) // Red
+    }
+
+    // Vertical Trend Needle Fraction on spectrum bar (15.0 to 35.0 scale)
+    val minScale = 15.0f
+    val maxScale = 35.0f
+    val targetNeedleFraction = ((liveBmi - minScale) / (maxScale - minScale)).coerceIn(0.02f, 0.98f)
+    val animatedNeedleFraction by animateFloatAsState(
+        targetValue = targetNeedleFraction,
+        animationSpec = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
+        label = "BmiNeedleFractionAnimation"
+    )
+
+    // Dynamic 6-month historical labels based on live system timestamps
+    val (monthLabels, trendSubtitle) = remember(liveBmi) {
+        val cal = Calendar.getInstance()
+        val sdf = SimpleDateFormat("MMM", Locale.US)
+        val list = mutableListOf<String>()
+        for (i in 5 downTo 0) {
+            val c = cal.clone() as Calendar
+            c.add(Calendar.MONTH, -i)
+            list.add(sdf.format(c.time))
+        }
+        val initialEst = String.format(Locale.US, "%.1f", (liveBmi + 0.4f).coerceAtLeast(18.5f))
+        Pair(list, "Past 6 months · $initialEst → $liveBmiFormatted")
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -142,14 +196,14 @@ fun BmiDetailScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFE6F4EA))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .background(dynamicCategoryColor.copy(alpha = 0.15f))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = bmiCategory,
+                                text = dynamicCategory,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F9F7A)
+                                color = dynamicCategoryColor
                             )
                         }
                     }
@@ -157,7 +211,7 @@ fun BmiDetailScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = bmiValue,
+                        text = liveBmiFormatted,
                         fontSize = 38.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF111827)
@@ -174,26 +228,74 @@ fun BmiDetailScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // BMI Spectrum Color Gauge Bar
-                    Text(
-                        text = "BMI Spectrum Range",
-                        fontSize = 12.sp,
-                        color = Color(0xFF9CA3AF)
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Spectrum Bar (Safe fixed weights)
+                    // BMI Spectrum Color Gauge Header
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "BMI Spectrum Range",
+                            fontSize = 12.sp,
+                            color = Color(0xFF9CA3AF)
+                        )
+                        Text(
+                            text = "Score: $liveBmiFormatted",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = dynamicCategoryColor
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // BMI Spectrum Bar with Vertical Trend Indicator Needle
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(12.dp)
-                            .clip(RoundedCornerShape(6.dp))
+                            .height(30.dp)
                     ) {
-                        Box(modifier = Modifier.weight(18.5f).height(12.dp).background(Color(0xFF38BDF8)))
-                        Box(modifier = Modifier.weight(6.4f).height(12.dp).background(Color(0xFF0F9F7A)))
-                        Box(modifier = Modifier.weight(5f).height(12.dp).background(Color(0xFFF59E0B)))
-                        Box(modifier = Modifier.weight(10f).height(12.dp).background(Color(0xFFEF4444)))
+                        // Horizontal Spectrum Bar
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(12.dp)
+                                .align(Alignment.BottomCenter)
+                                .clip(RoundedCornerShape(6.dp))
+                        ) {
+                            Box(modifier = Modifier.weight(3.5f).fillMaxHeight().background(Color(0xFF38BDF8)))
+                            Box(modifier = Modifier.weight(6.4f).fillMaxHeight().background(Color(0xFF0F9F7A)))
+                            Box(modifier = Modifier.weight(5.0f).fillMaxHeight().background(Color(0xFFF59E0B)))
+                            Box(modifier = Modifier.weight(5.1f).fillMaxHeight().background(Color(0xFFEF4444)))
+                        }
+
+                        // Vertical Trend Indicator Needle
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(30.dp)
+                                .align(Alignment.TopCenter)
+                        ) {
+                            val needleX = (size.width * animatedNeedleFraction).coerceIn(4.dp.toPx(), size.width - 4.dp.toPx())
+
+                            // Vertical line piercing through the spectrum bar
+                            drawLine(
+                                color = Color(0xFF111827),
+                                start = Offset(needleX, 6.dp.toPx()),
+                                end = Offset(needleX, size.height),
+                                strokeWidth = 2.5.dp.toPx(),
+                                cap = StrokeCap.Round
+                            )
+
+                            // Top downward-pointing triangle needle head
+                            val pointer = Path().apply {
+                                moveTo(needleX, 10.dp.toPx())
+                                lineTo(needleX - 5.dp.toPx(), 0f)
+                                lineTo(needleX + 5.dp.toPx(), 0f)
+                                close()
+                            }
+                            drawPath(path = pointer, color = Color(0xFF111827))
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -202,10 +304,10 @@ fun BmiDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Underweight", fontSize = 10.sp, color = Color(0xFF38BDF8))
-                        Text(text = "Normal (18.5-24.9)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
-                        Text(text = "Overweight", fontSize = 10.sp, color = Color(0xFFF59E0B))
-                        Text(text = "Obese", fontSize = 10.sp, color = Color(0xFFEF4444))
+                        Text(text = "< 18.5", fontSize = 10.sp, color = Color(0xFF38BDF8))
+                        Text(text = "18.5 – 24.9", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                        Text(text = "25.0 – 29.9", fontSize = 10.sp, color = Color(0xFFF59E0B))
+                        Text(text = "≥ 30.0", fontSize = 10.sp, color = Color(0xFFEF4444))
                     }
                 }
             }
@@ -230,14 +332,13 @@ fun BmiDetailScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Past 6 months · 22.8 → 22.4",
+                        text = trendSubtitle,
                         fontSize = 12.sp,
                         color = Color(0xFF9CA3AF)
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Smoothly Animated Trend Line Chart Canvas
                     var targetTrendProgress by remember { mutableFloatStateOf(0f) }
                     LaunchedEffect(Unit) {
                         targetTrendProgress = 1f
@@ -295,11 +396,12 @@ fun BmiDetailScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    // Real-time system calendar month labels
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        listOf("May", "Jun", "Jul", "Aug", "Sep", "Oct").forEach { month ->
+                        monthLabels.forEach { month ->
                             Text(text = month, fontSize = 12.sp, color = Color(0xFF9CA3AF))
                         }
                     }
@@ -308,7 +410,7 @@ fun BmiDetailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // BMI Categories Reference Card
+            // BMI Categories Reference Card with Dynamic Selection & Vertical Accent Indicator
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -316,22 +418,66 @@ fun BmiDetailScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        text = "BMI categories",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "BMI categories",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF111827)
+                        )
+                        Text(
+                            text = "WHO Standard",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF9CA3AF)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    BmiCategoryRow(range = "< 18.5", category = "Underweight", color = Color(0xFF38BDF8), isCurrent = false)
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-                    BmiCategoryRow(range = "18.5 – 24.9", category = "Normal weight", color = Color(0xFF0F9F7A), isCurrent = true)
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-                    BmiCategoryRow(range = "25.0 – 29.9", category = "Overweight", color = Color(0xFFF59E0B), isCurrent = false)
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-                    BmiCategoryRow(range = "≥ 30.0", category = "Obese", color = Color(0xFFEF4444), isCurrent = false)
+                    val isUnderweight = liveBmi < 18.5f
+                    val isNormal = liveBmi in 18.5f..24.9f
+                    val isOverweight = liveBmi in 25.0f..29.9f
+                    val isObese = liveBmi >= 30.0f
+
+                    BmiCategoryRow(
+                        range = "< 18.5",
+                        category = "Underweight",
+                        color = Color(0xFF38BDF8),
+                        isCurrent = isUnderweight,
+                        currentBmiText = if (isUnderweight) liveBmiFormatted else ""
+                    )
+                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 8.dp))
+
+                    BmiCategoryRow(
+                        range = "18.5 – 24.9",
+                        category = "Healthy / Normal weight",
+                        color = Color(0xFF0F9F7A),
+                        isCurrent = isNormal,
+                        currentBmiText = if (isNormal) liveBmiFormatted else ""
+                    )
+                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 8.dp))
+
+                    BmiCategoryRow(
+                        range = "25.0 – 29.9",
+                        category = "Overweight",
+                        color = Color(0xFFF59E0B),
+                        isCurrent = isOverweight,
+                        currentBmiText = if (isOverweight) liveBmiFormatted else ""
+                    )
+                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 8.dp))
+
+                    BmiCategoryRow(
+                        range = "≥ 30.0",
+                        category = "Obese",
+                        color = Color(0xFFEF4444),
+                        isCurrent = isObese,
+                        currentBmiText = if (isObese) liveBmiFormatted else ""
+                    )
                 }
             }
 
@@ -365,35 +511,49 @@ private fun BmiCategoryRow(
     range: String,
     category: String,
     color: Color,
-    isCurrent: Boolean
+    isCurrent: Boolean,
+    currentBmiText: String = ""
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .then(
                 if (isCurrent) Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFE6F4EA))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                else Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFE8F6F0))
+                    .border(1.dp, Color(0xFF0F9F7A).copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                else Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
             ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            // Vertical accent indicator line
             Box(
                 modifier = Modifier
-                    .size(10.dp)
-                    .clip(CircleShape)
+                    .width(4.dp)
+                    .height(22.dp)
+                    .clip(RoundedCornerShape(2.dp))
                     .background(color)
             )
             Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = category,
-                fontSize = 14.sp,
-                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
-                color = Color(0xFF111827)
-            )
+            Column {
+                Text(
+                    text = category,
+                    fontSize = 14.sp,
+                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                    color = Color(0xFF111827)
+                )
+                if (isCurrent && currentBmiText.isNotBlank()) {
+                    Text(
+                        text = "Current State • $currentBmiText",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F9F7A)
+                    )
+                }
+            }
         }
 
         Text(

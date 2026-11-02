@@ -169,22 +169,65 @@ fun HydrationDetailScreen(
     val glassEquivalent = animatedConsumedMl / 250f
     val progressPercentage = (fillProgressRatio * 100).toInt()
 
-    // Strict Log-Driven Weekly Data Construction (Only days with actual logs have values, unlogged days are null)
+    // Dynamic 7-day Monday–Sunday calendar mapping based on live system timestamps
     val weeklyDaysList = remember(state.weeklyHistory, consumedWaterMl, dailyTargetMl) {
-        if (viewModel != null && state.weeklyHistory.size == 7) {
-            state.weeklyHistory
-        } else {
-            // Monday to Sunday strict log-driven layout
-            val days = listOf("M", "T", "W", "T", "F", "S", "S")
-            days.mapIndexed { index, dayLabel ->
-                val isToday = (index == 4) // Friday is current today index in mock setup
-                if (isToday && consumedWaterMl > 0) {
-                    val ratio = (consumedWaterMl.toFloat() / dailyTargetMl.toFloat()).coerceIn(0f, 1f)
-                    WeeklyHydrationDayDto(day = dayLabel, date = "Oct ${11 + index}", consumedMl = consumedWaterMl, targetMl = dailyTargetMl, ratio = ratio, isToday = true)
-                } else {
-                    // Strict rule: unlogged days are NULL (no fake fallback values)
-                    WeeklyHydrationDayDto(day = dayLabel, date = "Oct ${11 + index}", consumedMl = null, targetMl = dailyTargetMl, ratio = null, isToday = isToday)
-                }
+        val todayCal = java.util.Calendar.getInstance()
+        val todayIso = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(todayCal.time)
+
+        val cal = java.util.Calendar.getInstance()
+        val dayOfWeek = cal.get(java.util.Calendar.DAY_OF_WEEK)
+        val daysFromMonday = if (dayOfWeek == java.util.Calendar.SUNDAY) 6 else dayOfWeek - java.util.Calendar.MONDAY
+        cal.add(java.util.Calendar.DAY_OF_YEAR, -daysFromMonday)
+
+        val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
+        val displayDateFormat = SimpleDateFormat("MMM d", Locale.US)
+        val isoFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+
+        (0..6).map { i ->
+            val dayCal = cal.clone() as java.util.Calendar
+            dayCal.add(java.util.Calendar.DAY_OF_YEAR, i)
+            val dIso = isoFormat.format(dayCal.time)
+            val dDisplay = displayDateFormat.format(dayCal.time)
+            val isToday = (dIso == todayIso)
+
+            // 1. Match from remote backend weekly history if available
+            val remoteDay = state.weeklyHistory.firstOrNull { it.date == dIso || it.date == dDisplay }
+
+            if (remoteDay != null && remoteDay.consumedMl != null && remoteDay.consumedMl > 0) {
+                val ratio = if (remoteDay.targetMl > 0) {
+                    (remoteDay.consumedMl.toFloat() / remoteDay.targetMl.toFloat()).coerceIn(0f, 1f)
+                } else null
+                WeeklyHydrationDayDto(
+                    day = dayLabels[i],
+                    date = dDisplay,
+                    consumedMl = remoteDay.consumedMl,
+                    targetMl = remoteDay.targetMl,
+                    ratio = ratio,
+                    isToday = isToday
+                )
+            } else if (isToday && consumedWaterMl > 0) {
+                // Today's live reactive water intake
+                val ratio = if (dailyTargetMl > 0) {
+                    (consumedWaterMl.toFloat() / dailyTargetMl.toFloat()).coerceIn(0f, 1f)
+                } else null
+                WeeklyHydrationDayDto(
+                    day = dayLabels[i],
+                    date = dDisplay,
+                    consumedMl = consumedWaterMl,
+                    targetMl = dailyTargetMl,
+                    ratio = ratio,
+                    isToday = true
+                )
+            } else {
+                // Strict log-driven rule: Unlogged calendar days are NULL
+                WeeklyHydrationDayDto(
+                    day = dayLabels[i],
+                    date = dDisplay,
+                    consumedMl = null,
+                    targetMl = dailyTargetMl,
+                    ratio = null,
+                    isToday = isToday
+                )
             }
         }
     }

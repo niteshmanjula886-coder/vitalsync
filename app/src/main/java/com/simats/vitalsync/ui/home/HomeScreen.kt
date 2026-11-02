@@ -116,7 +116,30 @@ fun HomeScreen(
     userAge: String = "--",
     userHeight: String = "--",
     userWeight: String = "--",
+    userPrimaryGoal: String = "Improve Fitness",
     userPhotoBitmap: ImageBitmap? = null,
+    heartRateValue: String = "-- BPM",
+    heartRateStatus: String = "No data",
+    spo2Value: String = "--%",
+    spo2Status: String = "No data",
+    bpValue: String = "--/--",
+    bpStatus: String = "No data",
+    stepsValue: String = "--",
+    stepsStatus: String = "No data",
+    wellnessScore: Int = 0,
+    wellnessStatus: String = "No data recorded",
+    activitySteps: String = "-- steps",
+    activityDistance: String = "-- km",
+    activityCalories: String = "-- kcal",
+    activityMinutes: String = "-- min",
+    sleepDuration: String = "--",
+    sleepScore: String = "--",
+    hydrationConsumed: String = "-- ml",
+    hydrationSubtext: String = "No data",
+    isDeviceConnected: Boolean = false,
+    connectedDeviceName: String? = null,
+    onPairWatchClick: () -> Unit = {},
+    showAiInsights: Boolean = true,
     onLogoutClick: () -> Unit = {}
 ) {
     var selectedBottomTab by remember(initialTab) { mutableIntStateOf(initialTab) }
@@ -166,6 +189,27 @@ fun HomeScreen(
                 when (tabIndex) {
                     0 -> HomeDashboardContent(
                         userName = userName,
+                        heartRateValue = heartRateValue,
+                        heartRateStatus = heartRateStatus,
+                        spo2Value = spo2Value,
+                        spo2Status = spo2Status,
+                        bpValue = bpValue,
+                        bpStatus = bpStatus,
+                        stepsValue = stepsValue,
+                        stepsStatus = stepsStatus,
+                        wellnessScore = wellnessScore,
+                        wellnessStatus = wellnessStatus,
+                        activitySteps = activitySteps,
+                        activityDistance = activityDistance,
+                        activityCalories = activityCalories,
+                        activityMinutes = activityMinutes,
+                        sleepDuration = sleepDuration,
+                        sleepScore = sleepScore,
+                        hydrationConsumed = hydrationConsumed,
+                        hydrationSubtext = hydrationSubtext,
+                        isDeviceConnected = isDeviceConnected,
+                        connectedDeviceName = connectedDeviceName,
+                        onPairWatchClick = onPairWatchClick,
                         onWellnessScoreClick = onWellnessScoreClick,
                         onVitalsClick = onVitalsClick,
                         onHeartRateClick = onHeartRateClick,
@@ -174,7 +218,8 @@ fun HomeScreen(
                         onStepsClick = onStepsClick,
                         onActivityClick = onActivityClick,
                         onSleepClick = onSleepClick,
-                        onHydrationClick = onHydrationClick
+                        onHydrationClick = onHydrationClick,
+                        showAiInsights = showAiInsights
                     )
                     2 -> AiScreen(onAskAiClick = onAskAiClick)
                     3 -> ProfileScreen(
@@ -210,6 +255,27 @@ fun HomeScreen(
 @Composable
 private fun HomeDashboardContent(
     userName: String,
+    heartRateValue: String = "-- BPM",
+    heartRateStatus: String = "No data",
+    spo2Value: String = "--%",
+    spo2Status: String = "No data",
+    bpValue: String = "--/--",
+    bpStatus: String = "No data",
+    stepsValue: String = "--",
+    stepsStatus: String = "No data",
+    wellnessScore: Int = 0,
+    wellnessStatus: String = "No data recorded",
+    activitySteps: String = "-- steps",
+    activityDistance: String = "-- km",
+    activityCalories: String = "-- kcal",
+    activityMinutes: String = "-- min",
+    sleepDuration: String = "--",
+    sleepScore: String = "--",
+    hydrationConsumed: String = "-- ml",
+    hydrationSubtext: String = "No data",
+    isDeviceConnected: Boolean = false,
+    connectedDeviceName: String? = null,
+    onPairWatchClick: () -> Unit = {},
     onWellnessScoreClick: () -> Unit,
     onVitalsClick: () -> Unit,
     onHeartRateClick: () -> Unit,
@@ -218,11 +284,11 @@ private fun HomeDashboardContent(
     onStepsClick: () -> Unit,
     onActivityClick: () -> Unit,
     onSleepClick: () -> Unit,
-    onHydrationClick: () -> Unit
+    onHydrationClick: () -> Unit,
+    showAiInsights: Boolean = true
 ) {
-    var targetAngle by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(Unit) {
-        targetAngle = 210f
+    var targetAngle by remember(wellnessScore) {
+        mutableFloatStateOf(if (wellnessScore > 0) (wellnessScore / 100f) * 260f else 0f)
     }
     val animatedSweepAngle by animateFloatAsState(
         targetValue = targetAngle,
@@ -239,23 +305,62 @@ private fun HomeDashboardContent(
             .padding(horizontal = 20.dp)
             .padding(top = 16.dp, bottom = 24.dp)
     ) {
-        // Good Morning Header (Clean iOS Style)
-        Column {
-            Text(
-                text = "Good Morning, $firstName",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Here's your health overview",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        // Good Morning Header with Pair Device Button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Good Morning, $firstName",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Here's your health overview",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (isDeviceConnected) Color(0xFFDCFCE7) else MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable { onPairWatchClick() }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isDeviceConnected) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF15803D))
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (!connectedDeviceName.isNullOrBlank()) "$connectedDeviceName (Connected)" else "Watch (Connected)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF15803D)
+                        )
+                    } else {
+                        Text(
+                            text = "Pair Watch",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -311,7 +416,7 @@ private fun HomeDashboardContent(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "82",
+                            text = if (wellnessScore > 0) "$wellnessScore" else "--",
                             fontSize = 28.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onBackground
@@ -337,7 +442,7 @@ private fun HomeDashboardContent(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "Good",
+                        text = wellnessStatus,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF7C3AED)
@@ -395,8 +500,8 @@ private fun HomeDashboardContent(
         ) {
             VitalCard(
                 title = "Heart Rate",
-                value = "76 BPM",
-                status = "Normal",
+                value = heartRateValue,
+                status = heartRateStatus,
                 iconType = VitalIconType.HEART,
                 modifier = Modifier.weight(1f),
                 onClick = onHeartRateClick
@@ -404,8 +509,8 @@ private fun HomeDashboardContent(
 
             VitalCard(
                 title = "SpO₂",
-                value = "98%",
-                status = "Optimal",
+                value = spo2Value,
+                status = spo2Status,
                 iconType = VitalIconType.SPO2,
                 modifier = Modifier.weight(1f),
                 onClick = onSpO2Click
@@ -420,8 +525,8 @@ private fun HomeDashboardContent(
         ) {
             VitalCard(
                 title = "Blood Pressure",
-                value = "120/80",
-                status = "Normal",
+                value = bpValue,
+                status = bpStatus,
                 iconType = VitalIconType.BLOOD_PRESSURE,
                 modifier = Modifier.weight(1f),
                 onClick = onBloodPressureClick
@@ -429,8 +534,8 @@ private fun HomeDashboardContent(
 
             VitalCard(
                 title = "Steps",
-                value = "6,245",
-                status = "78% Goal",
+                value = stepsValue,
+                status = stepsStatus,
                 iconType = VitalIconType.STEPS,
                 modifier = Modifier.weight(1f),
                 onClick = onStepsClick
@@ -474,7 +579,7 @@ private fun HomeDashboardContent(
                     }
 
                     Text(
-                        text = "6,245 steps",
+                        text = activitySteps,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -488,17 +593,17 @@ private fun HomeDashboardContent(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "4.2 km",
+                        text = activityDistance,
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "320 kcal",
+                        text = activityCalories,
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "42 active min",
+                        text = activityMinutes,
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -541,7 +646,7 @@ private fun HomeDashboardContent(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = "7h 32m",
+                        text = sleepDuration,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -550,7 +655,7 @@ private fun HomeDashboardContent(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Sleep Score 88",
+                        text = sleepScore,
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -585,7 +690,7 @@ private fun HomeDashboardContent(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = "5 / 8 glasses",
+                        text = hydrationConsumed,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -594,7 +699,7 @@ private fun HomeDashboardContent(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "3 more to your goal",
+                        text = hydrationSubtext,
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -605,6 +710,7 @@ private fun HomeDashboardContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         // AI Insight Banner Card (Adaptive Dark/Light Theme)
+        if (showAiInsights) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(28.dp),
@@ -635,6 +741,7 @@ private fun HomeDashboardContent(
                     lineHeight = 20.sp
                 )
             }
+        }
         }
     }
 }

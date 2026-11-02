@@ -67,5 +67,17 @@ interface VitalsApiService {
         @Query("user_id") userId: Int? = null,
         @Query("email") email: String? = null
     ): Response<DeleteVitalReadingResponse>
+
+    @GET("api/bluetooth/get_vital_analytics.php")
+    suspend fun getVitalAnalytics(
+        @Query("user_id") userId: Int? = null,
+        @Query("email") email: String? = null,
+        @Query("timeframe") timeframe: String = "week"
+    ): Response<com.simats.vitalsync.data.model.vitals.VitalAnalyticsResponse>
+
+    @POST("api/bluetooth/sync_vitals.php")
+    suspend fun syncVitals(
+        @Body body: com.simats.vitalsync.data.model.vitals.SyncVitalsRequest
+    ): Response<com.simats.vitalsync.data.model.vitals.SyncVitalsResponse>
 }
 

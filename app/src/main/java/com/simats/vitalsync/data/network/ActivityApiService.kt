@@ -45,6 +45,11 @@ interface ActivityApiService {
         @Body request: RecordSessionRequest
     ): Response<BaseResponse>
 
+    @POST("activity/save_workout_session.php")
+    suspend fun saveWorkoutSession(
+        @Body request: RecordSessionRequest
+    ): Response<BaseResponse>
+
     @GET("activity/history.php")
     suspend fun getHistory(
         @Query("email") email: String

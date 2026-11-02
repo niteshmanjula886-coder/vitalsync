@@ -72,6 +72,7 @@ import java.util.Locale
 fun SleepDetailScreen(
     modifier: Modifier = Modifier,
     targetSleepMinutes: Int = 480, // Default 8 Hours Daily Goal
+    showAiInsights: Boolean = true,
     onBackClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -537,7 +538,8 @@ fun SleepDetailScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // AI Insight Banner
-        Card(
+        if (showAiInsights) {
+            Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
@@ -557,6 +559,9 @@ fun SleepDetailScreen(
                     color = Color(0xFF374151)
                 )
             }
+        }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         Spacer(modifier = Modifier.height(24.dp))

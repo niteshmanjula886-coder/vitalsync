@@ -60,7 +60,7 @@ fun HelpSupportScreen(
     onSubmitInquiry: (subject: String, message: String) -> Unit = { _, _ -> },
     onBackClick: () -> Unit = {}
 ) {
-    var searchQuery by remember { mutableStateOf("") }
+
 
     Column(
         modifier = modifier
@@ -117,26 +117,7 @@ fun HelpSupportScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Search Bar
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Search topics or questions", fontSize = 14.sp, color = Color(0xFF9CA3AF)) },
-            singleLine = true,
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                focusedTextColor = Color(0xFF111827),
-                unfocusedTextColor = Color(0xFF111827),
-                focusedBorderColor = VitalTealPrimary,
-                unfocusedBorderColor = Color(0xFFE5E7EB)
-            ),
-            trailingIcon = { Text("🔍", fontSize = 16.sp) }
-        )
 
-        Spacer(modifier = Modifier.height(24.dp))
 
         // FREQUENTLY ASKED QUESTIONS Section
         SectionHeader("FREQUENTLY ASKED QUESTIONS")

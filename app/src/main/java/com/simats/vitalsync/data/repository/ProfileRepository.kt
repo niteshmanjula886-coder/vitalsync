@@ -1,4 +1,4 @@
-﻿package com.simats.vitalsync.data.repository
+package com.simats.vitalsync.data.repository
 
 import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.auth.User
@@ -275,6 +275,27 @@ class ProfileRepository(
             }
         } catch (e: Exception) {
             emit(Resource.Error(e.localizedMessage ?: "Network error updating app settings"))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    fun getWeeklyHealthReport(userId: Int? = null, email: String? = null): Flow<Resource<com.simats.vitalsync.data.model.profile.WeeklyReportDto>> = flow {
+        emit(Resource.Loading)
+        try {
+            val resolvedUid = userId ?: sessionManager?.getUser()?.id
+            val resolvedEmail = email ?: sessionManager?.getUserEmail()
+            val response = apiService.getWeeklyHealthReport(userId = resolvedUid, email = resolvedEmail)
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                if (body.success && body.data != null) {
+                    emit(Resource.Success(body.data))
+                } else {
+                    emit(Resource.Error(body.message.ifBlank { "Failed to load weekly report" }))
+                }
+            } else {
+                emit(Resource.Error("Weekly report server error: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error(e.localizedMessage ?: "Network error loading weekly report"))
         }
     }.flowOn(Dispatchers.IO)
 
