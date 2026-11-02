@@ -64,13 +64,15 @@ private val DarkRedClassification = Color(0xFFB91C1C) // Dark Red
 @Composable
 fun Spo2DetailScreen(
     modifier: Modifier = Modifier,
+    initialPercentage: Int = 0,
     onBackClick: () -> Unit = {},
     onAddReadingClick: () -> Unit = {}
 ) {
-    var spo2Percentage by remember { mutableIntStateOf(98) }
+    var spo2Percentage by remember(initialPercentage) { mutableIntStateOf(initialPercentage) }
 
     // Dynamic SpO2 Status Color Mapping
     val (statusLabel, statusColor, statusBgColor) = when {
+        spo2Percentage <= 0 -> Triple("No data", Color(0xFF6B7280), Color(0xFFF3F4F6))
         spo2Percentage < 95 -> Triple("Low SpO₂", DarkRedClassification, Color(0xFFFEE2E2))
         spo2Percentage in 95..96 -> Triple("Moderate", DarkYellowClassification, Color(0xFFFEF3C7))
         else -> Triple("Optimal", DarkGreenClassification, Color(0xFFE6F4EA))
@@ -172,7 +174,7 @@ fun Spo2DetailScreen(
 
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
-                            text = "$spo2Percentage",
+                            text = if (spo2Percentage > 0) "$spo2Percentage" else "--",
                             fontSize = 38.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF111827)
@@ -365,9 +367,11 @@ fun Spo2DetailScreen(
                         Text(text = "7-day average", fontSize = 12.sp, color = Color(0xFF6B7280))
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.Bottom) {
-                            Text(text = "98", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(text = "%", fontSize = 12.sp, color = Color(0xFF6B7280), modifier = Modifier.padding(bottom = 2.dp))
+                            Text(text = if (initialPercentage > 0) "$initialPercentage" else "--", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            if (initialPercentage > 0) {
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(text = "%", fontSize = 12.sp, color = Color(0xFF6B7280), modifier = Modifier.padding(bottom = 2.dp))
+                            }
                         }
                     }
 
@@ -375,9 +379,11 @@ fun Spo2DetailScreen(
                         Text(text = "Highest", fontSize = 12.sp, color = Color(0xFF6B7280))
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.Bottom) {
-                            Text(text = "99", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DarkGreenClassification)
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(text = "%", fontSize = 12.sp, color = Color(0xFF6B7280), modifier = Modifier.padding(bottom = 2.dp))
+                            Text(text = if (initialPercentage > 0) "$initialPercentage" else "--", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DarkGreenClassification)
+                            if (initialPercentage > 0) {
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(text = "%", fontSize = 12.sp, color = Color(0xFF6B7280), modifier = Modifier.padding(bottom = 2.dp))
+                            }
                         }
                     }
 
@@ -385,9 +391,11 @@ fun Spo2DetailScreen(
                         Text(text = "Lowest", fontSize = 12.sp, color = Color(0xFF6B7280))
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.Bottom) {
-                            Text(text = "94", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DarkRedClassification)
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(text = "%", fontSize = 12.sp, color = Color(0xFF6B7280), modifier = Modifier.padding(bottom = 2.dp))
+                            Text(text = if (initialPercentage > 0) "$initialPercentage" else "--", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DarkRedClassification)
+                            if (initialPercentage > 0) {
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(text = "%", fontSize = 12.sp, color = Color(0xFF6B7280), modifier = Modifier.padding(bottom = 2.dp))
+                            }
                         }
                     }
                 }
@@ -412,11 +420,15 @@ fun Spo2DetailScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Spo2HistoryRow(time = "Oct 15 - 9:00 AM", valStr = "98 %", isLow = false)
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-                    Spo2HistoryRow(time = "Oct 14 - 8:42 AM", valStr = "99 %", isLow = false)
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-                    Spo2HistoryRow(time = "Oct 13 - 9:05 AM", valStr = "94 % (Low)", isLow = true)
+                    if (initialPercentage > 0) {
+                        Spo2HistoryRow(time = "Latest reading", valStr = "$initialPercentage %", isLow = initialPercentage < 95)
+                    } else {
+                        Text(
+                            text = "No readings recorded yet",
+                            fontSize = 14.sp,
+                            color = Color(0xFF9CA3AF)
+                        )
+                    }
                 }
             }
 

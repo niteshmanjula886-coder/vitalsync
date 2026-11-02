@@ -1,4 +1,4 @@
-package com.simats.vitalsync
+package com.simats/vitalsync
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.simats.vitalsync.data.ActivitySessionRecord
 import com.simats.vitalsync.data.Exercise
 import com.simats.vitalsync.data.FitnessRepository
 import com.simats.vitalsync.data.MealCategory
@@ -42,6 +44,7 @@ import com.simats.vitalsync.ui.ai.AiChatScreen
 import com.simats.vitalsync.ui.ai.WeeklyHealthReportScreen
 import com.simats.vitalsync.ui.auth.ForgotPasswordScreen
 import com.simats.vitalsync.ui.auth.LoginScreen
+import com.simats.vitalsync.ui.auth.PasswordSuccessScreen
 import com.simats.vitalsync.ui.auth.SignUpScreen
 import com.simats.vitalsync.ui.auth.WelcomeScreen
 import com.simats.vitalsync.ui.auth.viewmodel.AuthViewModel
@@ -142,6 +145,7 @@ enum class ScreenState {
     PRIVACY_POLICY,
     SETTINGS,
     CHANGE_PASSWORD,
+    PASSWORD_CHANGED_SUCCESS,
     HEALTH_PERMISSIONS,
     DATA_MANAGEMENT,
     ABOUT_VITALSINC,
@@ -194,12 +198,17 @@ class MainActivity : ComponentActivity() {
                 var isNewUser by remember { mutableStateOf(false) }
                 var activeReadingType by remember { mutableStateOf(VitalReadingType.HEART_RATE) }
                 var homeInitialTab by remember { mutableIntStateOf(0) }
-                var viewHistoryPreviousScreen by remember { mutableStateOf(ScreenState.ACTIVITY_DETAIL) }
+                var viewHistoryPreviousScreen by remember { mutableStateOf(ScreenState.START_ACTIVITY) }
 
                 var activeWorkoutSplit by remember { mutableStateOf(WorkoutSplit.PUSH) }
                 var selectedMealCategory by remember { mutableStateOf(MealCategory.BREAKFAST) }
                 var activeFoodItem by remember { mutableStateOf(repository.initialIndianFoodDatabase[0]) }
                 var activeWorkoutExercises by remember { mutableStateOf<List<Exercise>>(emptyList()) }
+
+                // Live Activity Target Goals
+                var targetGoalTabState by remember { mutableStateOf("Distance") }
+                var targetGoalMinutesState by remember { mutableIntStateOf(30) }
+                var targetGoalDistanceKmState by remember { mutableFloatStateOf(5.0f) }
 
                 var calculatedBmiValue by remember { mutableStateOf("22.4") }
                 var calculatedBmiCategory by remember { mutableStateOf("Healthy Range") }
@@ -338,7 +347,9 @@ class MainActivity : ComponentActivity() {
                                 ForgotPasswordScreen(
                                     viewModel = authViewModel,
                                     onBackClick = { currentScreen = ScreenState.LOGIN },
-                                    onResetLinkSent = { }
+                                    onResetLinkSent = {
+                                        currentScreen = ScreenState.PASSWORD_CHANGED_SUCCESS
+                                    }
                                 )
                             }
                             ScreenState.PROFILE_SETUP -> {
@@ -377,7 +388,7 @@ class MainActivity : ComponentActivity() {
                                     onBloodPressureClick = { currentScreen = ScreenState.BLOOD_PRESSURE_DETAIL },
                                     onSpO2Click = { currentScreen = ScreenState.SPO2_DETAIL },
                                     onStepsClick = { currentScreen = ScreenState.STEP_COUNT_DETAIL },
-                                    onActivityClick = { currentScreen = ScreenState.ACTIVITY_DETAIL },
+                                    onActivityClick = { currentScreen = ScreenState.START_ACTIVITY },
                                     onSleepClick = { currentScreen = ScreenState.SLEEP_DETAIL },
                                     onHydrationClick = { currentScreen = ScreenState.HYDRATION_DETAIL },
                                     onPersonalInformationClick = { currentScreen = ScreenState.PERSONAL_INFORMATION },
@@ -612,7 +623,7 @@ class MainActivity : ComponentActivity() {
                             ScreenState.ADD_REMINDER -> {
                                 AddReminderScreen(
                                     onBackClick = { currentScreen = ScreenState.REMINDERS },
-                                    onSaveReminderSuccess = { currentScreen = ScreenState.REMINDERS }
+                                    onSaveReminderSuccess = { _, _, _ -> currentScreen = ScreenState.REMINDERS }
                                 )
                             }
                             ScreenState.PERSONAL_INFORMATION -> {
@@ -626,7 +637,7 @@ class MainActivity : ComponentActivity() {
                                         homeInitialTab = 3
                                         currentScreen = ScreenState.MAIN
                                     },
-                                    onSaveChangesClick = { newName, newInitials, newAge, newHeight, newWeight, newPhotoBitmap ->
+                                    onSaveChangesClick = { newName, newInitials, newAge, newHeight, newWeight, newPhotoBitmap, _, _, _ ->
                                         globalUserName = newName
                                         globalUserInitials = newInitials
                                         globalUserAge = newAge
@@ -656,7 +667,7 @@ class MainActivity : ComponentActivity() {
                                         homeInitialTab = 3
                                         currentScreen = ScreenState.MAIN
                                     },
-                                    onSaveGoalClick = {
+                                    onSaveGoalClick = { _, _ ->
                                         homeInitialTab = 3
                                         currentScreen = ScreenState.MAIN
                                     }
@@ -717,8 +728,18 @@ class MainActivity : ComponentActivity() {
                             ScreenState.CHANGE_PASSWORD -> {
                                 ChangePasswordScreen(
                                     onBackClick = { currentScreen = ScreenState.SETTINGS },
-                                    onUpdatePasswordSuccess = { currentScreen = ScreenState.SETTINGS },
+                                    onUpdatePasswordSuccess = {
+                                        currentScreen = ScreenState.PASSWORD_CHANGED_SUCCESS
+                                    },
                                     onForgotPasswordClick = { currentScreen = ScreenState.FORGOT_PASSWORD }
+                                )
+                            }
+                            ScreenState.PASSWORD_CHANGED_SUCCESS -> {
+                                PasswordSuccessScreen(
+                                    isFromProfile = authViewModel.isLoggedIn(),
+                                    onContinueClick = {
+                                        currentScreen = if (authViewModel.isLoggedIn()) ScreenState.SETTINGS else ScreenState.LOGIN
+                                    }
                                 )
                             }
                             ScreenState.HEALTH_PERMISSIONS -> {
@@ -793,7 +814,7 @@ class MainActivity : ComponentActivity() {
                                         currentScreen = ScreenState.ADD_READING
                                     },
                                     onViewHistoryClick = {
-                                        viewHistoryPreviousScreen = ScreenState.READING_REVIEW
+                                        viewHistoryPreviousScreen = ScreenState.START_ACTIVITY
                                         currentScreen = ScreenState.VIEW_HISTORY
                                     }
                                 )
@@ -806,15 +827,28 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onStartActivityClick = { currentScreen = ScreenState.START_ACTIVITY },
                                     onViewHistoryClick = {
-                                        viewHistoryPreviousScreen = ScreenState.ACTIVITY_DETAIL
+                                        viewHistoryPreviousScreen = ScreenState.START_ACTIVITY
                                         currentScreen = ScreenState.VIEW_HISTORY
                                     }
                                 )
                             }
                             ScreenState.START_ACTIVITY -> {
+                                val walkingStats = repository.getActivityStatsByType("Walking")
+                                val runningStats = repository.getActivityStatsByType("Running")
+                                val cyclingStats = repository.getActivityStatsByType("Cycling")
+
                                 StartActivityScreen(
-                                    onBackClick = { currentScreen = ScreenState.ACTIVITY_DETAIL },
-                                    onStartTracking = { type ->
+                                    walkingStats = walkingStats,
+                                    runningStats = runningStats,
+                                    cyclingStats = cyclingStats,
+                                    onBackClick = {
+                                        homeInitialTab = 0
+                                        currentScreen = ScreenState.MAIN
+                                    },
+                                    onStartTracking = { type, goalTab, targetDurationMinutes, targetDistanceKm ->
+                                        targetGoalTabState = goalTab
+                                        targetGoalMinutesState = targetDurationMinutes
+                                        targetGoalDistanceKmState = targetDistanceKm
                                         currentScreen = when (type) {
                                             ActivityType.WALKING -> ScreenState.WALKING_TRACKING
                                             ActivityType.RUNNING -> ScreenState.RUNNING_TRACKING
@@ -826,26 +860,61 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.WALKING_TRACKING -> {
                                 WalkingTrackingScreen(
+                                    targetGoalTab = targetGoalTabState,
+                                    targetMinutes = targetGoalMinutesState,
+                                    targetDistanceKm = targetGoalDistanceKmState,
                                     onBackClick = { currentScreen = ScreenState.START_ACTIVITY },
-                                    onFinishTracking = { currentScreen = ScreenState.ACTIVITY_DETAIL }
+                                    onFinishTracking = {
+                                        currentScreen = ScreenState.START_ACTIVITY
+                                    },
+                                    onFinishTrackingWithData = { dur, dist, cal, pace, hr, st ->
+                                        repository.saveActivitySessionRecord(
+                                            ActivitySessionRecord("Walking", dur, dist, cal, repository.getTodayDateString())
+                                        )
+                                        currentScreen = ScreenState.START_ACTIVITY
+                                    }
                                 )
                             }
                             ScreenState.RUNNING_TRACKING -> {
                                 RunningTrackingScreen(
+                                    targetGoalTab = targetGoalTabState,
+                                    targetMinutes = targetGoalMinutesState,
+                                    targetDistanceKm = targetGoalDistanceKmState,
                                     onBackClick = { currentScreen = ScreenState.START_ACTIVITY },
-                                    onFinishTracking = { currentScreen = ScreenState.ACTIVITY_DETAIL }
+                                    onFinishTracking = {
+                                        currentScreen = ScreenState.START_ACTIVITY
+                                    },
+                                    onFinishTrackingWithData = { dur, dist, cal, pace, hr, st ->
+                                        repository.saveActivitySessionRecord(
+                                            ActivitySessionRecord("Running", dur, dist, cal, repository.getTodayDateString())
+                                        )
+                                        currentScreen = ScreenState.START_ACTIVITY
+                                    }
                                 )
                             }
                             ScreenState.CYCLING_TRACKING -> {
                                 CyclingTrackingScreen(
+                                    targetGoalTab = targetGoalTabState,
+                                    targetMinutes = targetGoalMinutesState,
+                                    targetDistanceKm = targetGoalDistanceKmState,
                                     onBackClick = { currentScreen = ScreenState.START_ACTIVITY },
-                                    onFinishTracking = { currentScreen = ScreenState.ACTIVITY_DETAIL }
+                                    onFinishTracking = {
+                                        currentScreen = ScreenState.START_ACTIVITY
+                                    },
+                                    onFinishTrackingWithData = { dur, dist, cal, pace, hr, st ->
+                                        repository.saveActivitySessionRecord(
+                                            ActivitySessionRecord("Cycling", dur, dist, cal, repository.getTodayDateString())
+                                        )
+                                        currentScreen = ScreenState.START_ACTIVITY
+                                    }
                                 )
                             }
                             ScreenState.WORKOUT_TRACKING -> {
                                 WorkoutTrackingScreen(
                                     onBackClick = { currentScreen = ScreenState.START_ACTIVITY },
-                                    onFinishTracking = { currentScreen = ScreenState.ACTIVITY_DETAIL }
+                                    onFinishTracking = {
+                                        currentScreen = ScreenState.START_ACTIVITY
+                                    }
                                 )
                             }
                             ScreenState.VIEW_HISTORY -> {
@@ -940,14 +1009,25 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             ScreenState.ADD_READING -> {
+                                val currentReadingValue = when (activeReadingType) {
+                                    VitalReadingType.HEART_RATE -> "76 BPM"
+                                    VitalReadingType.BLOOD_PRESSURE -> "120/80 mmHg"
+                                    VitalReadingType.SPO2 -> "98%"
+                                    VitalReadingType.HYDRATION -> "+250 ml"
+                                    VitalReadingType.STEPS -> "6,245 steps"
+                                    VitalReadingType.SLEEP -> "7h 32m"
+                                }
+                                val currentReadingStatus = "Recorded"
+
                                 AddReadingScreen(
                                     readingType = activeReadingType,
+                                    readingValue = currentReadingValue,
+                                    readingStatus = currentReadingStatus,
                                     onBackClick = {
-                                        homeInitialTab = 0
-                                        currentScreen = ScreenState.MAIN
+                                        currentScreen = ScreenState.VITAL_SIGNS
                                     },
                                     onDoneClick = {
-                                        currentScreen = ScreenState.READING_REVIEW
+                                        currentScreen = ScreenState.VITAL_SIGNS
                                     }
                                 )
                             }

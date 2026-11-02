@@ -41,7 +41,7 @@ import kotlin.math.sin
 @Composable
 fun WelcomeScreen(
     modifier: Modifier = Modifier,
-    userName: String = "Alex",
+    userName: String = "",
     onSetUpProfileClick: () -> Unit = {},
     onSkipToDashboardClick: () -> Unit = {}
 ) {

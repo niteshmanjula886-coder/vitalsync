@@ -66,12 +66,12 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 import java.util.Locale
 
 fun calculateAgeFromDob(dobStr: String): Int {
-    if (dobStr.isBlank()) return 28
+    if (dobStr.isBlank()) return 0
     val currentYear = 2025
     val yearRegex = Regex("""\b(19\d\d|20\d\d)\b""")
     val match = yearRegex.find(dobStr)
     if (match != null) {
-        val birthYear = match.value.toIntOrNull() ?: 1996
+        val birthYear = match.value.toIntOrNull() ?: return 0
         return (currentYear - birthYear).coerceIn(1, 120)
     }
     val numbersOnly = dobStr.filter { it.isDigit() }
@@ -81,19 +81,23 @@ fun calculateAgeFromDob(dobStr: String): Int {
             return (currentYear - last4).coerceIn(1, 120)
         }
     }
-    return 28
+    return 0
 }
 
 @Composable
 fun PersonalInformationScreen(
     modifier: Modifier = Modifier,
-    currentName: String = "Alex Morgan",
-    currentInitials: String = "AM",
-    currentHeight: String = "175",
-    currentWeight: String = "68.5",
+    currentName: String = "",
+    currentInitials: String = "--",
+    currentHeight: String = "",
+    currentWeight: String = "",
+    currentDob: String = "",
+    currentGender: String = "",
+    currentEmail: String = "",
+    currentPhone: String = "",
     currentPhotoBitmap: ImageBitmap? = null,
     onBackClick: () -> Unit = {},
-    onSaveChangesClick: (newName: String, newInitials: String, newAge: String, newHeight: String, newWeight: String, newPhotoBitmap: ImageBitmap?) -> Unit = { _, _, _, _, _, _ -> }
+    onSaveChangesClick: (newName: String, newInitials: String, newAge: String, newHeight: String, newWeight: String, newPhotoBitmap: ImageBitmap?, newDob: String, newGender: String, newPhone: String) -> Unit = { _, _, _, _, _, _, _, _, _ -> }
 ) {
     val context = LocalContext.current
     var name by remember { mutableStateOf(currentName) }
@@ -101,17 +105,17 @@ fun PersonalInformationScreen(
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var profileImageBitmap by remember { mutableStateOf<ImageBitmap?>(currentPhotoBitmap) }
 
-    var dob by remember { mutableStateOf("14 May 1996") }
-    var gender by remember { mutableStateOf("Male") }
-    var email by remember { mutableStateOf("alex.morgan@example.com") }
-    var phone by remember { mutableStateOf("+1 (202) 555-0147") }
+    var dob by remember { mutableStateOf(currentDob) }
+    var gender by remember { mutableStateOf(currentGender) }
+    var email by remember { mutableStateOf(currentEmail) }
+    var phone by remember { mutableStateOf(currentPhone) }
     var height by remember { mutableStateOf(currentHeight) }
     var weight by remember { mutableStateOf(currentWeight) }
 
     val calculatedAge = remember(dob) { calculateAgeFromDob(dob) }
-    val hCm = height.toFloatOrNull() ?: 175f
-    val wKg = weight.toFloatOrNull() ?: 68.5f
-    val calculatedBmi = if (hCm > 0) wKg / ((hCm / 100f) * (hCm / 100f)) else 22.4f
+    val hCm = height.toFloatOrNull() ?: 0f
+    val wKg = weight.toFloatOrNull() ?: 0f
+    val calculatedBmi = if (hCm > 50f && wKg > 20f) wKg / ((hCm / 100f) * (hCm / 100f)) else 0f
 
     // Android Gallery Photo Picker Launcher
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -319,6 +323,7 @@ fun PersonalInformationScreen(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    placeholder = { Text("e.g. John Doe", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -348,7 +353,7 @@ fun PersonalInformationScreen(
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "⚡ Calculated Age: $calculatedAge yrs",
+                            text = if (calculatedAge > 0) "⚡ Calculated Age: $calculatedAge yrs" else "⚡ Age: Not set",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -385,6 +390,7 @@ fun PersonalInformationScreen(
                     onValueChange = { gender = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    placeholder = { Text("e.g. John Doe", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -407,6 +413,7 @@ fun PersonalInformationScreen(
                     onValueChange = { email = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    placeholder = { Text("e.g. John Doe", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -430,6 +437,7 @@ fun PersonalInformationScreen(
                     onValueChange = { phone = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    placeholder = { Text("e.g. John Doe", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -459,7 +467,7 @@ fun PersonalInformationScreen(
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "⚡ Calculated BMI: ${String.format(Locale.US, "%.1f", calculatedBmi)}",
+                            text = if (calculatedBmi > 0f) "⚡ Calculated BMI: ${String.format(Locale.US, "%.1f", calculatedBmi)}" else "⚡ BMI: Not set",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -481,6 +489,7 @@ fun PersonalInformationScreen(
                             onValueChange = { height = it },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
+                            placeholder = { Text("e.g. 175", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                             shape = RoundedCornerShape(14.dp),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -502,6 +511,7 @@ fun PersonalInformationScreen(
                             onValueChange = { weight = it },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
+                            placeholder = { Text("e.g. 68.5", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                             shape = RoundedCornerShape(14.dp),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -522,7 +532,7 @@ fun PersonalInformationScreen(
 
         // Save Changes Button
         Button(
-            onClick = { onSaveChangesClick(name, initials, "$calculatedAge", height, weight, profileImageBitmap) },
+            onClick = { onSaveChangesClick(name, initials, "$calculatedAge", height, weight, profileImageBitmap, dob, gender, phone) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)

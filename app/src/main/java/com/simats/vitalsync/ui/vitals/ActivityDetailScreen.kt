@@ -76,15 +76,17 @@ fun ActivityDetailScreen(
     val summary = summaryState.summary
 
     // Dynamic metrics from backend or graceful defaults
-    val stepsCurrent = summary?.steps?.current ?: 6245
+    val stepsCurrent = summary?.steps?.current ?: 0
     val stepsGoal = summary?.steps?.goal ?: 8000
-    val progressPercent = summary?.steps?.progressPercent ?: 78
-    val distanceKm = summary?.distanceKm ?: 4.2f
-    val caloriesBurnedKcal = summary?.caloriesBurned?.current ?: 320
-    val activeMinutesCurrent = summary?.activeMinutes?.current ?: 42
+    val progressPercent = summary?.steps?.progressPercent ?: if (stepsGoal > 0 && stepsCurrent > 0) ((stepsCurrent.toFloat() / stepsGoal) * 100).toInt() else 0
+    val distanceKm = summary?.distanceKm ?: 0f
+    val caloriesBurnedKcal = summary?.caloriesBurned?.current ?: 0
+    val activeMinutesCurrent = summary?.activeMinutes?.current ?: 0
 
     val remainingSteps = (stepsGoal - stepsCurrent).coerceAtLeast(0)
-    val stepsRemainingText = if (remainingSteps > 0) {
+    val stepsRemainingText = if (stepsCurrent <= 0) {
+        "No steps recorded today. Start moving!"
+    } else if (remainingSteps > 0) {
         "${String.format(Locale.US, "%,d", remainingSteps)} to go. Keep it up!"
     } else {
         "Goal achieved! Excellent work!"
@@ -217,7 +219,7 @@ fun ActivityDetailScreen(
 
                         Column {
                             Text(
-                                text = String.format(Locale.US, "%,d", stepsCurrent),
+                                text = if (stepsCurrent > 0) String.format(Locale.US, "%,d", stepsCurrent) else "--",
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF111827)
@@ -253,7 +255,7 @@ fun ActivityDetailScreen(
                             Text(text = "Distance", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = String.format(Locale.US, "%.1f km", distanceKm),
+                                text = if (distanceKm > 0) String.format(Locale.US, "%.1f km", distanceKm) else "-- km",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF111827)
@@ -263,7 +265,7 @@ fun ActivityDetailScreen(
                             Text(text = "Energy", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "$caloriesBurnedKcal kcal",
+                                text = if (caloriesBurnedKcal > 0) "$caloriesBurnedKcal kcal" else "-- kcal",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF111827)
@@ -273,7 +275,7 @@ fun ActivityDetailScreen(
                             Text(text = "Active time", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "$activeMinutesCurrent min",
+                                text = if (activeMinutesCurrent > 0) "$activeMinutesCurrent min" else "-- min",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF111827)
@@ -388,7 +390,7 @@ fun ActivityDetailScreen(
             )
 
             Text(
-                text = "Sample tracking data",
+                text = "Session tracking",
                 fontSize = 12.sp,
                 color = Color(0xFF9CA3AF),
                 modifier = Modifier.padding(top = 2.dp)
@@ -409,7 +411,7 @@ fun ActivityDetailScreen(
                     Column(modifier = Modifier.padding(14.dp)) {
                         Text(text = "Average pace", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "10:00", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "--:--", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                         Text(text = "min/km", fontSize = 11.sp, color = Color(0xFF0F9F7A), fontWeight = FontWeight.Medium)
                     }
                 }
@@ -423,7 +425,7 @@ fun ActivityDetailScreen(
                     Column(modifier = Modifier.padding(14.dp)) {
                         Text(text = "Cadence", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "149", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "--", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                         Text(text = "steps/min", fontSize = 11.sp, color = Color(0xFF0F9F7A), fontWeight = FontWeight.Medium)
                     }
                 }

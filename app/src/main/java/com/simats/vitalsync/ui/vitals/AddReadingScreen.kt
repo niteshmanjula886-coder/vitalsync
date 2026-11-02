@@ -56,17 +56,22 @@ enum class VitalReadingType {
 fun AddReadingScreen(
     modifier: Modifier = Modifier,
     readingType: VitalReadingType = VitalReadingType.HEART_RATE,
+    readingValue: String? = null,
+    readingStatus: String? = null,
+    timestamp: String = java.text.SimpleDateFormat("Today at h:mm a", java.util.Locale.getDefault()).format(java.util.Date()),
     onBackClick: () -> Unit = {},
     onDoneClick: () -> Unit = {}
 ) {
-    val (title, value, status) = when (readingType) {
-        VitalReadingType.HEART_RATE -> Triple("Heart Rate", "76 BPM", "Normal")
-        VitalReadingType.BLOOD_PRESSURE -> Triple("Blood Pressure", "120/80 mmHg", "Normal")
-        VitalReadingType.SPO2 -> Triple("SpO₂", "98%", "Optimal")
-        VitalReadingType.HYDRATION -> Triple("Hydration", "+250 ml", "Goal Progress")
-        VitalReadingType.STEPS -> Triple("Step Count", "6,245 steps", "Goal Progress")
-        VitalReadingType.SLEEP -> Triple("Sleep", "7h 32m", "Restful")
+    val title = when (readingType) {
+        VitalReadingType.HEART_RATE -> "Heart Rate"
+        VitalReadingType.BLOOD_PRESSURE -> "Blood Pressure"
+        VitalReadingType.SPO2 -> "SpO₂"
+        VitalReadingType.HYDRATION -> "Hydration"
+        VitalReadingType.STEPS -> "Step Count"
+        VitalReadingType.SLEEP -> "Sleep"
     }
+    val value = readingValue ?: "--"
+    val status = readingStatus ?: "Recorded"
 
     Column(
         modifier = modifier
@@ -210,7 +215,7 @@ fun AddReadingScreen(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "Today at 9:38 AM · Manually added",
+                        text = "$timestamp · Recorded reading",
                         fontSize = 12.sp,
                         color = Color(0xFF9CA3AF)
                     )

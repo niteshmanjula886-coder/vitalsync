@@ -18,16 +18,16 @@ data class ActivitySummaryResponse(
 
 data class ActivitySummary(
     @SerializedName("steps")
-    val steps: ProgressMetric = ProgressMetric(current = 6245, goal = 8000, progressPercent = 78),
+    val steps: ProgressMetric = ProgressMetric(current = 0, goal = 8000, progressPercent = 0),
 
     @SerializedName("distance_km")
-    val distanceKm: Float = 4.68f,
+    val distanceKm: Float = 0f,
 
     @SerializedName("calories_burned_kcal")
-    val caloriesBurned: ProgressMetric = ProgressMetric(current = 250, goal = 500, progressPercent = 50),
+    val caloriesBurned: ProgressMetric = ProgressMetric(current = 0, goal = 500, progressPercent = 0),
 
     @SerializedName("active_minutes")
-    val activeMinutes: ProgressMetric = ProgressMetric(current = 48, goal = 45, progressPercent = 100),
+    val activeMinutes: ProgressMetric = ProgressMetric(current = 0, goal = 45, progressPercent = 0),
 
     @SerializedName("sessions_count")
     val sessionsCount: Int = 0

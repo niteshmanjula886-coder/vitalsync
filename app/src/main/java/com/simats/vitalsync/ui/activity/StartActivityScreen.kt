@@ -25,10 +25,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,12 +44,15 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.ActivityStatsSummary
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import java.util.Locale
 
 enum class ActivityType {
     WALKING,
@@ -59,12 +64,21 @@ enum class ActivityType {
 @Composable
 fun StartActivityScreen(
     modifier: Modifier = Modifier,
+    walkingStats: ActivityStatsSummary = ActivityStatsSummary("0s", "0.0 km", "0 kcal"),
+    runningStats: ActivityStatsSummary = ActivityStatsSummary("0s", "0.0 km", "0 kcal"),
+    cyclingStats: ActivityStatsSummary = ActivityStatsSummary("0s", "0.0 km", "0 kcal"),
     onBackClick: () -> Unit = {},
-    onStartTracking: (ActivityType) -> Unit = {}
+    onRefreshStatsClick: () -> Unit = {},
+    onViewHistoryClick: () -> Unit = {},
+    onStartTracking: (type: ActivityType, goalTab: String, targetDurationMinutes: Int, targetDistanceKm: Float) -> Unit = { _, _, _, _ -> }
 ) {
     var selectedType by remember { mutableStateOf(ActivityType.WALKING) }
     var selectedGoalTab by remember { mutableStateOf("Time") }
     var targetDurationMinutes by remember { mutableIntStateOf(30) }
+    var targetDistanceKm by remember { mutableFloatStateOf(5.0f) }
+
+    // Interactive Track with Phone Sensor State
+    var isPhoneTrackingConnected by remember { mutableStateOf(true) }
 
     Column(
         modifier = modifier
@@ -111,10 +125,102 @@ fun StartActivityScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // OVERALL ACTIVITY PERFORMANCE STATS Section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SectionHeader("OVERALL ACTIVITY PERFORMANCE STATS")
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFFEF3C7))
+                        .clickable { onRefreshStatsClick() }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(text = "🔄 Refresh Stats", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD97706))
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "Activity Stats Summary", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "Time & Distance", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Walking Stat Row
+                    ActivityStatRowItem(
+                        title = "Walking",
+                        icon = "🚶",
+                        duration = walkingStats.durationFormatted,
+                        distance = walkingStats.distanceKmFormatted,
+                        calories = walkingStats.caloriesFormatted
+                    )
+
+                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
+
+                    // Running Stat Row
+                    ActivityStatRowItem(
+                        title = "Running",
+                        icon = "🏃",
+                        duration = runningStats.durationFormatted,
+                        distance = runningStats.distanceKmFormatted,
+                        calories = runningStats.caloriesFormatted
+                    )
+
+                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
+
+                    // Cycling Stat Row
+                    ActivityStatRowItem(
+                        title = "Cycling",
+                        icon = "🚴",
+                        duration = cyclingStats.durationFormatted,
+                        distance = cyclingStats.distanceKmFormatted,
+                        calories = cyclingStats.caloriesFormatted
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // View Activity History Button Card
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFFE8F6F0))
+                    .clickable { onViewHistoryClick() }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "📜 View Live Activity Session History",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0F9F7A)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             // CHOOSE AN ACTIVITY Section
             SectionHeader("CHOOSE AN ACTIVITY")
 
-            // 2x2 Activity Grid
+            // Walking & Running Options Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -140,28 +246,15 @@ fun StartActivityScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                ActivityOptionCard(
-                    title = "Cycling",
-                    subtitle = "Outdoor & stationary",
-                    icon = "🚴",
-                    isSelected = selectedType == ActivityType.CYCLING,
-                    onClick = { selectedType = ActivityType.CYCLING },
-                    modifier = Modifier.weight(1f)
-                )
-
-                ActivityOptionCard(
-                    title = "Workout",
-                    subtitle = "Strength & cardio",
-                    icon = "🏋️",
-                    isSelected = selectedType == ActivityType.WORKOUT,
-                    onClick = { selectedType = ActivityType.WORKOUT },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            // Cycling Option Card
+            ActivityOptionCard(
+                title = "Cycling",
+                subtitle = "Outdoor & stationary bike",
+                icon = "🚴",
+                isSelected = selectedType == ActivityType.CYCLING,
+                onClick = { selectedType = ActivityType.CYCLING },
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -175,7 +268,7 @@ fun StartActivityScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    // Goal Type Tabs
+                    // Goal Type Tabs (Time vs Distance)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -183,7 +276,7 @@ fun StartActivityScreen(
                             .background(Color(0xFFF1F5F9))
                             .padding(4.dp)
                     ) {
-                        listOf("Time", "Distance", "Open goal").forEach { tab ->
+                        listOf("Time", "Distance").forEach { tab ->
                             val isTabSelected = selectedGoalTab == tab
                             Box(
                                 modifier = Modifier
@@ -206,67 +299,134 @@ fun StartActivityScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Duration Incrementor Box
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFF1F5F9))
-                                .clickable { if (targetDurationMinutes > 5) targetDurationMinutes -= 5 },
-                            contentAlignment = Alignment.Center
+                    if (selectedGoalTab == "Time") {
+                        // Duration Incrementor Box
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "−", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF334155))
-                        }
-
-                        Text(
-                            text = "$targetDurationMinutes min",
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFF1F5F9))
-                                .clickable { targetDurationMinutes += 5 },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = "+", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF334155))
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // Duration Chips
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        listOf(15, 30, 45).forEach { mins ->
-                            val isChipSelected = targetDurationMinutes == mins
                             Box(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isChipSelected) Color(0xFFE6F4EA) else Color(0xFFF8FAFC))
-                                    .border(1.dp, if (isChipSelected) VitalTealPrimary else Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
-                                    .clickable { targetDurationMinutes = mins }
-                                    .padding(vertical = 10.dp),
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFF1F5F9))
+                                    .clickable { if (targetDurationMinutes > 5) targetDurationMinutes -= 5 },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = "$mins min",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isChipSelected) Color(0xFF0F9F7A) else Color(0xFF475569)
-                                )
+                                Text(text = "−", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF334155))
+                            }
+
+                            Text(
+                                text = "$targetDurationMinutes min",
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFF1F5F9))
+                                    .clickable { targetDurationMinutes += 5 },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "+", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF334155))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        // Duration Chips
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            listOf(15, 30, 45).forEach { mins ->
+                                val isChipSelected = targetDurationMinutes == mins
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (isChipSelected) Color(0xFFE6F4EA) else Color(0xFFF8FAFC))
+                                        .border(1.dp, if (isChipSelected) VitalTealPrimary else Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                                        .clickable { targetDurationMinutes = mins }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "$mins min",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isChipSelected) Color(0xFF0F9F7A) else Color(0xFF475569)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // Distance Incrementor Box
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFF1F5F9))
+                                    .clickable { if (targetDistanceKm > 0.5f) targetDistanceKm -= 0.5f },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "−", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF334155))
+                            }
+
+                            Text(
+                                text = String.format(Locale.US, "%.1f km", targetDistanceKm),
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFF1F5F9))
+                                    .clickable { targetDistanceKm += 0.5f },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "+", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF334155))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        // Distance Chips
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            listOf(2.0f, 5.0f, 10.0f).forEach { km ->
+                                val isChipSelected = targetDistanceKm == km
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (isChipSelected) Color(0xFFE6F4EA) else Color(0xFFF8FAFC))
+                                        .border(1.dp, if (isChipSelected) VitalTealPrimary else Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                                        .clickable { targetDistanceKm = km }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "${km.toInt()} km",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isChipSelected) Color(0xFF0F9F7A) else Color(0xFF475569)
+                                    )
+                                }
                             }
                         }
                     }
@@ -275,7 +435,7 @@ fun StartActivityScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // BEFORE YOU START Section
+            // BEFORE YOU START Section - Interactive Phone Sensor Connection
             SectionHeader("BEFORE YOU START")
 
             Card(
@@ -291,32 +451,33 @@ fun StartActivityScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "📍", fontSize = 18.sp)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(text = "Location access", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                                Text(text = "To track route map & pace", fontSize = 12.sp, color = Color(0xFF6B7280))
-                            }
-                        }
-                        Text(text = "Active ✓", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "📱", fontSize = 18.sp)
+                            Text(text = "📱", fontSize = 20.sp)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(text = "Track with your phone", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                                Text(text = "No external sensor required", fontSize = 12.sp, color = Color(0xFF6B7280))
+                                Text(
+                                    text = if (isPhoneTrackingConnected) "Phone motion & step sensors active" else "Connect phone sensors to track session",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF6B7280)
+                                )
                             }
                         }
-                        Text(text = "Ready", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+
+                        // Interactive Connect / Enabled Phone Button Badge
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isPhoneTrackingConnected) Color(0xFFE6F4EA) else Color(0xFFE0F2FE))
+                                .clickable { isPhoneTrackingConnected = !isPhoneTrackingConnected }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = if (isPhoneTrackingConnected) "Connected ✓" else "Connect Phone 🔌",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isPhoneTrackingConnected) Color(0xFF0F9F7A) else Color(0xFF0284C7)
+                            )
+                        }
                     }
                 }
             }
@@ -325,23 +486,75 @@ fun StartActivityScreen(
         }
 
         // Start Activity Button
-        Button(
-            onClick = { onStartTracking(selectedType) },
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = VitalTealDark,
-                contentColor = Color.White
-            )
         ) {
-            Text(
-                text = "Start ${selectedType.name.lowercase().replaceFirstChar { it.uppercase() }}",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Button(
+                onClick = {
+                    if (isPhoneTrackingConnected) {
+                        onStartTracking(selectedType, selectedGoalTab, targetDurationMinutes, targetDistanceKm)
+                    }
+                },
+                enabled = isPhoneTrackingConnected,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = VitalTealDark,
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFFE2E8F0),
+                    disabledContentColor = Color(0xFF94A3B8)
+                )
+            ) {
+                Text(
+                    text = "Start ${selectedType.name.lowercase().replaceFirstChar { it.uppercase() }}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            if (!isPhoneTrackingConnected) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Connect phone tracking above to enable activity recording",
+                    fontSize = 11.sp,
+                    color = Color(0xFFEF4444),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActivityStatRowItem(
+    title: String,
+    icon: String,
+    duration: String,
+    distance: String,
+    calories: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = icon, fontSize = 20.sp)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column {
+                Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                Text(text = "Duration: $duration", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF0F9F7A))
+            }
+        }
+
+        Column(horizontalAlignment = Alignment.End) {
+            Text(text = distance, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            Text(text = calories, fontSize = 12.sp, color = Color(0xFF6B7280))
         }
     }
 }

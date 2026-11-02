@@ -55,6 +55,10 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun BmiDetailScreen(
     modifier: Modifier = Modifier,
+    bmiValue: String = "--",
+    bmiCategory: String = "Not set",
+    heightCm: String = "--",
+    weightKg: String = "--",
     onBackClick: () -> Unit = {},
     onUpdateMetricsClick: () -> Unit = {}
 ) {
@@ -142,7 +146,7 @@ fun BmiDetailScreen(
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "Healthy Range",
+                                text = bmiCategory,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0F9F7A)
@@ -153,7 +157,7 @@ fun BmiDetailScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "22.4",
+                        text = bmiValue,
                         fontSize = 38.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF111827)
@@ -162,7 +166,7 @@ fun BmiDetailScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Height: 175 cm · Weight: 68.5 kg",
+                        text = "Height: $heightCm cm · Weight: $weightKg kg",
                         fontSize = 13.sp,
                         color = Color(0xFF374151),
                         fontWeight = FontWeight.Medium

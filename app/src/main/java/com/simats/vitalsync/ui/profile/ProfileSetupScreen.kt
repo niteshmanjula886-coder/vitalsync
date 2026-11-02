@@ -83,17 +83,17 @@ fun ProfileSetupScreen(
     onBackClick: () -> Unit = {},
     onSaveAndContinue: (name: String, age: String, height: String, weight: String) -> Unit = { _, _, _, _ -> }
 ) {
-    var name by remember { mutableStateOf("Alex Morgan") }
-    var age by remember { mutableStateOf("28 years") }
-    var gender by remember { mutableStateOf("Male") }
-    var height by remember { mutableStateOf("175 cm") }
-    var weight by remember { mutableStateOf("68.5 kg") }
-    var activityLevel by remember { mutableStateOf("Moderately active") }
+    var name by remember { mutableStateOf("") }
+    var age by remember { mutableStateOf("") }
+    var gender by remember { mutableStateOf("") }
+    var height by remember { mutableStateOf("") }
+    var weight by remember { mutableStateOf("") }
+    var activityLevel by remember { mutableStateOf("") }
 
     var isGenderDropdownExpanded by remember { mutableStateOf(false) }
     var isActivityDropdownExpanded by remember { mutableStateOf(false) }
 
-    val selectedGoals = remember { mutableStateListOf("1", "4") }
+    val selectedGoals = remember { mutableStateListOf<String>() }
 
     val genderOptions = listOf("Male", "Female", "Non-binary", "Prefer not to say")
     val activityOptions = listOf("Sedentary", "Lightly active", "Moderately active", "Very active")
@@ -161,6 +161,7 @@ fun ProfileSetupScreen(
                 onValueChange = { name = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                placeholder = { Text("e.g. John Doe", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -188,6 +189,7 @@ fun ProfileSetupScreen(
                         onValueChange = { age = it },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        placeholder = { Text("e.g. 28", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -209,6 +211,7 @@ fun ProfileSetupScreen(
                             value = gender,
                             onValueChange = { },
                             readOnly = true,
+                            placeholder = { Text("Select gender", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { isGenderDropdownExpanded = true },
@@ -263,6 +266,7 @@ fun ProfileSetupScreen(
                         onValueChange = { height = it },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        placeholder = { Text("e.g. 175 cm", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -284,6 +288,7 @@ fun ProfileSetupScreen(
                         onValueChange = { weight = it },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        placeholder = { Text("e.g. 68.5 kg", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -308,6 +313,7 @@ fun ProfileSetupScreen(
                     value = activityLevel,
                     onValueChange = { },
                     readOnly = true,
+                    placeholder = { Text("Select activity level", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { isActivityDropdownExpanded = true },

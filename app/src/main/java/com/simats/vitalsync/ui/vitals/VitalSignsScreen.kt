@@ -54,6 +54,20 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun VitalSignsScreen(
     modifier: Modifier = Modifier,
+    heartRateValue: String = "--",
+    heartRateStatus: String = "No data available",
+    heartRateUpdated: String = "No readings",
+    bpValue: String = "--/--",
+    bpStatus: String = "No data available",
+    bpUpdated: String = "No readings",
+    spo2Value: String = "--",
+    spo2Status: String = "No data available",
+    spo2Updated: String = "No readings",
+    tempValue: String = "--",
+    tempStatus: String = "No data available",
+    weightValue: String = "--",
+    bmiValue: String = "--",
+    bmiStatus: String = "Not set",
     onBackClick: () -> Unit = {},
     onHeartRateClick: () -> Unit = {},
     onBloodPressureClick: () -> Unit = {},
@@ -127,9 +141,9 @@ fun VitalSignsScreen(
             ) {
                 VitalTileCard(
                     title = "Heart Rate",
-                    value = "76 bpm",
-                    status = "Normal",
-                    updatedAt = "Updated 2m ago",
+                    value = heartRateValue,
+                    status = heartRateStatus,
+                    updatedAt = heartRateUpdated,
                     iconType = VitalTileIcon.HEART,
                     modifier = Modifier.weight(1f),
                     onClick = onHeartRateClick
@@ -137,9 +151,9 @@ fun VitalSignsScreen(
 
                 VitalTileCard(
                     title = "Blood Pressure",
-                    value = "140/90 mmHg",
-                    status = "Elevated",
-                    updatedAt = "Updated 15m ago",
+                    value = bpValue,
+                    status = bpStatus,
+                    updatedAt = bpUpdated,
                     iconType = VitalTileIcon.BP,
                     modifier = Modifier.weight(1f),
                     onClick = onBloodPressureClick
@@ -155,9 +169,9 @@ fun VitalSignsScreen(
             ) {
                 VitalTileCard(
                     title = "SpO₂",
-                    value = "92%",
-                    status = "Low Rate",
-                    updatedAt = "Updated 2m ago",
+                    value = spo2Value,
+                    status = spo2Status,
+                    updatedAt = spo2Updated,
                     iconType = VitalTileIcon.SPO2,
                     modifier = Modifier.weight(1f),
                     onClick = onSpO2Click
@@ -165,9 +179,9 @@ fun VitalSignsScreen(
 
                 VitalTileCard(
                     title = "Temperature",
-                    value = "36.7 °C",
-                    status = "Normal",
-                    updatedAt = "Updated 1h ago",
+                    value = tempValue,
+                    status = tempStatus,
+                    updatedAt = "Normal range",
                     iconType = VitalTileIcon.TEMP,
                     modifier = Modifier.weight(1f)
                 )
@@ -182,18 +196,18 @@ fun VitalSignsScreen(
             ) {
                 VitalTileCard(
                     title = "Weight",
-                    value = "68.5 kg",
+                    value = weightValue,
                     status = "Stable",
-                    updatedAt = "Updated 8h ago",
+                    updatedAt = "Current weight",
                     iconType = VitalTileIcon.WEIGHT,
                     modifier = Modifier.weight(1f)
                 )
 
                 VitalTileCard(
                     title = "BMI",
-                    value = "22.4",
-                    status = "Healthy Range",
-                    updatedAt = "Updated 8h ago",
+                    value = bmiValue,
+                    status = bmiStatus,
+                    updatedAt = "Calculated",
                     iconType = VitalTileIcon.BMI,
                     modifier = Modifier.weight(1f),
                     onClick = onBmiClick
@@ -248,7 +262,7 @@ private fun VitalTileCard(
     val (statusColor, statusBgColor) = when {
         status.contains("Low", ignoreCase = true) || status.contains("High", ignoreCase = true) || status.contains("Critical", ignoreCase = true) ->
             Pair(Color(0xFFDC2626), Color(0xFFFEE2E2)) // Red
-        status.contains("Warning", ignoreCase = true) || status.contains("Elevated", ignoreCase = true) ->
+        status.contains("Warning", ignoreCase = true) || status.contains("Elevated", ignoreCase = true) || status.contains("Hypertension", ignoreCase = true) ->
             Pair(Color(0xFFD97706), Color(0xFFFEF3C7)) // Amber/Orange
         else ->
             Pair(VitalPrimaryMint, VitalNavSelectedBg) // Green

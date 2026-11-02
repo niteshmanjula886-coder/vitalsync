@@ -47,10 +47,10 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun ReadingReviewScreen(
     modifier: Modifier = Modifier,
-    metricName: String = "Heart rate",
-    currentValue: String = "104 BPM",
-    usualRange: String = "60–90 BPM",
-    timestamp: String = "Oct 15, 2025 at 9:42 AM",
+    metricName: String = "Reading",
+    currentValue: String = "--",
+    usualRange: String = "--",
+    timestamp: String = java.text.SimpleDateFormat("MMM d, yyyy 'at' h:mm a", java.util.Locale.getDefault()).format(java.util.Date()),
     onBackClick: () -> Unit = {},
     onRecheckClick: () -> Unit = {},
     onViewHistoryClick: () -> Unit = {}

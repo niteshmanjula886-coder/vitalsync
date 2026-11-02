@@ -34,6 +34,9 @@ class AuthViewModel(
     private val _sessionExpiredNotice = MutableStateFlow<String?>(null)
     val sessionExpiredNotice: StateFlow<String?> = _sessionExpiredNotice.asStateFlow()
 
+    private val _currentUser = MutableStateFlow<User?>(authRepository.getLoggedInUser())
+    val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
+
     init {
         // Check for any pending session expired message on initialization
         val expiredMsg = authRepository.consumeSessionExpiredMessage()
@@ -113,6 +116,7 @@ class AuthViewModel(
                     }
                     is Resource.Success -> {
                         _sessionExpiredNotice.value = null
+                        _currentUser.value = resource.data
                         _loginState.update {
                             it.copy(
                                 isLoading = false,
@@ -192,6 +196,7 @@ class AuthViewModel(
                     }
                     is Resource.Success -> {
                         _sessionExpiredNotice.value = null
+                        _currentUser.value = resource.data
                         _signUpState.update {
                             it.copy(
                                 isLoading = false,
@@ -296,8 +301,26 @@ class AuthViewModel(
 
     fun isLoggedIn(): Boolean = authRepository.isLoggedIn()
 
+    fun isOnboardingCompleted(): Boolean = authRepository.isOnboardingCompleted()
+
+    fun setOnboardingCompleted(completed: Boolean) {
+        authRepository.setOnboardingCompleted(completed)
+    }
+
+    fun isDarkModeEnabled(): Boolean = authRepository.isDarkModeEnabled()
+
+    fun setDarkModeEnabled(enabled: Boolean) {
+        authRepository.setDarkModeEnabled(enabled)
+    }
+
+    fun updateCurrentUser(user: User) {
+        authRepository.saveUser(user)
+        _currentUser.value = user
+    }
+
     fun logout() {
         authRepository.logout()
+        _currentUser.value = null
         _sessionExpiredNotice.value = null
         resetLoginState()
         resetSignUpState()

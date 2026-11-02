@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.profile
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -24,31 +25,54 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.device.DeviceConnectionStatus
+import com.simats.vitalsync.data.device.DiscoveredDevice
 import com.simats.vitalsync.ui.theme.VitalTealDark
-import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun ConnectedDevicesScreen(
     modifier: Modifier = Modifier,
+    connectionStatus: DeviceConnectionStatus = DeviceConnectionStatus.DISCONNECTED,
+    connectedDeviceName: String? = null,
+    connectedDeviceAddress: String? = null,
+    batteryLevel: Int? = null,
+    lastSyncTimestamp: Long? = null,
+    discoveredDevices: List<DiscoveredDevice> = emptyList(),
+    onStartScan: () -> Unit = {},
+    onStopScan: () -> Unit = {},
+    onConnectDevice: (DiscoveredDevice) -> Unit = {},
+    onDisconnectDevice: () -> Unit = {},
+    onRequestPermissions: () -> Unit = {},
+    onSyncHealthConnect: () -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
+    val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+    val lastSyncText = remember(lastSyncTimestamp) {
+        if (lastSyncTimestamp != null && lastSyncTimestamp > 0) {
+            "Synced ${timeFormat.format(Date(lastSyncTimestamp))}"
+        } else {
+            "Not synced yet"
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -91,10 +115,25 @@ fun ConnectedDevicesScreen(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface),
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clickable {
+                        if (connectionStatus == DeviceConnectionStatus.SCANNING) {
+                            onStopScan()
+                        } else {
+                            onStartScan()
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
-                RefreshIcon(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (connectionStatus == DeviceConnectionStatus.SCANNING) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    RefreshIcon(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
 
@@ -108,59 +147,298 @@ fun ConnectedDevicesScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Active Smart Watch Card
+        // Active Device Status Hero Card
+        when (connectionStatus) {
+            DeviceConnectionStatus.CONNECTED -> {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(52.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(VitalTealDark),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    WatchIconLarge(modifier = Modifier.size(28.dp))
+                                }
+
+                                Spacer(modifier = Modifier.width(16.dp))
+
+                                Column {
+                                    Text(
+                                        text = connectedDeviceName ?: "Health Device",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Connected",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    val batteryStr = if (batteryLevel != null) "Battery $batteryLevel%" else "Battery --"
+                                    Text(
+                                        text = "$batteryStr · $lastSyncText",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFFFEE2E2))
+                                    .clickable { onDisconnectDevice() }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "Disconnect",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFDC2626)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Text(
+                            text = "🔄 Receiving live health data",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+            DeviceConnectionStatus.CONNECTING -> {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = "Connecting to ${connectedDeviceName ?: "device"}...",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = "Establishing BLE GATT connection",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+            DeviceConnectionStatus.PERMISSION_REQUIRED -> {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+                    border = BorderStroke(1.dp, Color(0xFFFDE68A))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = "🔐 Permission Required",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFB45309)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Bluetooth and Nearby Devices permissions are required to scan and connect health devices.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF78350F)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFD97706))
+                                .clickable { onRequestPermissions() }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "Grant Permission",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+            DeviceConnectionStatus.DISCONNECTED_UNEXPECTED -> {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2)),
+                    border = BorderStroke(1.dp, Color(0xFFFECACA))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = "⚠️ Device Disconnected",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFB91C1C)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Connection lost. Ensure your device is nearby and powered on.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF7F1D1D)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFDC2626))
+                                .clickable { onStartScan() }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "Reconnect / Scan",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+            else -> {
+                // DISCONNECTED / SCANNING
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "No device connected",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (connectionStatus == DeviceConnectionStatus.SCANNING) "Searching for devices..." else "Connect your device to see live vitals",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(MaterialTheme.colorScheme.primary)
+                                    .clickable {
+                                        if (connectionStatus == DeviceConnectionStatus.SCANNING) {
+                                            onStopScan()
+                                        } else {
+                                            onStartScan()
+                                        }
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = if (connectionStatus == DeviceConnectionStatus.SCANNING) "Stop" else "Scan",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Android Health Connect Sync Hero Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(VitalTealDark),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        WatchIconLarge(modifier = Modifier.size(28.dp))
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
+                    Text(text = "💚", fontSize = 24.sp)
+                    Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Smart Watch",
-                            fontSize = 18.sp,
+                            text = "Health Connect",
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onBackground
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Connected",
+                            text = "Sync steps, sleep, & vitals",
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Battery 84% · Synced 9:30 AM",
-                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Text(
-                    text = "🔄 All health data is up to date",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                        .clickable { onSyncHealthConnect() }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "Sync Data",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
 
@@ -172,14 +450,14 @@ fun ConnectedDevicesScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Available devices",
+                text = "Available devices (${discoveredDevices.size})",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
             Text(
-                text = "Bluetooth on",
+                text = if (connectionStatus == DeviceConnectionStatus.SCANNING) "Scanning..." else "Bluetooth on",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium
@@ -188,14 +466,43 @@ fun ConnectedDevicesScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Device Pair List
-        AvailableDeviceCard(name = "Fitness Band", sub = "Available to pair", icon = "⌚")
-        Spacer(modifier = Modifier.height(10.dp))
-        AvailableDeviceCard(name = "Smart Scale", sub = "Available to pair", icon = "⚖️")
-        Spacer(modifier = Modifier.height(10.dp))
-        AvailableDeviceCard(name = "Pulse Oximeter", sub = "Available to pair", icon = "🫀")
-        Spacer(modifier = Modifier.height(10.dp))
-        AvailableDeviceCard(name = "Blood Pressure Monitor", sub = "Available to pair", icon = "🩺")
+        // Discovered Devices List
+        if (discoveredDevices.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "No devices detected",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Tap 'Scan' above to search for nearby Bluetooth health devices",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            discoveredDevices.forEach { dev ->
+                DiscoveredDeviceCard(
+                    device = dev,
+                    onConnect = { onConnectDevice(dev) }
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+        }
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -215,7 +522,7 @@ fun ConnectedDevicesScreen(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Only the health data you allow is shared with VitalSync.",
+                    text = "Only the health data you allow is shared with VitalSync and encrypted end-to-end.",
                     fontSize = 13.sp,
                     color = Color(0xFF374151)
                 )
@@ -227,10 +534,9 @@ fun ConnectedDevicesScreen(
 }
 
 @Composable
-private fun AvailableDeviceCard(
-    name: String,
-    sub: String,
-    icon: String
+private fun DiscoveredDeviceCard(
+    device: DiscoveredDevice,
+    onConnect: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -247,11 +553,20 @@ private fun AvailableDeviceCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = icon, fontSize = 20.sp)
+                Text(text = if (device.isBonded) "🔗" else "⌚", fontSize = 20.sp)
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(text = name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                    Text(text = sub, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        text = device.name,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "${device.address} ${if (device.rssi != 0) "· ${device.rssi} dBm" else ""}",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
@@ -259,10 +574,15 @@ private fun AvailableDeviceCard(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp))
-                    .clickable { }
+                    .clickable { onConnect() }
                     .padding(horizontal = 14.dp, vertical = 6.dp)
             ) {
-                Text(text = "Connect", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    text = "Connect",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
@@ -300,22 +620,7 @@ private fun BackArrowIcon(
         val w = size.width
         val h = size.height
 
-        val path = Path().apply {
-            moveTo(w * 0.75f, h * 0.5f)
-            lineTo(w * 0.25f, h * 0.5f)
-            moveTo(w * 0.45f, h * 0.25f)
-            lineTo(w * 0.25f, h * 0.5f)
-            lineTo(w * 0.45f, h * 0.75f)
-        }
-
-        drawPath(path = path, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-    }
-}
-
-@Preview(showBackground = true, widthDp = 360, heightDp = 800)
-@Composable
-fun ConnectedDevicesScreenPreview() {
-    VitalsyncTheme {
-        ConnectedDevicesScreen()
+        drawLine(color = color, start = Offset(w * 0.7f, h * 0.2f), end = Offset(w * 0.3f, h * 0.5f), strokeWidth = 2.dp.toPx())
+        drawLine(color = color, start = Offset(w * 0.3f, h * 0.5f), end = Offset(w * 0.7f, h * 0.8f), strokeWidth = 2.dp.toPx())
     }
 }

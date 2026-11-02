@@ -55,10 +55,10 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun BmiResultScreen(
     modifier: Modifier = Modifier,
-    bmiValue: String = "22.4",
-    bmiCategory: String = "Healthy Range",
-    heightCm: String = "175",
-    weightKg: String = "68.5",
+    bmiValue: String = "--",
+    bmiCategory: String = "Not set",
+    heightCm: String = "--",
+    weightKg: String = "--",
     onBackClick: () -> Unit = {},
     onDoneClick: () -> Unit = {}
 ) {

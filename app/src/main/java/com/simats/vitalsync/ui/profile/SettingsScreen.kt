@@ -29,10 +29,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +48,12 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     isDarkTheme: Boolean = false,
     onDarkThemeToggle: (Boolean) -> Unit = {},
+    pushNotifications: Boolean = true,
+    onPushNotificationsToggle: (Boolean) -> Unit = {},
+    dailyReminders: Boolean = true,
+    onDailyRemindersToggle: (Boolean) -> Unit = {},
+    aiInsights: Boolean = true,
+    onAiInsightsToggle: (Boolean) -> Unit = {},
     onBackClick: () -> Unit = {},
     onChangePasswordClick: () -> Unit = {},
     onHealthPermissionsClick: () -> Unit = {},
@@ -60,10 +62,6 @@ fun SettingsScreen(
     onAboutClick: () -> Unit = {},
     onVersionClick: () -> Unit = {}
 ) {
-    var pushNotifications by remember { mutableStateOf(true) }
-    var reminders by remember { mutableStateOf(true) }
-    var aiInsights by remember { mutableStateOf(true) }
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -112,7 +110,7 @@ fun SettingsScreen(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            SettingsNavigationRow("🔒 Change Password", onClick = onChangePasswordClick)
+            SettingsNavigationRow("Change Password", onClick = onChangePasswordClick)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -127,7 +125,7 @@ fun SettingsScreen(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            SettingsNavigationRow("💚 Health Permissions", onClick = onHealthPermissionsClick)
+            SettingsNavigationRow("Health Permissions", onClick = onHealthPermissionsClick)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -143,7 +141,9 @@ fun SettingsScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                SettingsSwitchRow("🔔 Push Notifications", pushNotifications) { pushNotifications = it }
+                SettingsSwitchRow("Push Notifications", pushNotifications) {
+                    onPushNotificationsToggle(it)
+                }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 // Reminders row with Edit button
@@ -159,7 +159,7 @@ fun SettingsScreen(
                         modifier = Modifier.clickable { onRemindersClick() }
                     ) {
                         Text(
-                            text = "⏰ Reminders",
+                            text = "Reminders",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onBackground
@@ -172,7 +172,7 @@ fun SettingsScreen(
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "Edit ✏️",
+                                text = "Edit",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -181,8 +181,8 @@ fun SettingsScreen(
                     }
 
                     Switch(
-                        checked = reminders,
-                        onCheckedChange = { reminders = it },
+                        checked = dailyReminders,
+                        onCheckedChange = { onDailyRemindersToggle(it) },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = MaterialTheme.colorScheme.primary
@@ -191,13 +191,15 @@ fun SettingsScreen(
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                SettingsSwitchRow("✨ AI Insights", aiInsights) { aiInsights = it }
+                SettingsSwitchRow("AI Insights", aiInsights) {
+                    onAiInsightsToggle(it)
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // APPEARANCE Section (Clean Switch Toggle)
+        // APPEARANCE Section
         SettingsSectionHeader("APPEARANCE")
 
         Card(
@@ -217,7 +219,7 @@ fun SettingsScreen(
                 ) {
                     Column {
                         Text(
-                            text = "🌙 Dark Mode",
+                            text = "Dark Mode",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onBackground
@@ -254,7 +256,7 @@ fun SettingsScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                SettingsNavigationRow("ℹ️ About VitalSync", onClick = onAboutClick)
+                SettingsNavigationRow("About VitalSync", onClick = onAboutClick)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(
                     modifier = Modifier
@@ -265,7 +267,7 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "⚙️ Version",
+                        text = "Version",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onBackground

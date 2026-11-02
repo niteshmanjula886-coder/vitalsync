@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -46,12 +48,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
 @Composable
 fun HelpSupportScreen(
     modifier: Modifier = Modifier,
+    emailSupport: String = "support@vitalsync.com",
+    hours: String = "Mon-Fri, 9 AM - 6 PM",
+    onSubmitInquiry: (subject: String, message: String) -> Unit = { _, _ -> },
     onBackClick: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -143,12 +149,12 @@ fun HelpSupportScreen(
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
                 ExpandableSupportRow(
-                    title = "💗 Wellness Tracking",
-                    description = "Track your daily vitals including Heart Rate, Blood Pressure, SpO₂, Step Count, Activity, Sleep, and Hydration. VitalSync automatically analyzes your trends over time to give you a personalized Wellness Score out of 100."
+                    title = "❤️ Wellness Tracking",
+                    description = "Track your daily vitals including Heart Rate, Blood Pressure, SpO2, Step Count, Activity, Sleep, and Hydration. VitalSync automatically analyzes your trends over time to give you a personalized Wellness Score out of 100."
                 )
                 HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(horizontal = 16.dp))
                 ExpandableSupportRow(
-                    title = "📱 Devices & Synchronization",
+                    title = "📡 Devices & Synchronization",
                     description = "Seamlessly sync with your Smart Watch, Fitness Band, Pulse Oximeter, or Health Connect. Your readings update automatically in real-time so your health profile is always up to date."
                 )
                 HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(horizontal = 16.dp))
@@ -186,7 +192,11 @@ fun HelpSupportScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         // Contact Support Expandable Card
-        ExpandableContactSupportCard()
+        ExpandableContactSupportCard(
+            emailSupport = emailSupport,
+            hours = hours,
+            onSubmit = onSubmitInquiry
+        )
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -271,8 +281,14 @@ private fun ExpandableSupportRow(
 }
 
 @Composable
-private fun ExpandableContactSupportCard() {
+private fun ExpandableContactSupportCard(
+    emailSupport: String,
+    hours: String,
+    onSubmit: (subject: String, message: String) -> Unit
+) {
     var isExpanded by remember { mutableStateOf(false) }
+    var inquiryMessage by remember { mutableStateOf("") }
+    var inquirySent by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
@@ -293,7 +309,7 @@ private fun ExpandableContactSupportCard() {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = "We're here to help with app questions", fontSize = 12.sp, color = Color(0xFF6B7280))
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Mon-Fri, 9 AM - 6 PM • Typical reply: 1-2 days", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                    Text(text = "$hours • Typical reply: 24h", fontSize = 11.sp, color = Color(0xFF9CA3AF))
                 }
 
                 ChevronIcon(isExpanded = isExpanded, modifier = Modifier.size(16.dp))
@@ -317,12 +333,46 @@ private fun ExpandableContactSupportCard() {
                             .padding(14.dp)
                     ) {
                         Column {
-                            Text(text = "📧 Email: support@vitalsync.com", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(text = "📧 Email: $emailSupport", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(text = "💬 In-App Helpdesk: Active 24/7", fontSize = 12.sp, color = Color(0xFF0F9F7A), fontWeight = FontWeight.SemiBold)
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(text = "Response Time: Under 24 hours. Our dedicated health-tech support team is ready to assist you!", fontSize = 12.sp, color = Color(0xFF4B5563))
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = inquiryMessage,
+                        onValueChange = { inquiryMessage = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Write your question or feedback...", fontSize = 13.sp, color = Color(0xFF9CA3AF)) },
+                        maxLines = 3,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFF8FAFC),
+                            unfocusedContainerColor = Color(0xFFF8FAFC),
+                            focusedTextColor = Color(0xFF111827),
+                            unfocusedTextColor = Color(0xFF111827)
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            if (inquiryMessage.isNotBlank()) {
+                                onSubmit("In-App Help Inquiry", inquiryMessage)
+                                inquiryMessage = ""
+                                inquirySent = true
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = VitalTealDark)
+                    ) {
+                        Text(text = if (inquirySent) "Inquiry Sent ✓" else "Send Inquiry", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }

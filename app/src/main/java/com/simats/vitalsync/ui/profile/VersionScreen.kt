@@ -46,6 +46,12 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun VersionScreen(
     modifier: Modifier = Modifier,
+    versionName: String = "1.0 - Stable",
+    buildType: String = "Release",
+    lastChecked: String = "Today at 9:38 AM",
+    features: List<String> = emptyList(),
+    isLoading: Boolean = false,
+    onCheckForUpdates: () -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
     Column(
@@ -132,7 +138,7 @@ fun VersionScreen(
                     .padding(horizontal = 14.dp, vertical = 6.dp)
             ) {
                 Text(
-                    text = "✓ Up to date",
+                    text = "You're on the latest version",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF0F9F7A)
@@ -151,18 +157,47 @@ fun VersionScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    VersionFeatureRow(icon = "💗", title = "All your health essentials", desc = "Track vital signs, activity, sleep and hydration.")
-                    HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 12.dp))
-                    VersionFeatureRow(icon = "✨", title = "Personalized AI Insights", desc = "Understand patterns and build healthier habits.")
-                    HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 12.dp))
-                    VersionFeatureRow(icon = "⌚", title = "Seamless device sync", desc = "Bring your wearable data into a single view.")
+                    if (features.isNotEmpty()) {
+                        features.forEachIndexed { idx, feature ->
+                            VersionFeatureRow(
+                                icon = "✨",
+                                title = "Feature Update",
+                                desc = feature
+                            )
+                            if (idx < features.size - 1) {
+                                HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 12.dp))
+                            }
+                        }
+                    } else {
+                        VersionFeatureRow(
+                            icon = "📊",
+                            title = "Core Health Metrics",
+                            desc = "Heart rate, blood pressure, SpO2, steps, hydration, sleep, and workouts."
+                        )
+
+                        HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 12.dp))
+
+                        VersionFeatureRow(
+                            icon = "🤖",
+                            title = "Personalized Insights",
+                            desc = "Smart health trends analysis and wellness score calculation."
+                        )
+
+                        HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 12.dp))
+
+                        VersionFeatureRow(
+                            icon = "📡",
+                            title = "Bluetooth Device Sync",
+                            desc = "Pair smartwatches and fitness trackers for continuous telemetry sync."
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // APP INFORMATION Section
-            SectionHeader("APP INFORMATION")
+            // BUILD INFORMATION Section
+            SectionHeader("BUILD INFORMATION")
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -176,8 +211,8 @@ fun VersionScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "📱 Build type", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Text(text = "Release", fontSize = 13.sp, color = Color(0xFF6B7280))
+                        Text(text = "📦 Build type", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = buildType, fontSize = 13.sp, color = Color(0xFF6B7280))
                     }
 
                     HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 12.dp))
@@ -187,8 +222,8 @@ fun VersionScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "🔄 Release", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Text(text = "1.0 - Stable", fontSize = 13.sp, color = Color(0xFF6B7280))
+                        Text(text = "🏷️ Release", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = versionName, fontSize = 13.sp, color = Color(0xFF6B7280))
                     }
                 }
             }
@@ -204,7 +239,7 @@ fun VersionScreen(
                 .padding(vertical = 16.dp)
         ) {
             Button(
-                onClick = { },
+                onClick = onCheckForUpdates,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
@@ -215,7 +250,7 @@ fun VersionScreen(
                 )
             ) {
                 Text(
-                    text = "Check for updates",
+                    text = if (isLoading) "Checking..." else "Check for updates",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -224,7 +259,7 @@ fun VersionScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "Last checked today at 9:38 AM",
+                text = "Last checked $lastChecked",
                 fontSize = 12.sp,
                 color = Color(0xFF9CA3AF),
                 textAlign = TextAlign.Center

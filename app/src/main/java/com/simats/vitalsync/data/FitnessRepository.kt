@@ -4,11 +4,33 @@ import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Locale
+
+data class ActivitySessionRecord(
+    val activityType: String,
+    val durationSeconds: Int,
+    val distanceKm: Float,
+    val caloriesBurned: Int,
+    val dateString: String = "2025-10-15"
+)
+
+data class ActivityStatsSummary(
+    val durationFormatted: String,
+    val distanceKmFormatted: String,
+    val caloriesFormatted: String
+)
+
+data class SleepRecord(
+    val bedtime: String,
+    val wakeTime: String,
+    val durationMinutes: Int,
+    val sleepScore: Int = 85,
+    val dateString: String = "2025-10-15"
+)
 
 class FitnessRepository private constructor(context: Context) {
 
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences("vitalsync_fitness_prefs", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = context.getSharedPreferences("vitalsync_prefs", Context.MODE_PRIVATE)
 
     companion object {
         @Volatile
@@ -19,41 +41,147 @@ class FitnessRepository private constructor(context: Context) {
                 INSTANCE ?: FitnessRepository(context.applicationContext).also { INSTANCE = it }
             }
         }
+
+        fun formatDurationDynamic(totalSecs: Int): String {
+            if (totalSecs <= 0) return "0s"
+            val hours = totalSecs / 3600
+            val mins = (totalSecs % 3600) / 60
+            val secs = totalSecs % 60
+
+            return when {
+                hours > 0 -> if (secs > 0) "${hours}h ${mins}m ${secs}s" else "${hours}h ${mins}m"
+                mins > 0 -> if (secs > 0) "${mins}m ${secs}s" else "${mins}m"
+                else -> "${secs}s"
+            }
+        }
     }
 
-    // EXERCISES DATABASE
+    // SLEEP RECORD PERSISTENCE
+    fun getSleepRecord(dateStr: String): SleepRecord? {
+        val jsonStr = prefs.getString("key_sleep_record_$dateStr", null) ?: return null
+        return try {
+            val obj = JSONObject(jsonStr)
+            SleepRecord(
+                bedtime = obj.getString("bedtime"),
+                wakeTime = obj.getString("wakeTime"),
+                durationMinutes = obj.getInt("durationMinutes"),
+                sleepScore = obj.optInt("sleepScore", 85),
+                dateString = obj.optString("dateString", dateStr)
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    fun saveSleepRecord(record: SleepRecord) {
+        val obj = JSONObject().apply {
+            put("bedtime", record.bedtime)
+            put("wakeTime", record.wakeTime)
+            put("durationMinutes", record.durationMinutes)
+            put("sleepScore", record.sleepScore)
+            put("dateString", record.dateString)
+        }
+        prefs.edit().putString("key_sleep_record_${record.dateString}", obj.toString()).apply()
+    }
+
+    // ACTIVITY SESSIONS PERSISTENCE
+    fun getActivitySessionRecords(): List<ActivitySessionRecord> {
+        val jsonStr = prefs.getString("key_activity_session_records", null) ?: return emptyList()
+        val list = mutableListOf<ActivitySessionRecord>()
+        try {
+            val array = JSONArray(jsonStr)
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                list.add(
+                    ActivitySessionRecord(
+                        activityType = obj.getString("activityType"),
+                        durationSeconds = obj.getInt("durationSeconds"),
+                        distanceKm = obj.getDouble("distanceKm").toFloat(),
+                        caloriesBurned = obj.getInt("caloriesBurned"),
+                        dateString = obj.optString("dateString", "2025-10-15")
+                    )
+                )
+            }
+        } catch (_: Exception) {
+        }
+        return list
+    }
+
+    fun saveActivitySessionRecord(record: ActivitySessionRecord) {
+        val currentList = getActivitySessionRecords().toMutableList()
+        currentList.add(0, record)
+
+        val array = JSONArray()
+        for (r in currentList) {
+            val obj = JSONObject().apply {
+                put("activityType", r.activityType)
+                put("durationSeconds", r.durationSeconds)
+                put("distanceKm", r.distanceKm)
+                put("caloriesBurned", r.caloriesBurned)
+                put("dateString", r.dateString)
+            }
+            array.put(obj)
+        }
+        prefs.edit().putString("key_activity_session_records", array.toString()).apply()
+    }
+
+    fun clearActivitySessionRecords() {
+        prefs.edit().remove("key_activity_session_records").apply()
+    }
+
+    fun getActivityStatsByType(activityType: String): ActivityStatsSummary {
+        val records = getActivitySessionRecords().filter { it.activityType.equals(activityType, ignoreCase = true) }
+        if (records.isEmpty()) {
+            return ActivityStatsSummary(
+                durationFormatted = "0s",
+                distanceKmFormatted = "0.0 km",
+                caloriesFormatted = "0 kcal"
+            )
+        }
+        val totalSecs = records.sumOf { it.durationSeconds }
+        val totalKm = records.sumOf { it.distanceKm.toDouble() }.toFloat()
+        val totalCal = records.sumOf { it.caloriesBurned }
+
+        val distanceFormatted = when {
+            totalKm <= 0f -> "0.0 km"
+            totalKm < 0.1f -> String.format(Locale.US, "%.2f km", totalKm)
+            else -> String.format(Locale.US, "%.1f km", totalKm)
+        }
+
+        return ActivityStatsSummary(
+            durationFormatted = formatDurationDynamic(totalSecs),
+            distanceKmFormatted = distanceFormatted,
+            caloriesFormatted = "$totalCal kcal"
+        )
+    }
+
+    // EXERCISE LIBRARY DATA
     val defaultExerciseLibrary = listOf(
-        // Push
-        Exercise("e1", "Barbell Bench Press", "Chest", 60f, 10, "Keep shoulder blades retracted and feet planted."),
-        Exercise("e2", "Incline Dumbbell Press", "Upper Chest", 22f, 10, "Focus on upper chest contraction at top."),
-        Exercise("e3", "Overhead Barbell Press", "Shoulders", 40f, 8, "Core braced, press vertically overhead."),
-        Exercise("e4", "Triceps Rope Pushdown", "Triceps", 25f, 12, "Keep elbows stationary at sides."),
-        Exercise("e5", "Incline Chest Fly", "Chest", 16f, 12, "Slight bend in elbows throughout movement."),
-        Exercise("e6", "Lateral Raises", "Side Deltoids", 10f, 15, "Lead with elbows for side shoulder isolation."),
-
-        // Pull
-        Exercise("e7", "Barbell Deadlift", "Back & Posture", 100f, 5, "Flat spine, drive through heels."),
-        Exercise("e8", "Lat Pulldown", "Lats", 50f, 10, "Pull bar to upper chest squeezing lats."),
-        Exercise("e9", "Seated Cable Row", "Mid Back", 45f, 12, "Keep torso upright and squeeze shoulder blades."),
-        Exercise("e10", "Dumbbell Bicep Curls", "Biceps", 14f, 12, "Control eccentric negative movement."),
-        Exercise("e11", "Face Pulls", "Rear Delts", 20f, 15, "Pull rope towards forehead, flare elbows."),
-
-        // Legs
-        Exercise("e12", "Barbell Back Squat", "Quadriceps", 80f, 8, "Break at hips, squat to parallel depth."),
-        Exercise("e13", "Romanian Deadlift", "Hamstrings", 70f, 10, "Hinge at hips feeling hamstring stretch."),
-        Exercise("e14", "Leg Press", "Quadriceps & Glutes", 140f, 12, "Controlled depth without lower back rounding."),
-        Exercise("e15", "Standing Calf Raises", "Calves", 50f, 15, "Full stretch at bottom, squeeze at peak.")
+        Exercise("e1", "Barbell Bench Press", "Chest", 60f, 10, "Keep shoulder blades retracted"),
+        Exercise("e2", "Incline Dumbbell Press", "Upper Chest", 22f, 10, "Control full stretch at bottom"),
+        Exercise("e3", "Overhead Shoulder Press", "Shoulders", 35f, 10, "Core tight, press overhead"),
+        Exercise("e4", "Cable Triceps Pushdown", "Triceps", 22.5f, 12, "Elbows locked to sides"),
+        Exercise("e5", "Dumbbell Lateral Raise", "Side Delts", 10f, 15, "Lead with elbows"),
+        Exercise("e6", "Lat Pulldown", "Lats", 55f, 12, "Drive elbows down to hips"),
+        Exercise("e7", "Seated Cable Row", "Middle Back", 50f, 12, "Squeeze shoulder blades"),
+        Exercise("e8", "Barbell Biceps Curl", "Biceps", 25f, 12, "Strict form, no swinging"),
+        Exercise("e9", "Barbell Squat", "Quads & Glutes", 80f, 8, "Break at knees and hips"),
+        Exercise("e10", "Leg Press", "Quads", 120f, 10, "Full depth, don't lock knees"),
+        Exercise("e11", "Romanian Deadlift", "Hamstrings", 70f, 10, "Hinge at hips, flat back"),
+        Exercise("e12", "Jumping Jacks", "Cardio / Full Body", 0f, 45, "High intensity cardio"),
+        Exercise("e13", "Burpees", "Full Body Power", 0f, 15, "Explosive movement"),
+        Exercise("e14", "Mountain Climbers", "Core & Stamina", 0f, 30, "Keep hips level")
     )
 
     fun getExerciseLibrary(): List<Exercise> {
-        val customExList = loadCustomExercisesFromPrefs()
-        return defaultExerciseLibrary + customExList
+        val customList = loadCustomExercisesFromPrefs()
+        return defaultExerciseLibrary + customList
     }
 
     fun addCustomExercise(exercise: Exercise) {
-        val customExList = loadCustomExercisesFromPrefs().toMutableList()
-        customExList.add(exercise)
-        saveCustomExercisesToPrefs(customExList)
+        val currentCustoms = loadCustomExercisesFromPrefs().toMutableList()
+        currentCustoms.add(exercise)
+        saveCustomExercisesToPrefs(currentCustoms)
     }
 
     private fun loadCustomExercisesFromPrefs(): List<Exercise> {
@@ -79,23 +207,23 @@ class FitnessRepository private constructor(context: Context) {
         return list
     }
 
-    private fun saveCustomExercisesToPrefs(customExercises: List<Exercise>) {
+    private fun saveCustomExercisesToPrefs(list: List<Exercise>) {
         val array = JSONArray()
-        for (ex in customExercises) {
+        for (e in list) {
             val obj = JSONObject().apply {
-                put("id", ex.id)
-                put("name", ex.name)
-                put("targetMuscle", ex.targetMuscle)
-                put("defaultWeightKg", ex.defaultWeightKg)
-                put("defaultReps", ex.defaultReps)
-                put("notes", ex.notes)
+                put("id", e.id)
+                put("name", e.name)
+                put("targetMuscle", e.targetMuscle)
+                put("defaultWeightKg", e.defaultWeightKg)
+                put("defaultReps", e.defaultReps)
+                put("notes", e.notes)
             }
             array.put(obj)
         }
         prefs.edit().putString("key_custom_exercises", array.toString()).apply()
     }
 
-    // NUTRITION PERSISTENCE
+    // NUTRITION & MEAL PERSISTENCE
     fun getNutritionGoal(): NutritionGoal {
         val jsonStr = prefs.getString("key_nutrition_goal", null) ?: return NutritionGoal()
         return try {
@@ -105,8 +233,8 @@ class FitnessRepository private constructor(context: Context) {
                 weightKg = obj.optDouble("weightKg", 68.5).toFloat(),
                 heightCm = obj.optDouble("heightCm", 175.0).toFloat(),
                 activityLevel = obj.optString("activityLevel", "Moderately Active"),
-                fitnessGoal = FitnessGoal.valueOf(obj.optString("fitnessGoal", "MUSCLE_GAIN")),
-                dietaryPreference = DietaryPreference.valueOf(obj.optString("dietaryPreference", "NON_VEGETARIAN")),
+                fitnessGoal = FitnessGoal.valueOf(obj.optString("fitnessGoal", FitnessGoal.MUSCLE_GAIN.name)),
+                dietaryPreference = DietaryPreference.valueOf(obj.optString("dietaryPreference", DietaryPreference.NON_VEGETARIAN.name)),
                 dailyCalorieTarget = obj.optInt("dailyCalorieTarget", 2200),
                 dailyProteinTarget = obj.optDouble("dailyProteinTarget", 130.0).toFloat(),
                 dailyCarbsTarget = obj.optDouble("dailyCarbsTarget", 250.0).toFloat(),
@@ -133,15 +261,15 @@ class FitnessRepository private constructor(context: Context) {
         prefs.edit().putString("key_nutrition_goal", obj.toString()).apply()
     }
 
-    // MEALS FOR DATE
     fun getMealEntriesForDate(dateStr: String): List<MealEntry> {
-        val jsonStr = prefs.getString("key_meals_$dateStr", null) ?: return getSampleMealsForToday()
+        val jsonStr = prefs.getString("key_meals_$dateStr", null) ?: return if (dateStr == "2025-10-15") getSampleMealsForToday() else emptyList()
         val list = mutableListOf<MealEntry>()
         try {
             val array = JSONArray(jsonStr)
             for (i in 0 until array.length()) {
                 val obj = array.getJSONObject(i)
                 val foodObj = obj.getJSONObject("foodItem")
+
                 val foodItem = FoodItem(
                     id = foodObj.getString("id"),
                     name = foodObj.getString("name"),
@@ -176,7 +304,7 @@ class FitnessRepository private constructor(context: Context) {
 
     fun saveMealEntry(mealEntry: MealEntry) {
         val currentList = getMealEntriesForDate(mealEntry.dateString).toMutableList()
-        currentList.add(mealEntry)
+        currentList.add(0, mealEntry)
 
         val array = JSONArray()
         for (m in currentList) {

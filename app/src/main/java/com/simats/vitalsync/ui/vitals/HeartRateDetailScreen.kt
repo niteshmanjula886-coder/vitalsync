@@ -62,13 +62,19 @@ private val DarkRedClassification = Color(0xFFDC2626) // Red
 @Composable
 fun HeartRateDetailScreen(
     modifier: Modifier = Modifier,
+    initialBpm: Int = 0,
+    restingBpm: Int = 0,
+    minBpm: Int = 0,
+    maxBpm: Int = 0,
+    avgBpm: Int = 0,
     onBackClick: () -> Unit = {},
     onReadingReviewClick: () -> Unit = {}
 ) {
-    var heartRateBpm by remember { mutableIntStateOf(76) }
+    var heartRateBpm by remember(initialBpm) { mutableIntStateOf(initialBpm) }
 
     // Dynamic Level Color Mapping
     val (statusLabel, statusColor, statusBgColor) = when {
+        heartRateBpm <= 0 -> Triple("No data", Color(0xFF6B7280), Color(0xFFF3F4F6))
         heartRateBpm < 60 -> Triple("Low Rate", DarkRedClassification, Color(0xFFFEE2E2))
         heartRateBpm in 60..70 -> Triple("Moderate", DarkYellowClassification, Color(0xFFFEF3C7))
         heartRateBpm in 71..90 -> Triple("Normal", DarkGreenClassification, Color(0xFFDDF7EC))
@@ -188,7 +194,7 @@ fun HeartRateDetailScreen(
 
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        text = "$heartRateBpm",
+                        text = if (heartRateBpm > 0) "$heartRateBpm" else "--",
                         fontSize = 38.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -378,13 +384,13 @@ fun HeartRateDetailScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = "Average", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "74 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                        Text(text = if (avgBpm > 0) "$avgBpm BPM" else "--", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                     }
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = "Highest", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "92 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkRedClassification)
+                        Text(text = if (maxBpm > 0) "$maxBpm BPM" else "--", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkRedClassification)
                     }
                 }
 
@@ -397,13 +403,13 @@ fun HeartRateDetailScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = "Lowest", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "61 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkYellowClassification)
+                        Text(text = if (minBpm > 0) "$minBpm BPM" else "--", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkYellowClassification)
                     }
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = "Resting max", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "64 BPM", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                        Text(text = if (restingBpm > 0) "$restingBpm BPM" else "--", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                     }
                 }
             }

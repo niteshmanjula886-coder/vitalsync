@@ -50,10 +50,18 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun HealthGoalsScreen(
     modifier: Modifier = Modifier,
+    initialGoalId: String = "1",
     onBackClick: () -> Unit = {},
-    onSaveGoalClick: () -> Unit = {}
+    onSaveGoalClick: (selectedGoalId: String, selectedGoalTitle: String) -> Unit = { _, _ -> }
 ) {
-    var selectedGoalId by remember { mutableStateOf("1") }
+    var selectedGoalId by remember(initialGoalId) { mutableStateOf(initialGoalId) }
+
+    val goalsMap = mapOf(
+        "1" to "Fitness",
+        "2" to "Better Sleep",
+        "3" to "Weight Management",
+        "4" to "General Wellness"
+    )
 
     Column(
         modifier = modifier
@@ -139,8 +147,9 @@ fun HealthGoalsScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "ℹ️", fontSize = 16.sp)
                     Spacer(modifier = Modifier.width(10.dp))
+                    val selectedTitle = goalsMap[selectedGoalId] ?: "Fitness"
                     Text(
-                        text = "Selected goal: Improve Fitness. Start small and choose a pace that works for you.",
+                        text = "Selected goal: $selectedTitle. Start small and choose a pace that works for you.",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.primary
@@ -153,7 +162,10 @@ fun HealthGoalsScreen(
 
         // Save Goal Button
         Button(
-            onClick = onSaveGoalClick,
+            onClick = {
+                val goalTitle = goalsMap[selectedGoalId] ?: "Fitness"
+                onSaveGoalClick(selectedGoalId, goalTitle)
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)

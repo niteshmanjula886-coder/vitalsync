@@ -49,11 +49,11 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
-    userName: String = "Alex Morgan",
-    userInitials: String = "AM",
-    userAge: String = "28",
-    userHeight: String = "175",
-    userWeight: String = "68.5",
+    userName: String = "",
+    userInitials: String = "--",
+    userAge: String = "--",
+    userHeight: String = "--",
+    userWeight: String = "--",
     userPhotoBitmap: ImageBitmap? = null,
     onEditProfileClick: () -> Unit = {},
     onPersonalInformationClick: () -> Unit = {},
@@ -134,7 +134,7 @@ fun ProfileScreen(
             modifier = Modifier.clickable { onPersonalInformationClick() }
         ) {
             Text(
-                text = userName,
+                text = userName.ifBlank { "Set up profile" },
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -179,19 +179,22 @@ fun ProfileScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "Age", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "$userAge years", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                    val ageDisplay = if (userAge.isNotBlank() && userAge != "--" && userAge != "0") "$userAge years" else "--"
+                    Text(text = ageDisplay, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "Height", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "$userHeight cm", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                    val heightDisplay = if (userHeight.isNotBlank() && userHeight != "--" && userHeight != "0") "$userHeight cm" else "--"
+                    Text(text = heightDisplay, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "Weight", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "$userWeight kg", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                    val weightDisplay = if (userWeight.isNotBlank() && userWeight != "--" && userWeight != "0") "$userWeight kg" else "--"
+                    Text(text = weightDisplay, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 }
             }
         }

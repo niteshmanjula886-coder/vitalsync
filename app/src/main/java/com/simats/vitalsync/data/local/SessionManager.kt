@@ -34,6 +34,9 @@ class SessionManager(context: Context) {
         // Default inactivity timeout: 30 minutes
         const val DEFAULT_TIMEOUT_MINUTES = 30L
 
+        private const val KEY_ONBOARDING_COMPLETED = "key_onboarding_completed"
+        private const val KEY_DARK_MODE_ENABLED = "key_dark_mode_enabled"
+
         @Volatile
         private var INSTANCE: SessionManager? = null
 
@@ -170,11 +173,27 @@ class SessionManager(context: Context) {
     }
 
     fun getUserName(): String {
-        return prefs.getString(KEY_USER_NAME, "Alex Morgan") ?: "Alex Morgan"
+        return prefs.getString(KEY_USER_NAME, "") ?: ""
     }
 
     fun isLoggedIn(): Boolean {
         return prefs.getBoolean(KEY_IS_LOGGED_IN, false)
+    }
+
+    fun isOnboardingCompleted(): Boolean {
+        return prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false)
+    }
+
+    fun setOnboardingCompleted(completed: Boolean) {
+        prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, completed).apply()
+    }
+
+    fun isDarkModeEnabled(): Boolean {
+        return prefs.getBoolean(KEY_DARK_MODE_ENABLED, false)
+    }
+
+    fun setDarkModeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DARK_MODE_ENABLED, enabled).apply()
     }
 
     /**

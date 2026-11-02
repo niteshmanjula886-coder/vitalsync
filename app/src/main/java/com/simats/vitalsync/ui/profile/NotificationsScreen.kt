@@ -39,11 +39,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.model.profile.NotificationItem
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
 @Composable
 fun NotificationsScreen(
     modifier: Modifier = Modifier,
+    notifications: List<NotificationItem> = emptyList(),
+    unreadCount: Int = 0,
+    isLoading: Boolean = false,
+    onMarkAllReadClick: () -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
     Column(
@@ -88,7 +93,8 @@ fun NotificationsScreen(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface),
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clickable { onMarkAllReadClick() },
                 contentAlignment = Alignment.Center
             ) {
                 DoubleCheckIcon(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.primary)
@@ -108,13 +114,15 @@ fun NotificationsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Text(
-                text = "Mark all read",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable { }
-            )
+            if (unreadCount > 0) {
+                Text(
+                    text = "Mark all read",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { onMarkAllReadClick() }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -125,74 +133,86 @@ fun NotificationsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Today",
+                text = "Recent Alerts",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Text(
-                text = "2 unread",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
-            )
+            if (unreadCount > 0) {
+                Text(
+                    text = "$unreadCount unread",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Notification Card 1: Hydration
-        NotificationCard(
-            icon = "💧",
-            title = "Time to drink water",
-            description = "Your hydration goal is 62% complete.",
-            time = "5 min ago",
-            isUnread = true
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Notification Card 2: Activity
-        NotificationCard(
-            icon = "🏃",
-            title = "Activity Reminder",
-            description = "You have 1,755 steps left to hit your goal.",
-            time = "28 min ago",
-            isUnread = true
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            text = "Yesterday",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Notification Card 3: Sleep
-        NotificationCard(
-            icon = "😴",
-            title = "Sleep Reminder",
-            description = "Your scheduled bedtime is in 30 minutes.",
-            time = "Yesterday · 10:00 PM · Read",
-            isUnread = false
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Notification Card 4: AI
-        NotificationCard(
-            icon = "☕",
-            title = "AI Wellness Update",
-            description = "Your weekly wellness report is ready to view.",
-            time = "Yesterday · 8:00 AM · Read",
-            isUnread = false
-        )
+        if (notifications.isEmpty() && !isLoading) {
+            // Default sample notifications if none fetched yet
+            NotificationCard(
+                icon = "💧",
+                title = "Time to drink water",
+                description = "Your hydration goal is 62% complete.",
+                time = "5 min ago",
+                isUnread = true
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            NotificationCard(
+                icon = "🏃‍♂️",
+                title = "Activity Reminder",
+                description = "You have 1,755 steps left to hit your goal.",
+                time = "28 min ago",
+                isUnread = true
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            NotificationCard(
+                icon = "🌙",
+                title = "Sleep Reminder",
+                description = "Your scheduled bedtime is in 30 minutes.",
+                time = "Yesterday • Read",
+                isUnread = false
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            NotificationCard(
+                icon = "✨",
+                title = "AI Wellness Update",
+                description = "Your weekly wellness report is ready to view.",
+                time = "Yesterday • Read",
+                isUnread = false
+            )
+        } else {
+            notifications.forEachIndexed { index, notif ->
+                val icon = resolveNotificationIcon(notif.icon, notif.title)
+                NotificationCard(
+                    icon = icon,
+                    title = notif.title,
+                    description = notif.description,
+                    time = notif.timeAgo ?: "Recent",
+                    isUnread = !notif.isRead
+                )
+                if (index < notifications.size - 1) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(28.dp))
+    }
+}
+
+private fun resolveNotificationIcon(iconStr: String?, title: String): String {
+    if (!iconStr.isNullOrBlank() && iconStr.length <= 4) return iconStr
+    val lower = title.lowercase()
+    return when {
+        lower.contains("water") || lower.contains("drink") || lower.contains("hydrat") -> "💧"
+        lower.contains("step") || lower.contains("activity") || lower.contains("walk") -> "🏃‍♂️"
+        lower.contains("sleep") || lower.contains("bed") -> "🌙"
+        lower.contains("heart") || lower.contains("pulse") || lower.contains("bp") -> "❤️"
+        else -> "✨"
     }
 }
 
@@ -207,54 +227,70 @@ private fun NotificationCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isUnread) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(
+            1.dp,
+            if (isUnread) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isUnread) 0.dp else 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondary),
+                contentAlignment = Alignment.Center
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = icon, fontSize = 16.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
+                Text(text = icon, fontSize = 20.sp)
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         text = title,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
+
+                    if (isUnread) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                    }
                 }
 
-                if (isUnread) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                }
+                Spacer(modifier = Modifier.height(3.dp))
+
+                Text(
+                    text = description,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = time,
+                    fontSize = 11.sp,
+                    color = if (isUnread) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = description,
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = time,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -268,13 +304,20 @@ private fun DoubleCheckIcon(
         val w = size.width
         val h = size.height
 
-        val p1 = Path().apply {
-            moveTo(0f, h * 0.5f)
+        val path1 = Path().apply {
+            moveTo(w * 0.1f, h * 0.55f)
             lineTo(w * 0.35f, h * 0.8f)
-            lineTo(w * 0.7f, h * 0.2f)
+            lineTo(w * 0.75f, h * 0.25f)
         }
 
-        drawPath(path = p1, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        val path2 = Path().apply {
+            moveTo(w * 0.35f, h * 0.55f)
+            lineTo(w * 0.55f, h * 0.8f)
+            lineTo(w * 0.95f, h * 0.25f)
+        }
+
+        drawPath(path = path1, color = color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(path = path2, color = color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 

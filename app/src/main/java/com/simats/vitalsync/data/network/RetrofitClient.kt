@@ -27,18 +27,36 @@ object RetrofitClient {
     @Volatile
     private var nutritionApiServiceInstance: NutritionApiService? = null
 
+    @Volatile
+    private var hydrationApiServiceInstance: HydrationApiService? = null
+
+    @Volatile
+    private var profileApiServiceInstance: ProfileApiService? = null
+
+    @Volatile
+    private var vitalsApiServiceInstance: VitalsApiService? = null
+
+    @Volatile
+    var authHeaderProvider: (() -> String?)? = null
+
     private val okHttpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
 
         OkHttpClient.Builder()
-            // Always set Connection: close and avoid stale socket pooling to prevent tunnel relay socket drops
+            // Always set Connection: close and inject Authorization header from active session
             .addInterceptor { chain ->
                 val originalRequest = chain.request()
-                val requestWithHeaders = originalRequest.newBuilder()
+                val requestBuilder = originalRequest.newBuilder()
                     .header("Connection", "close")
-                    .build()
+
+                val token = authHeaderProvider?.invoke()
+                if (!token.isNullOrBlank() && originalRequest.header("Authorization") == null) {
+                    requestBuilder.header("Authorization", "Bearer $token")
+                }
+
+                val requestWithHeaders = requestBuilder.build()
 
                 try {
                     chain.proceed(requestWithHeaders)
@@ -92,6 +110,9 @@ object RetrofitClient {
                 activityApiServiceInstance = null
                 gymApiServiceInstance = null
                 nutritionApiServiceInstance = null
+                hydrationApiServiceInstance = null
+                profileApiServiceInstance = null
+                vitalsApiServiceInstance = null
             }
         }
     }
@@ -131,6 +152,27 @@ object RetrofitClient {
         get() = nutritionApiServiceInstance ?: synchronized(this) {
             nutritionApiServiceInstance ?: getRetrofit().create(NutritionApiService::class.java).also {
                 nutritionApiServiceInstance = it
+            }
+        }
+
+    val hydrationApiService: HydrationApiService
+        get() = hydrationApiServiceInstance ?: synchronized(this) {
+            hydrationApiServiceInstance ?: getRetrofit().create(HydrationApiService::class.java).also {
+                hydrationApiServiceInstance = it
+            }
+        }
+
+    val profileApiService: ProfileApiService
+        get() = profileApiServiceInstance ?: synchronized(this) {
+            profileApiServiceInstance ?: getRetrofit().create(ProfileApiService::class.java).also {
+                profileApiServiceInstance = it
+            }
+        }
+
+    val vitalsApiService: VitalsApiService
+        get() = vitalsApiServiceInstance ?: synchronized(this) {
+            vitalsApiServiceInstance ?: getRetrofit().create(VitalsApiService::class.java).also {
+                vitalsApiServiceInstance = it
             }
         }
 }

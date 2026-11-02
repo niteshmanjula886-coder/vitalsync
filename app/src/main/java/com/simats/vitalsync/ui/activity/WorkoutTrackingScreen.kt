@@ -1,5 +1,9 @@
 package com.simats.vitalsync.ui.activity
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,6 +30,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,6 +42,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -46,7 +53,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.FitnessRepository
 import com.simats.vitalsync.ui.theme.VitalTealDark
+import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 import kotlinx.coroutines.delay
 import java.util.Locale
@@ -54,13 +63,15 @@ import java.util.Locale
 @Composable
 fun WorkoutTrackingScreen(
     modifier: Modifier = Modifier,
+    targetWorkoutMinutes: Int = 45,
     onBackClick: () -> Unit = {},
     onFinishTracking: () -> Unit = {},
     onFinishTrackingWithData: ((durationSeconds: Int, distanceKm: Float, caloriesBurned: Int, avgPace: String, avgHeartRate: Int?, steps: Int) -> Unit)? = null
 ) {
-    // Executable Live Workout Timer State
+    // Executable Live Workout Session Timer State
+    var isWorkoutStarted by remember { mutableStateOf(false) }
+    var isTimerRunning by remember { mutableStateOf(false) }
     var workoutSeconds by remember { mutableIntStateOf(0) }
-    var isTimerRunning by remember { mutableStateOf(true) }
 
     LaunchedEffect(isTimerRunning) {
         while (isTimerRunning) {
@@ -69,13 +80,19 @@ fun WorkoutTrackingScreen(
         }
     }
 
-    val timerMinutes = workoutSeconds / 60
-    val timerSecs = workoutSeconds % 60
-    val formattedTime = String.format(Locale.US, "%02d:%02d", timerMinutes, timerSecs)
+    val formattedDynamicTime = FitnessRepository.formatDurationDynamic(workoutSeconds)
+    val totalTargetSecs = targetWorkoutMinutes * 60
+    val progressRatio = if (totalTargetSecs > 0) (workoutSeconds.toFloat() / totalTargetSecs.toFloat()).coerceIn(0f, 1f) else 0f
+
+    val animatedProgressAngle by animateFloatAsState(
+        targetValue = progressRatio * 360f,
+        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+        label = "WorkoutCircularProgress"
+    )
 
     // Executable Rest Countdown Timer
     var restCountdownSecs by remember { mutableIntStateOf(30) }
-    var isResting by remember { mutableStateOf(false) } // Strictly manual Play/Pause control
+    var isResting by remember { mutableStateOf(false) }
 
     LaunchedEffect(isResting, restCountdownSecs) {
         if (isResting && restCountdownSecs > 0) {
@@ -86,6 +103,8 @@ fun WorkoutTrackingScreen(
             }
         }
     }
+
+    val estimatedCaloriesBurned = (workoutSeconds * 0.12f).toInt()
 
     Column(
         modifier = modifier
@@ -125,55 +144,148 @@ fun WorkoutTrackingScreen(
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Text(
-                        text = "Workout",
+                        text = "Workout Tracker",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF111827)
                     )
                 }
 
-                // Interactive Status / Pause Toggle Badge
+                // Status Badge Indicator
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (isTimerRunning) Color(0xFFE6F4EA) else Color(0xFFFEF3C7))
-                        .clickable { isTimerRunning = !isTimerRunning }
+                        .background(
+                            when {
+                                isTimerRunning -> Color(0xFFE6F4EA)
+                                isWorkoutStarted -> Color(0xFFFEF3C7)
+                                else -> Color(0xFFF1F5F9)
+                            }
+                        )
+                        .clickable {
+                            if (isWorkoutStarted) {
+                                isTimerRunning = !isTimerRunning
+                            }
+                        }
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = if (isTimerRunning) "• In progress" else "⏸ Paused",
+                        text = when {
+                            isTimerRunning -> "• Active Workout"
+                            isWorkoutStarted -> "⏸ Paused"
+                            else -> "Ready to Start"
+                        },
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isTimerRunning) Color(0xFF0F9F7A) else Color(0xFFD97706)
+                        color = when {
+                            isTimerRunning -> Color(0xFF0F9F7A)
+                            isWorkoutStarted -> Color(0xFFD97706)
+                            else -> Color(0xFF64748B)
+                        }
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Timer Banner
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
+            // Live Circular Timer Progress Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
-                Text(text = "🏋️ Strength training", fontSize = 13.sp, color = Color(0xFF6B7280))
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(text = formattedTime, fontSize = 52.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                Text(text = "Elapsed time", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = "🏋️ Full Body Workout", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6B7280))
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Circular Progress Ring & Live Timer Display
+                    Box(
+                        modifier = Modifier.size(160.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val strokeWidthPx = 10.dp.toPx()
+                            val radius = (size.minDimension - strokeWidthPx) / 2f
+                            val centerOffset = Offset(size.width / 2f, size.height / 2f)
+
+                            // Outer Background Track Ring
+                            drawCircle(
+                                color = Color(0xFFE2E8F0),
+                                radius = radius,
+                                center = centerOffset,
+                                style = Stroke(width = strokeWidthPx)
+                            )
+
+                            // Active Circular Arc Fill Ring
+                            if (animatedProgressAngle > 0f) {
+                                drawArc(
+                                    color = Color(0xFF0F9F7A),
+                                    startAngle = -90f,
+                                    sweepAngle = animatedProgressAngle,
+                                    useCenter = false,
+                                    topLeft = Offset(strokeWidthPx / 2f, strokeWidthPx / 2f),
+                                    size = Size(size.width - strokeWidthPx, size.height - strokeWidthPx),
+                                    style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+                                )
+                            }
+                        }
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = formattedDynamicTime,
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "${(progressRatio * 100).toInt()}% of $targetWorkoutMinutes min",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F9F7A)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // Live Stats Summary inside Timer Card
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "CALORIES", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9CA3AF))
+                            Text(text = "$estimatedCaloriesBurned kcal", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        }
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "ESTIMATED HR", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9CA3AF))
+                            Text(text = if (isTimerRunning) "138 BPM" else "-- BPM", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        }
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Exercise Plan Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = "Full body", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                Text(text = "Workout Exercises", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                 Text(text = "4 exercises · 12 sets", fontSize = 12.sp, color = Color(0xFF6B7280))
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Current Exercise Card
             Card(
@@ -274,28 +386,78 @@ fun WorkoutTrackingScreen(
             Spacer(modifier = Modifier.height(28.dp))
         }
 
-        // Single Primary Finish Button at Bottom
-        Button(
-            onClick = {
-                val duration = if (workoutSeconds > 0) workoutSeconds else 2700
-                onFinishTrackingWithData?.invoke(duration, 0.0f, 285, "N/A", 138, 0)
-                onFinishTracking()
-            },
+        // Primary Action Controls (Start / Pause / Finish Session)
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = VitalTealDark,
-                contentColor = Color.White
-            )
         ) {
-            Text(
-                text = "Finish Workout Session",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
+            if (!isWorkoutStarted) {
+                // START WORKOUT Primary Action Button
+                Button(
+                    onClick = {
+                        isWorkoutStarted = true
+                        isTimerRunning = true
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = VitalTealDark,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(
+                        text = "▶ START WORKOUT",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else {
+                // Active Workout Controls: PAUSE / RESUME and FINISH
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { isTimerRunning = !isTimerRunning },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.5.dp, VitalTealPrimary)
+                    ) {
+                        Text(
+                            text = if (isTimerRunning) "⏸ PAUSE" else "▶ RESUME",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = VitalTealDark
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            onFinishTrackingWithData?.invoke(workoutSeconds, 0.0f, estimatedCaloriesBurned, "N/A", 138, 0)
+                            onFinishTracking()
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = VitalTealDark,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            text = "⏹ FINISH",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
     }
 }

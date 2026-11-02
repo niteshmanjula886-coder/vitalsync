@@ -112,12 +112,12 @@ data class NutritionGoal(
 )
 
 data class UserProfile(
-    val name: String = "Alex Morgan",
-    val initials: String = "AM",
-    val dob: String = "14 May 1996",
-    val gender: String = "Male",
-    val email: String = "alex.morgan@example.com",
-    val phone: String = "+1 (202) 555-0147",
-    val heightCm: String = "175",
-    val weightKg: String = "68.5"
+    val name: String = "",
+    val initials: String = "--",
+    val dob: String = "",
+    val gender: String = "",
+    val email: String = "",
+    val phone: String = "",
+    val heightCm: String = "--",
+    val weightKg: String = "--"
 )

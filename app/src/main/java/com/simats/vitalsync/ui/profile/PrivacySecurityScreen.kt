@@ -29,10 +29,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,13 +46,15 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun PrivacySecurityScreen(
     modifier: Modifier = Modifier,
+    aiInsightsEnabled: Boolean = true,
+    onAiInsightsChange: (Boolean) -> Unit = {},
+    usageAnalyticsEnabled: Boolean = false,
+    onUsageAnalyticsChange: (Boolean) -> Unit = {},
+    activeSessionsCount: Int = 1,
     onBackClick: () -> Unit = {},
     onLoginSessionsClick: () -> Unit = {},
     onPrivacyPolicyClick: () -> Unit = {}
 ) {
-    var aiInsightsEnabled by remember { mutableStateOf(true) }
-    var usageAnalyticsEnabled by remember { mutableStateOf(false) }
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -118,7 +116,7 @@ fun PrivacySecurityScreen(
                     title = "Personalized AI Insights",
                     subtitle = "Use wellness data for tailored insights.",
                     checked = aiInsightsEnabled,
-                    onCheckedChange = { aiInsightsEnabled = it }
+                    onCheckedChange = { onAiInsightsChange(it) }
                 )
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
@@ -127,7 +125,7 @@ fun PrivacySecurityScreen(
                     title = "Usage Analytics",
                     subtitle = "Share optional app usage information.",
                     checked = usageAnalyticsEnabled,
-                    onCheckedChange = { usageAnalyticsEnabled = it }
+                    onCheckedChange = { onUsageAnalyticsChange(it) }
                 )
             }
         }
@@ -147,7 +145,7 @@ fun PrivacySecurityScreen(
             Column(modifier = Modifier.padding(vertical = 6.dp)) {
                 SecurityRow(
                     title = "Login Sessions",
-                    subtitle = "2 active sample sessions",
+                    subtitle = "$activeSessionsCount active session(s)",
                     onClick = onLoginSessionsClick
                 )
             }
@@ -220,14 +218,25 @@ private fun PrivacyToggleRow(
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(modifier = Modifier.height(2.dp))
-            Text(text = subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -258,9 +267,18 @@ private fun SecurityRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(modifier = Modifier.height(2.dp))
-            Text(text = subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         ChevronRightIcon(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)

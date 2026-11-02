@@ -47,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -61,6 +62,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -69,10 +71,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.model.hydration.WeeklyHydrationDayDto
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import com.simats.vitalsync.ui.vitals.viewmodel.HydrationUiState
+import com.simats.vitalsync.ui.vitals.viewmodel.HydrationViewModel
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
@@ -80,29 +87,72 @@ import kotlin.math.sin
 @Composable
 fun HydrationDetailScreen(
     modifier: Modifier = Modifier,
+    viewModel: HydrationViewModel? = null,
+    userEmail: String = "alex.morgan@email.com",
+    dateString: String = "2026-10-30",
     onBackClick: () -> Unit = {}
 ) {
-    var consumedWaterMl by remember { mutableIntStateOf(1250) } // Default 1,250 ml (5 glasses)
-    val dailyTargetMl = 2000
+    val rawDate = remember(dateString) {
+        val trimmed = if (dateString.contains("·")) dateString.substringAfter("·").trim() else dateString.trim()
+        if (trimmed.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) trimmed else SimpleDateFormat("yyyy-MM-dd", Locale.US).format(
+            Date()
+        )
+    }
 
-    var lastLoggedAmountMl by remember { mutableIntStateOf(0) }
-    var showLoggedToast by remember { mutableStateOf(false) }
+    val state by viewModel?.hydrationState?.collectAsState() ?: remember { mutableStateOf(HydrationUiState()) }
 
-    var isReminderEnabled by remember { mutableStateOf(true) }
+    LaunchedEffect(userEmail, rawDate) {
+        viewModel?.loadHydration(userEmail, rawDate)
+    }
+
+    var localConsumedMl by remember { mutableIntStateOf(1250) }
+    var localDailyTargetMl by remember { mutableIntStateOf(2000) }
+    var localIsReminderEnabled by remember { mutableStateOf(true) }
+    var localLastLoggedAmountMl by remember { mutableIntStateOf(0) }
+    var localShowToast by remember { mutableStateOf(false) }
+
+    val consumedWaterMl = if (viewModel != null) state.consumedWaterMl else localConsumedMl
+    val dailyTargetMl = if (viewModel != null) state.dailyTargetMl else localDailyTargetMl
+    val isReminderEnabled = if (viewModel != null) state.isReminderEnabled else localIsReminderEnabled
+    val lastLoggedAmountMl = if (viewModel != null) state.lastLoggedAmountMl else localLastLoggedAmountMl
+    val showLoggedToast = if (viewModel != null) state.showToast else localShowToast
+
     var showCustomMlDialog by remember { mutableStateOf(false) }
     var customInputMlText by remember { mutableStateOf("150") }
 
+    var showCustomTargetDialog by remember { mutableStateOf(false) }
+    var customTargetInputText by remember { mutableStateOf("$dailyTargetMl") }
+
+    var selectedChartDayIndex by remember { mutableStateOf<Int?>(null) }
+
     fun addWaterMl(amountMl: Int) {
         if (amountMl <= 0) return
-        consumedWaterMl = (consumedWaterMl + amountMl).coerceAtMost(5000)
-        lastLoggedAmountMl = amountMl
-        showLoggedToast = true
+        if (viewModel != null) {
+            viewModel.addWater(userEmail, amountMl, rawDate)
+        } else {
+            localConsumedMl = (localConsumedMl + amountMl).coerceAtMost(5000)
+            localLastLoggedAmountMl = amountMl
+            localShowToast = true
+        }
+    }
+
+    fun setCustomTargetGoal(newTargetMl: Int) {
+        if (newTargetMl <= 0) return
+        if (viewModel != null) {
+            viewModel.updateDailyTarget(userEmail, newTargetMl)
+        } else {
+            localDailyTargetMl = newTargetMl
+        }
     }
 
     LaunchedEffect(showLoggedToast) {
         if (showLoggedToast) {
             delay(2200L)
-            showLoggedToast = false
+            if (viewModel != null) {
+                viewModel.dismissToast()
+            } else {
+                localShowToast = false
+            }
         }
     }
 
@@ -113,9 +163,43 @@ fun HydrationDetailScreen(
         label = "AnimatedWaterCounter"
     )
 
-    val fillProgressRatio = (animatedConsumedMl.toFloat() / dailyTargetMl.toFloat()).coerceIn(0f, 1f)
+    val fillProgressRatio = if (dailyTargetMl > 0) {
+        (animatedConsumedMl.toFloat() / dailyTargetMl.toFloat()).coerceIn(0f, 1f)
+    } else 0f
     val glassEquivalent = animatedConsumedMl / 250f
     val progressPercentage = (fillProgressRatio * 100).toInt()
+
+    // Strict Log-Driven Weekly Data Construction (Only days with actual logs have values, unlogged days are null)
+    val weeklyDaysList = remember(state.weeklyHistory, consumedWaterMl, dailyTargetMl) {
+        if (viewModel != null && state.weeklyHistory.size == 7) {
+            state.weeklyHistory
+        } else {
+            // Monday to Sunday strict log-driven layout
+            val days = listOf("M", "T", "W", "T", "F", "S", "S")
+            days.mapIndexed { index, dayLabel ->
+                val isToday = (index == 4) // Friday is current today index in mock setup
+                if (isToday && consumedWaterMl > 0) {
+                    val ratio = (consumedWaterMl.toFloat() / dailyTargetMl.toFloat()).coerceIn(0f, 1f)
+                    WeeklyHydrationDayDto(day = dayLabel, date = "Oct ${11 + index}", consumedMl = consumedWaterMl, targetMl = dailyTargetMl, ratio = ratio, isToday = true)
+                } else {
+                    // Strict rule: unlogged days are NULL (no fake fallback values)
+                    WeeklyHydrationDayDto(day = dayLabel, date = "Oct ${11 + index}", consumedMl = null, targetMl = dailyTargetMl, ratio = null, isToday = isToday)
+                }
+            }
+        }
+    }
+
+    // Calculate Weekly Average strictly from days with actual logs (excluding null unlogged days)
+    val loggedDays = remember(weeklyDaysList) { weeklyDaysList.filter { it.consumedMl != null } }
+    val weeklyAverageFormatted = remember(loggedDays) {
+        if (loggedDays.isNotEmpty()) {
+            val totalMl = loggedDays.sumOf { it.consumedMl ?: 0 }
+            val avgMl = totalMl / loggedDays.size
+            "${String.format(Locale.US, "%,d", avgMl)} ml/day (${loggedDays.size} ${if (loggedDays.size == 1) "day" else "days"} logged)"
+        } else {
+            "No data"
+        }
+    }
 
     Column(
         modifier = modifier
@@ -192,7 +276,7 @@ fun HydrationDetailScreen(
             }
         }
 
-        // Top Water Glass Card
+        // Top Water Glass & Configurable Target Goal Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
@@ -205,6 +289,27 @@ fun HydrationDetailScreen(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Configurable Daily Goal Badge (Clickable to Edit Goal)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFE8F6F0))
+                        .clickable {
+                            customTargetInputText = "$dailyTargetMl"
+                            showCustomTargetDialog = true
+                        }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "🎯 Target: ${String.format(Locale.US, "%,d", dailyTargetMl)} ml ✏️",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F9F7A)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // Large Animated Floating Water Glass Illustration
                 WaterGlassLarge(
                     fillRatio = fillProgressRatio,
@@ -215,14 +320,14 @@ fun HydrationDetailScreen(
 
                 // Smooth Animated Text Values
                 Text(
-                    text = "${String.format(Locale.US, "%.1f", glassEquivalent)} / 8 glasses",
+                    text = "${String.format(Locale.US, "%.1f", glassEquivalent)} / ${(dailyTargetMl / 250)} glasses",
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
                 )
 
                 Text(
-                    text = "${String.format(Locale.US, "%,d", animatedConsumedMl)} ml / ${String.format(Locale.US, "%,d", dailyTargetMl)} ml",
+                    text = "${String.format(Locale.US, "%,d", animatedConsumedMl)} ml of ${String.format(Locale.US, "%,d", dailyTargetMl)} ml goal",
                     fontSize = 14.sp,
                     color = Color(0xFF6B7280),
                     modifier = Modifier.padding(top = 2.dp)
@@ -268,8 +373,12 @@ fun HydrationDetailScreen(
                             color = Color(0xFF6B7280),
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.clickable {
-                                consumedWaterMl = 0
-                                showLoggedToast = false
+                                if (viewModel != null) {
+                                    viewModel.resetHydration(userEmail, rawDate)
+                                } else {
+                                    localConsumedMl = 0
+                                    localShowToast = false
+                                }
                             }
                         )
                     }
@@ -360,7 +469,7 @@ fun HydrationDetailScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Daily Water Bar Chart Card
+        // Daily Water Bar Chart Card with Strict Log-Driven Rules & Interactive Tooltips
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
@@ -368,12 +477,26 @@ fun HydrationDetailScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
-                Text(
-                    text = "Weekly hydration history",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Weekly hydration history",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
+
+                    // Strict Log-Calculated Average Summary
+                    Text(
+                        text = "Avg: $weeklyAverageFormatted",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F9F7A)
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(18.dp))
 
@@ -391,35 +514,106 @@ fun HydrationDetailScreen(
                 Canvas(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(100.dp)
+                        .height(110.dp)
                 ) {
                     val barWidth = 24.dp.toPx()
-                    val heights = listOf(0.5f, 0.75f, 0.6f, 0.85f, (animatedConsumedMl / 2000f).coerceIn(0.1f, 1f), 0.9f, 0.62f)
                     val totalWidth = size.width
                     val spacing = (totalWidth - (barWidth * 7)) / 8f
 
-                    heights.forEachIndexed { i, ratio ->
+                    weeklyDaysList.forEachIndexed { i, dayData ->
                         val x = spacing + i * (barWidth + spacing)
-                        val barHeight = size.height * ratio * chartProgress
-                        val y = size.height - barHeight
+                        val ratio = dayData.ratio
 
-                        drawRoundRect(
-                            color = if (i == 4) Color(0xFF0F9F7A) else Color(0xFFA7F3D0),
-                            topLeft = Offset(x, y),
-                            size = Size(barWidth, barHeight),
-                            cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
-                        )
+                        if (ratio != null && ratio > 0f) {
+                            // Solid Logged Water Bar
+                            val barHeight = size.height * ratio * chartProgress
+                            val y = size.height - barHeight
+
+                            drawRoundRect(
+                                color = if (dayData.isToday) Color(0xFF0F9F7A) else Color(0xFFA7F3D0),
+                                topLeft = Offset(x, y),
+                                size = Size(barWidth, barHeight),
+                                cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
+                            )
+                        } else {
+                            // Strict Log-Driven Rule: Unlogged days render as empty ghost placeholder outlines
+                            drawRoundRect(
+                                color = Color(0xFFF1F5F9),
+                                topLeft = Offset(x, size.height * 0.85f),
+                                size = Size(barWidth, size.height * 0.15f),
+                                cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                            )
+
+                            drawRoundRect(
+                                color = Color(0xFFCBD5E1),
+                                topLeft = Offset(x, 0f),
+                                size = Size(barWidth, size.height),
+                                cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx()),
+                                style = Stroke(
+                                    width = 1.2.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
+                                )
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
+                // Days Labels Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    listOf("M", "T", "W", "T", "F", "S", "S").forEach { day ->
-                        Text(text = day, fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    weeklyDaysList.forEachIndexed { index, dayData ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { selectedChartDayIndex = if (selectedChartDayIndex == index) null else index }
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = dayData.day,
+                                fontSize = 12.sp,
+                                fontWeight = if (dayData.isToday) FontWeight.Bold else FontWeight.Normal,
+                                color = if (dayData.isToday) Color(0xFF0F9F7A) else Color(0xFF9CA3AF)
+                            )
+                        }
+                    }
+                }
+
+                // Interactive Day Tooltip Output
+                selectedChartDayIndex?.let { idx ->
+                    if (idx in weeklyDaysList.indices) {
+                        val dayItem = weeklyDaysList[idx]
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFFF8FAFC))
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Day: ${dayItem.day} (${dayItem.date})",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF334155)
+                                )
+
+                                Text(
+                                    text = if (dayItem.consumedMl != null) "${String.format(Locale.US, "%,d", dayItem.consumedMl)} ml logged" else "No log",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (dayItem.consumedMl != null) Color(0xFF0F9F7A) else Color(0xFF94A3B8)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -458,7 +652,13 @@ fun HydrationDetailScreen(
 
                 Switch(
                     checked = isReminderEnabled,
-                    onCheckedChange = { isReminderEnabled = it },
+                    onCheckedChange = { checked ->
+                        if (viewModel != null) {
+                            viewModel.updateReminder(userEmail, checked)
+                        } else {
+                            localIsReminderEnabled = checked
+                        }
+                    },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = VitalTealPrimary
@@ -546,6 +746,88 @@ fun HydrationDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showCustomMlDialog = false }) {
+                    Text("Cancel", color = Color(0xFF6B7280))
+                }
+            }
+        )
+    }
+
+    // Configurable Daily Target Goal Dialog
+    if (showCustomTargetDialog) {
+        AlertDialog(
+            onDismissRequest = { showCustomTargetDialog = false },
+            title = {
+                Text(
+                    text = "Set Daily Hydration Goal",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Set your custom daily target water intake in milliliters:",
+                        fontSize = 13.sp,
+                        color = Color(0xFF6B7280)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = customTargetInputText,
+                        onValueChange = { customTargetInputText = it.filter { char -> char.isDigit() } },
+                        label = { Text("Daily Target Goal (ml)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = VitalTealPrimary,
+                            focusedLabelColor = VitalTealPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Preset Target Goal Chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(1500, 2000, 2500, 3000).forEach { targetPreset ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFE6F4EA))
+                                    .clickable { customTargetInputText = targetPreset.toString() }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "$targetPreset ml",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = VitalTealDark
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val target = customTargetInputText.toIntOrNull() ?: 2000
+                        if (target > 0) {
+                            setCustomTargetGoal(target)
+                        }
+                        showCustomTargetDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = VitalTealDark)
+                ) {
+                    Text("Save Goal")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomTargetDialog = false }) {
                     Text("Cancel", color = Color(0xFF6B7280))
                 }
             }

@@ -111,11 +111,11 @@ fun HomeScreen(
     onOpenNutritionTrackerClick: () -> Unit = {},
     onOpenProgressAnalyticsClick: () -> Unit = {},
     onViewWorkoutHistoryClick: () -> Unit = {},
-    userName: String = "Alex Morgan",
-    userInitials: String = "AM",
-    userAge: String = "28",
-    userHeight: String = "175",
-    userWeight: String = "68.5",
+    userName: String = "",
+    userInitials: String = "--",
+    userAge: String = "--",
+    userHeight: String = "--",
+    userWeight: String = "--",
     userPhotoBitmap: ImageBitmap? = null,
     onLogoutClick: () -> Unit = {}
 ) {

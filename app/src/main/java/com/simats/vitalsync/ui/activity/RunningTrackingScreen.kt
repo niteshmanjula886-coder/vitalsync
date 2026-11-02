@@ -26,13 +26,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,10 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -51,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.FitnessRepository
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 import kotlinx.coroutines.delay
@@ -59,6 +56,9 @@ import java.util.Locale
 @Composable
 fun RunningTrackingScreen(
     modifier: Modifier = Modifier,
+    targetGoalTab: String = "Distance",
+    targetMinutes: Int = 30,
+    targetDistanceKm: Float = 5.0f,
     onBackClick: () -> Unit = {},
     onFinishTracking: () -> Unit = {},
     onFinishTrackingWithData: ((durationSeconds: Int, distanceKm: Float, caloriesBurned: Int, avgPace: String, avgHeartRate: Int?, steps: Int) -> Unit)? = null
@@ -74,19 +74,31 @@ fun RunningTrackingScreen(
         }
     }
 
-    val timerMinutes = trackingSeconds / 60
-    val timerSecs = trackingSeconds % 60
-    val formattedTime = String.format(Locale.US, "%02d:%02d", timerMinutes, timerSecs)
+    val formattedDynamicTime = FitnessRepository.formatDurationDynamic(trackingSeconds)
 
-    // Animated Run Goal Fill State
-    var targetRunGoalRatio by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(Unit) {
-        targetRunGoalRatio = 0.85f
+    // Live Real-Time Running Distance & Metrics Calculations (~10.0 km/h running speed)
+    val liveDistanceKm = trackingSeconds * 0.00277f
+    val liveCalories = (liveDistanceKm * 65f).toInt()
+    val livePaceFormatted = if (liveDistanceKm > 0.02f) {
+        val paceMinsPerKm = (trackingSeconds / 60f) / liveDistanceKm
+        val pMin = paceMinsPerKm.toInt()
+        val pSec = ((paceMinsPerKm - pMin) * 60).toInt()
+        String.format(Locale.US, "%d:%02d /km", pMin, pSec)
+    } else {
+        "6:00 /km"
     }
-    val animatedRunGoalRatio by animateFloatAsState(
-        targetValue = targetRunGoalRatio,
-        animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
-        label = "RunGoalAnimation"
+
+    // Live Progress Column Ratio Calculation
+    val targetRatio = if (targetGoalTab == "Distance") {
+        if (targetDistanceKm > 0f) (liveDistanceKm / targetDistanceKm).coerceIn(0f, 1f) else 0f
+    } else {
+        if (targetMinutes > 0) ((trackingSeconds / 60f) / targetMinutes.toFloat()).coerceIn(0f, 1f) else 0f
+    }
+
+    val animatedGoalProgress by animateFloatAsState(
+        targetValue = targetRatio,
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "RunningGoalProgressAnimation"
     )
 
     Column(
@@ -153,49 +165,74 @@ fun RunningTrackingScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Dual Timer Header
+            // Live Timer Banner
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🏃 Outdoor Run", fontSize = 13.sp, color = Color(0xFF6B7280))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFE8F6F0))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = if (targetGoalTab == "Distance") "Target: ${String.format(Locale.US, "%.1f", targetDistanceKm)} km" else "Target: $targetMinutes min",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F9F7A)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = formattedDynamicTime,
+                    fontSize = 52.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
+
+                Text(
+                    text = "Elapsed Time",
+                    fontSize = 12.sp,
+                    color = Color(0xFF9CA3AF)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // Live Metrics Summary Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.SpaceAround
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = formattedTime, fontSize = 38.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                    Text(text = "Elapsed time", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    Text(text = "Live Distance", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = String.format(Locale.US, "%.2f km", liveDistanceKm), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "6:00", fontSize = 38.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
-                    Text(text = "Avg pace min/km", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    Text(text = "Live Calories", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = "$liveCalories kcal", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "Average Pace", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = livePaceFormatted, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Stats Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(text = "Distance", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                    Text(text = "5.0 km", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                }
-
-                Column {
-                    Text(text = "Calories", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                    Text(text = "315 kcal", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                }
-
-                Column {
-                    Text(text = "Heart rate", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                    Text(text = "148 bpm", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Pace Trend Card
+            // Live Target Tracking Progress Column
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -207,85 +244,18 @@ fun RunningTrackingScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Pace trend", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Text(text = "min/km", fontSize = 12.sp, color = Color(0xFF0F9F7A))
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Animated Pace Trend Line
-                    var targetTrendProgress by remember { mutableFloatStateOf(0f) }
-                    LaunchedEffect(Unit) {
-                        targetTrendProgress = 1f
-                    }
-                    val trendProgress by animateFloatAsState(
-                        targetValue = targetTrendProgress,
-                        animationSpec = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
-                        label = "PaceTrendAnimation"
-                    )
-
-                    Canvas(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(90.dp)
-                    ) {
-                        val w = size.width
-                        val h = size.height
-
-                        val fullPath = Path().apply {
-                            moveTo(0f, h * 0.6f)
-                            cubicTo(w * 0.1f, h * 0.5f, w * 0.15f, h * 0.4f, w * 0.2f, h * 0.4f)
-                            cubicTo(w * 0.3f, h * 0.35f, w * 0.35f, h * 0.3f, w * 0.4f, h * 0.3f)
-                            cubicTo(w * 0.5f, h * 0.4f, w * 0.55f, h * 0.5f, w * 0.6f, h * 0.5f)
-                            cubicTo(w * 0.7f, h * 0.4f, w * 0.75f, h * 0.35f, w * 0.8f, h * 0.35f)
-                            cubicTo(w * 0.9f, h * 0.4f, w * 0.95f, h * 0.45f, w, h * 0.45f)
-                        }
-
-                        val pathMeasure = PathMeasure().apply { setPath(fullPath, false) }
-                        val animatedPath = Path()
-                        pathMeasure.getSegment(0f, pathMeasure.length * trendProgress, animatedPath, true)
-
-                        if (trendProgress > 0f) {
-                            val fillPath = Path().apply {
-                                addPath(animatedPath)
-                                lineTo(w * trendProgress, h)
-                                lineTo(0f, h)
-                                close()
-                            }
-
-                            drawPath(
-                                path = fillPath,
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(Color(0x350F9F7A), Color(0x000F9F7A))
-                                )
-                            )
-
-                            drawPath(
-                                path = animatedPath,
-                                color = Color(0xFF0F9F7A),
-                                style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Animated Run Distance Goal Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(text = "Run distance goal", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Text(text = "${(animatedRunGoalRatio * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                        Text(
+                            text = if (targetGoalTab == "Distance") "Live Distance Progress" else "Live Time Progress",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF111827)
+                        )
+                        Text(
+                            text = "${(animatedGoalProgress * 100).toInt()}%",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F9F7A)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -299,17 +269,23 @@ fun RunningTrackingScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(animatedRunGoalRatio)
+                                .fillMaxWidth(animatedGoalProgress)
                                 .height(8.dp)
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(Color(0xFF0F9F7A))
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "5.0 / 6.0 km · 1.0 km remaining",
+                        text = if (targetGoalTab == "Distance") {
+                            val remaining = (targetDistanceKm - liveDistanceKm).coerceAtLeast(0f)
+                            "${String.format(Locale.US, "%.2f", liveDistanceKm)} of ${String.format(Locale.US, "%.1f", targetDistanceKm)} km · ${String.format(Locale.US, "%.2f", remaining)} km remaining"
+                        } else {
+                            val remSecs = (targetMinutes * 60 - trackingSeconds).coerceAtLeast(0)
+                            "$formattedDynamicTime of ${targetMinutes}m · ${FitnessRepository.formatDurationDynamic(remSecs)} remaining"
+                        },
                         fontSize = 12.sp,
                         color = Color(0xFF6B7280)
                     )
@@ -318,25 +294,54 @@ fun RunningTrackingScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Kilometer Splits Card
+            // WORKOUT RESULT STAT CARD UNDER LIVE PROGRESS
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F6F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    Text(text = "Kilometer splits", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "Session Performance Result", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF0F9F7A))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(text = "Live Result", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    SplitRow(km = "1", pace = "6:01", bpm = "142")
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 8.dp))
-                    SplitRow(km = "2", pace = "5:58", bpm = "148")
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 8.dp))
-                    SplitRow(km = "3", pace = "6:02", bpm = "150")
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 8.dp))
-                    SplitRow(km = "4", pace = "5:58", bpm = "151")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(text = "LIVE TIME", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A), letterSpacing = 0.8.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(text = formattedDynamicTime, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        }
+
+                        Column {
+                            Text(text = "ENERGY BURN", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A), letterSpacing = 0.8.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(text = "$liveCalories kcal", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(text = "CALCULATED PACE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A), letterSpacing = 0.8.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(text = livePaceFormatted, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        }
+                    }
                 }
             }
 
@@ -346,8 +351,7 @@ fun RunningTrackingScreen(
         // Single Primary Finish Button at Bottom
         Button(
             onClick = {
-                val duration = if (trackingSeconds > 0) trackingSeconds else 1515
-                onFinishTrackingWithData?.invoke(duration, 5.0f, 315, "6:00", 148, 5100)
+                onFinishTrackingWithData?.invoke(trackingSeconds, liveDistanceKm, liveCalories, livePaceFormatted, 148, (liveDistanceKm * 1250f).toInt())
                 onFinishTracking()
             },
             modifier = Modifier
@@ -366,19 +370,6 @@ fun RunningTrackingScreen(
                 fontWeight = FontWeight.Bold
             )
         }
-    }
-}
-
-@Composable
-private fun SplitRow(km: String, pace: String, bpm: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(text = "KM $km", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-        Text(text = "$pace /km", fontSize = 13.sp, color = Color(0xFF0F9F7A), fontWeight = FontWeight.Medium)
-        Text(text = "$bpm bpm", fontSize = 12.sp, color = Color(0xFF6B7280))
     }
 }
 

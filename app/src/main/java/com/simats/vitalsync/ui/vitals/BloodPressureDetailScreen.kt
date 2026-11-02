@@ -55,6 +55,9 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun BloodPressureDetailScreen(
     modifier: Modifier = Modifier,
+    systolic: Int = 0,
+    diastolic: Int = 0,
+    status: String = "No data available",
     onBackClick: () -> Unit = {},
     onAddReadingClick: () -> Unit = {}
 ) {
@@ -142,10 +145,10 @@ fun BloodPressureDetailScreen(
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "Normal",
+                                text = if (systolic > 0 && diastolic > 0) status else "No data",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F9F7A)
+                                color = if (systolic > 0 && diastolic > 0) Color(0xFF0F9F7A) else Color(0xFF6B7280)
                             )
                         }
                     }
@@ -154,7 +157,7 @@ fun BloodPressureDetailScreen(
 
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
-                            text = "120 / 80",
+                            text = if (systolic > 0 && diastolic > 0) "$systolic / $diastolic" else "-- / --",
                             fontSize = 36.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF111827)
@@ -172,7 +175,7 @@ fun BloodPressureDetailScreen(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "Oct 15, 2025 · 9:00 AM · Rest status",
+                        text = if (systolic > 0 && diastolic > 0) "Recorded at rest" else "No readings recorded yet",
                         fontSize = 12.sp,
                         color = Color(0xFF9CA3AF)
                     )
@@ -330,11 +333,21 @@ fun BloodPressureDetailScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    BpHistoryRow("120/80 mmHg", "Oct 15 - 9:00 AM", "Normal", Color(0xFF0F9F7A), Color(0xFFE6F4EA))
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-                    BpHistoryRow("128/83 mmHg", "Oct 14 - 9:15 AM", "Elevated (Med)", Color(0xFFF59E0B), Color(0xFFFEF3C7))
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-                    BpHistoryRow("142/92 mmHg", "Oct 12 - 8:10 AM", "High (Alert)", Color(0xFFEF4444), Color(0xFFFEE2E2))
+                    if (systolic > 0 && diastolic > 0) {
+                        BpHistoryRow(
+                            reading = "$systolic/$diastolic mmHg",
+                            time = "Latest Reading",
+                            status = status,
+                            textColor = if (systolic <= 120 && diastolic <= 80) Color(0xFF0F9F7A) else Color(0xFFF59E0B),
+                            bgColor = if (systolic <= 120 && diastolic <= 80) Color(0xFFE6F4EA) else Color(0xFFFEF3C7)
+                        )
+                    } else {
+                        Text(
+                            text = "No readings recorded yet",
+                            fontSize = 14.sp,
+                            color = Color(0xFF9CA3AF)
+                        )
+                    }
                 }
             }
 

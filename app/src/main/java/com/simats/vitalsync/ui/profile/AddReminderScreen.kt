@@ -56,7 +56,7 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 fun AddReminderScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
-    onSaveReminderSuccess: () -> Unit = {}
+    onSaveReminderSuccess: (title: String, time: String, frequency: String) -> Unit = { _, _, _ -> }
 ) {
     var reminderName by remember { mutableStateOf("Drink Water") }
     var selectedTime by remember { mutableStateOf("08:00 AM") }
@@ -242,7 +242,7 @@ fun AddReminderScreen(
                 .padding(vertical = 16.dp)
         ) {
             Button(
-                onClick = onSaveReminderSuccess,
+                onClick = { onSaveReminderSuccess(reminderName, selectedTime, selectedFrequency) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
@@ -287,6 +287,6 @@ private fun BackArrowIcon(
 @Composable
 fun AddReminderScreenPreview() {
     VitalsyncTheme {
-        AddReminderScreen()
+        AddReminderScreen(onSaveReminderSuccess = { _, _, _ -> })
     }
 }

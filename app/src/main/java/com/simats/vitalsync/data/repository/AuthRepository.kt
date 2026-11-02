@@ -132,6 +132,10 @@ class AuthRepository(
 
     fun getLoggedInUser(): User? = sessionManager?.getUser()
 
+    fun saveUser(user: User) {
+        sessionManager?.saveUserSession(user)
+    }
+
     fun isLoggedIn(): Boolean = sessionManager?.isLoggedIn() ?: false
 
     /**
@@ -155,6 +159,18 @@ class AuthRepository(
 
     fun setSessionTimeoutMinutes(minutes: Long) {
         sessionManager?.setSessionTimeoutMinutes(minutes)
+    }
+
+    fun isOnboardingCompleted(): Boolean = sessionManager?.isOnboardingCompleted() ?: false
+
+    fun setOnboardingCompleted(completed: Boolean) {
+        sessionManager?.setOnboardingCompleted(completed)
+    }
+
+    fun isDarkModeEnabled(): Boolean = sessionManager?.isDarkModeEnabled() ?: false
+
+    fun setDarkModeEnabled(enabled: Boolean) {
+        sessionManager?.setDarkModeEnabled(enabled)
     }
 
     /**

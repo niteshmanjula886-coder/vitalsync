@@ -58,9 +58,18 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun StepCountDetailScreen(
     modifier: Modifier = Modifier,
+    stepsCurrent: Int = 0,
+    stepsGoal: Int = 8000,
+    distanceKm: Float = 0f,
+    caloriesBurned: Int = 0,
+    activeMinutes: Int = 0,
     onBackClick: () -> Unit = {},
     onEditGoalClick: () -> Unit = {}
 ) {
+    val progressPercent = if (stepsGoal > 0 && stepsCurrent > 0) ((stepsCurrent.toFloat() / stepsGoal) * 100).toInt() else 0
+    val targetGaugeAngle = (progressPercent.coerceIn(0, 100) / 100f) * 360f
+    val remainingSteps = (stepsGoal - stepsCurrent).coerceAtLeast(0)
+    val remainingText = if (stepsCurrent <= 0) "No steps recorded today" else if (remainingSteps > 0) "${String.format(java.util.Locale.US, "%,d", remainingSteps)} steps remaining" else "Daily goal reached! 🎉"
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -132,12 +141,12 @@ fun StepCountDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Today, October 15",
+                            text = "Today's Activity",
                             fontSize = 12.sp,
                             color = Color(0xFF6B7280)
                         )
                         Text(
-                            text = "Sample data",
+                            text = if (stepsCurrent > 0) "Recorded" else "No data",
                             fontSize = 11.sp,
                             color = Color(0xFF9CA3AF)
                         )
@@ -146,10 +155,6 @@ fun StepCountDetailScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Animated Progress Ring Gauge
-                    var targetGaugeAngle by remember { mutableFloatStateOf(0f) }
-                    LaunchedEffect(Unit) {
-                        targetGaugeAngle = 280f
-                    }
                     val animatedGaugeAngle by animateFloatAsState(
                         targetValue = targetGaugeAngle,
                         animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
@@ -192,7 +197,7 @@ fun StepCountDetailScreen(
 
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "78%",
+                                    text = "$progressPercent%",
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF111827)
@@ -209,7 +214,7 @@ fun StepCountDetailScreen(
 
                         Column {
                             Text(
-                                text = "6,245",
+                                text = if (stepsCurrent > 0) String.format(java.util.Locale.US, "%,d", stepsCurrent) else "--",
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF111827)
@@ -222,14 +227,14 @@ fun StepCountDetailScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Goal: 8,000 steps ✏️",
+                                text = "Goal: ${String.format(java.util.Locale.US, "%,d", stepsGoal)} steps ✏️",
                                 fontSize = 12.sp,
                                 color = Color(0xFF0F9F7A),
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.clickable { onEditGoalClick() }
                             )
                             Text(
-                                text = "1,755 steps remaining",
+                                text = remainingText,
                                 fontSize = 12.sp,
                                 color = Color(0xFF0F9F7A),
                                 fontWeight = FontWeight.SemiBold
@@ -246,17 +251,32 @@ fun StepCountDetailScreen(
                         Column {
                             Text(text = "Distance", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = "4.2 km", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(
+                                text = if (distanceKm > 0) String.format(java.util.Locale.US, "%.1f km", distanceKm) else "-- km",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
                         }
                         Column {
                             Text(text = "Energy", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = "320 kcal", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(
+                                text = if (caloriesBurned > 0) "$caloriesBurned kcal" else "-- kcal",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
                         }
                         Column {
                             Text(text = "Active time", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = "42 min", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(
+                                text = if (activeMinutes > 0) "$activeMinutes min" else "-- min",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
                         }
                     }
                 }
@@ -359,7 +379,7 @@ fun StepCountDetailScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "5,978 steps per day on average",
+                        text = if (stepsCurrent > 0) "${String.format(java.util.Locale.US, "%,d", stepsCurrent)} steps recorded today" else "No daily steps recorded",
                         fontSize = 12.sp,
                         color = Color(0xFF0F9F7A),
                         fontWeight = FontWeight.SemiBold
@@ -386,11 +406,20 @@ fun StepCountDetailScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    StepHistoryRow(dateStr = "Today · Oct 15", valStr = "6,245", subStr = "78% (Med)", statusColor = Color(0xFFF59E0B))
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-                    StepHistoryRow(dateStr = "Yesterday · Oct 14", valStr = "7,520", subStr = "94% (High)", statusColor = Color(0xFF0F9F7A))
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 10.dp))
-                    StepHistoryRow(dateStr = "Tuesday · Oct 13", valStr = "3,600", subStr = "45% (Low)", statusColor = Color(0xFFEF4444))
+                    if (stepsCurrent > 0) {
+                        StepHistoryRow(
+                            dateStr = "Today",
+                            valStr = String.format(java.util.Locale.US, "%,d", stepsCurrent),
+                            subStr = "$progressPercent% of goal",
+                            statusColor = if (progressPercent >= 100) Color(0xFF0F9F7A) else Color(0xFFF59E0B)
+                        )
+                    } else {
+                        Text(
+                            text = "No steps recorded yet",
+                            fontSize = 14.sp,
+                            color = Color(0xFF9CA3AF)
+                        )
+                    }
                 }
             }
 

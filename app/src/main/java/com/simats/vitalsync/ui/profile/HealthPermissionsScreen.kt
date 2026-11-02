@@ -2,6 +2,7 @@ package com.simats.vitalsync.ui.profile
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,19 +48,48 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.theme.VitalTealDark
-import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun HealthPermissionsScreen(
     modifier: Modifier = Modifier,
+    vitalSigns: Boolean = true,
+    activity: Boolean = true,
+    sleep: Boolean = true,
+    hydration: Boolean = false,
+    writeHealthData: Boolean = true,
+    lastSyncTimestamp: Long? = null,
+    isBluetoothGranted: Boolean = false,
+    onRequestBluetoothPermissions: () -> Unit = {},
+    onRequestHealthPermissions: () -> Unit = {},
+    onSavePermissions: (vitalSigns: Boolean, activity: Boolean, sleep: Boolean, hydration: Boolean, writeHealthData: Boolean) -> Unit = { _, _, _, _, _ -> },
     onBackClick: () -> Unit = {}
 ) {
-    var vitalSignsPermission by remember { mutableStateOf(true) }
-    var activityPermission by remember { mutableStateOf(true) }
-    var sleepPermission by remember { mutableStateOf(true) }
-    var hydrationPermission by remember { mutableStateOf(false) }
-    var writeHealthDataPermission by remember { mutableStateOf(true) }
+    var vitalSignsPermission by remember { mutableStateOf(vitalSigns) }
+    var activityPermission by remember { mutableStateOf(activity) }
+    var sleepPermission by remember { mutableStateOf(sleep) }
+    var hydrationPermission by remember { mutableStateOf(hydration) }
+    var writeHealthDataPermission by remember { mutableStateOf(writeHealthData) }
+
+    LaunchedEffect(vitalSigns, activity, sleep, hydration, writeHealthData) {
+        vitalSignsPermission = vitalSigns
+        activityPermission = activity
+        sleepPermission = sleep
+        hydrationPermission = hydration
+        writeHealthDataPermission = writeHealthData
+    }
+
+    val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+    val lastSyncText = remember(lastSyncTimestamp) {
+        if (lastSyncTimestamp != null && lastSyncTimestamp > 0) {
+            "Last synced at ${timeFormat.format(Date(lastSyncTimestamp))}"
+        } else {
+            "Cloud synchronization active"
+        }
+    }
 
     Column(
         modifier = modifier
@@ -128,11 +159,11 @@ fun HealthPermissionsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "💚", fontSize = 24.sp)
+                        Text(text = "❤️", fontSize = 24.sp)
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(text = "Health Connect", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                            Text(text = "Last synced today at 9:30 AM", fontSize = 12.sp, color = Color(0xFF6B7280))
+                            Text(text = lastSyncText, fontSize = 12.sp, color = Color(0xFF6B7280))
                         }
                     }
 
@@ -140,9 +171,68 @@ fun HealthPermissionsScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(Color(0xFFDCFCE7))
+                            .clickable { onRequestHealthPermissions() }
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Text(text = "Connected", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF15803D))
+                        Text(text = "Manage", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF15803D))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Bluetooth Permission Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = if (isBluetoothGranted) Color(0xFFF0FDF4) else Color(0xFFFEF3C7)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (isBluetoothGranted) Color(0xFFBBF7D0) else Color(0xFFFDE68A)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "📡", fontSize = 22.sp)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Bluetooth Low Energy",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
+                            Text(
+                                text = if (isBluetoothGranted) "Access granted for device sensors" else "Required for heart rate & pulse sensors",
+                                fontSize = 11.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                    }
+
+                    if (!isBluetoothGranted) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFD97706))
+                                .clickable { onRequestBluetoothPermissions() }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(text = "Grant", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFDCFCE7))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(text = "Active", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF15803D))
+                        }
                     }
                 }
             }
@@ -159,13 +249,39 @@ fun HealthPermissionsScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    PermissionToggleRow(title = "Vital Signs", desc = "Heart rate, blood pressure, and SpO₂", icon = "💚", checked = vitalSignsPermission) { vitalSignsPermission = it }
+                    PermissionToggleRow(
+                        title = "Vital Signs",
+                        desc = "Heart rate, blood pressure, and SpO2",
+                        icon = "❤️",
+                        checked = vitalSignsPermission
+                    ) { vitalSignsPermission = it }
+
                     HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 12.dp))
-                    PermissionToggleRow(title = "Activity", desc = "Steps, distance, and active calories", icon = "🏃", checked = activityPermission) { activityPermission = it }
+
+                    PermissionToggleRow(
+                        title = "Activity",
+                        desc = "Steps, distance, and active calories",
+                        icon = "🏃‍♂️",
+                        checked = activityPermission
+                    ) { activityPermission = it }
+
                     HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 12.dp))
-                    PermissionToggleRow(title = "Sleep", desc = "Sleep duration and sleep stages", icon = "😴", checked = sleepPermission) { sleepPermission = it }
+
+                    PermissionToggleRow(
+                        title = "Sleep",
+                        desc = "Sleep duration and sleep stages",
+                        icon = "🌙",
+                        checked = sleepPermission
+                    ) { sleepPermission = it }
+
                     HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 12.dp))
-                    PermissionToggleRow(title = "Hydration", desc = "Daily water intake", icon = "💧", checked = hydrationPermission) { hydrationPermission = it }
+
+                    PermissionToggleRow(
+                        title = "Hydration",
+                        desc = "Daily water intake",
+                        icon = "💧",
+                        checked = hydrationPermission
+                    ) { hydrationPermission = it }
                 }
             }
 
@@ -181,50 +297,57 @@ fun HealthPermissionsScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    PermissionToggleRow(title = "Write Health Data", desc = "Save readings you add to Health Connect", icon = "🔄", checked = writeHealthDataPermission) { writeHealthDataPermission = it }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Control Notice Box
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFFE6F4EA))
-                    .padding(16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "🛡️", fontSize = 16.sp)
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "You're in control. Turning off access won't delete data already in VitalSync. Manage it in Data Management.",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF065F46)
-                    )
+                    PermissionToggleRow(
+                        title = "Write Health Data",
+                        desc = "Allow VitalSync to write workouts and nutrition entries to Health Connect",
+                        icon = "📝",
+                        checked = writeHealthDataPermission
+                    ) {
+                        writeHealthDataPermission = it
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // Open Health Connect Settings Button
-        OutlinedButton(
-            onClick = { },
+        // Bottom Action Buttons
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
-                .height(52.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = VitalTealDark)
         ) {
-            Text(
-                text = "Open Health Connect settings",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Button(
+                onClick = {
+                    onSavePermissions(
+                        vitalSignsPermission,
+                        activityPermission,
+                        sleepPermission,
+                        hydrationPermission,
+                        writeHealthDataPermission
+                    )
+                    onBackClick()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = VitalTealDark)
+            ) {
+                Text(text = "Save Permissions", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedButton(
+                onClick = onRequestHealthPermissions,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text(text = "Open Health Connect Settings", fontSize = 14.sp, color = Color(0xFF374151))
+            }
         }
     }
 }
@@ -237,7 +360,10 @@ private fun SectionHeader(title: String) {
         fontWeight = FontWeight.Bold,
         color = Color(0xFF9CA3AF),
         letterSpacing = 1.sp,
-        modifier = Modifier.padding(bottom = 6.dp, start = 4.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp, start = 4.dp),
+        textAlign = androidx.compose.ui.text.style.TextAlign.Start
     )
 }
 
@@ -258,23 +384,21 @@ private fun PermissionToggleRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            Text(text = icon, fontSize = 18.sp)
+            Text(text = icon, fontSize = 20.sp)
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(text = desc, fontSize = 12.sp, color = Color(0xFF6B7280))
+                Text(text = desc, fontSize = 11.sp, color = Color(0xFF6B7280))
             }
         }
-
-        Spacer(modifier = Modifier.width(12.dp))
 
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = VitalTealPrimary
+                checkedTrackColor = Color(0xFF0F9F7A)
             )
         )
     }

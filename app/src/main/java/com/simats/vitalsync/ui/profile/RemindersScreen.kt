@@ -31,10 +31,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,19 +43,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.model.profile.ReminderItem
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
 @Composable
 fun RemindersScreen(
     modifier: Modifier = Modifier,
+    reminders: List<ReminderItem> = emptyList(),
+    isLoading: Boolean = false,
+    onToggleReminder: (ReminderItem, Boolean) -> Unit = { _, _ -> },
+    onDeleteReminder: (Int) -> Unit = {},
     onBackClick: () -> Unit = {},
     onAddReminderClick: () -> Unit = {}
 ) {
-    var waterReminder by remember { mutableStateOf(true) }
-    var exerciseReminder by remember { mutableStateOf(true) }
-    var sleepReminder by remember { mutableStateOf(true) }
-    var medicationReminder by remember { mutableStateOf(true) }
+    val activeCount = reminders.count { it.isEnabled }
 
     Column(
         modifier = modifier
@@ -122,7 +120,7 @@ fun RemindersScreen(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "4 scheduled",
+                        text = "$activeCount scheduled",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -132,7 +130,7 @@ fun RemindersScreen(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = "All reminders are on",
+                    text = if (activeCount > 0) "Reminders synced with cloud" else "No active reminders",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -140,51 +138,61 @@ fun RemindersScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Reminder Card 1: Drink Water
-            ReminderCard(
-                icon = "🥛",
-                title = "Drink Water",
-                schedule = "Every day",
-                time = "8:00 AM",
-                checked = waterReminder,
-                onCheckedChange = { waterReminder = it }
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Reminder Card 2: Exercise
-            ReminderCard(
-                icon = "🏃",
-                title = "Exercise",
-                schedule = "Mon–Fri",
-                time = "6:00 PM",
-                checked = exerciseReminder,
-                onCheckedChange = { exerciseReminder = it }
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Reminder Card 3: Sleep
-            ReminderCard(
-                icon = "🌙",
-                title = "Sleep",
-                schedule = "Every day",
-                time = "10:30 PM",
-                checked = sleepReminder,
-                onCheckedChange = { sleepReminder = it }
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Reminder Card 4: Medication
-            ReminderCard(
-                icon = "💊",
-                title = "Medication",
-                schedule = "Every day",
-                time = "9:00 AM",
-                checked = medicationReminder,
-                onCheckedChange = { medicationReminder = it }
-            )
+            if (reminders.isEmpty() && !isLoading) {
+                // Fallback default visual reminders
+                ReminderCard(
+                    icon = "💧",
+                    title = "Drink Water",
+                    schedule = "Every day",
+                    time = "8:00 AM",
+                    checked = true,
+                    onCheckedChange = { }
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                ReminderCard(
+                    icon = "🏃‍♂️",
+                    title = "Exercise",
+                    schedule = "Mon–Fri",
+                    time = "6:00 PM",
+                    checked = true,
+                    onCheckedChange = { }
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                ReminderCard(
+                    icon = "🌙",
+                    title = "Sleep",
+                    schedule = "Every day",
+                    time = "10:30 PM",
+                    checked = true,
+                    onCheckedChange = { }
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                ReminderCard(
+                    icon = "💊",
+                    title = "Medication",
+                    schedule = "Every day",
+                    time = "9:00 AM",
+                    checked = true,
+                    onCheckedChange = { }
+                )
+            } else {
+                reminders.forEachIndexed { index, item ->
+                    val icon = getReminderIcon(item.title, item.reminderType)
+                    ReminderCard(
+                        icon = icon,
+                        title = item.title,
+                        schedule = item.frequency.ifBlank { "Every day" },
+                        time = item.time.ifBlank { "08:00 AM" },
+                        checked = item.isEnabled,
+                        onCheckedChange = { isChecked ->
+                            onToggleReminder(item, isChecked)
+                        }
+                    )
+                    if (index < reminders.size - 1) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(28.dp))
         }
@@ -208,6 +216,18 @@ fun RemindersScreen(
                 fontWeight = FontWeight.Bold
             )
         }
+    }
+}
+
+private fun getReminderIcon(title: String, type: String?): String {
+    val lower = (title + " " + (type ?: "")).lowercase()
+    return when {
+        lower.contains("water") || lower.contains("hydrate") -> "💧"
+        lower.contains("exercise") || lower.contains("workout") || lower.contains("gym") || lower.contains("run") -> "🏃‍♂️"
+        lower.contains("sleep") || lower.contains("bed") -> "🌙"
+        lower.contains("med") || lower.contains("pill") -> "💊"
+        lower.contains("heart") || lower.contains("vital") || lower.contains("bp") -> "❤️"
+        else -> "⏰"
     }
 }
 
