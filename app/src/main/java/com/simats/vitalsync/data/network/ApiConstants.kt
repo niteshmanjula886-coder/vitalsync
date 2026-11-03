@@ -19,6 +19,6 @@ object ApiConstants {
 
     // Network timeout settings
     const val CONNECT_TIMEOUT_SECONDS = 30L
-    const val READ_TIMEOUT_SECONDS = 30L
-    const val WRITE_TIMEOUT_SECONDS = 30L
+    const val READ_TIMEOUT_SECONDS = 120L
+    const val WRITE_TIMEOUT_SECONDS = 60L
 }
