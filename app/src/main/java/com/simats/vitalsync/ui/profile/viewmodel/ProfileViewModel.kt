@@ -363,19 +363,42 @@ class ProfileViewModel(
         }
     }
 
+    fun onGoalSelected(goalTitle: String, goalId: String? = null, userId: Int? = null, email: String? = null) {
+        val resolvedId = goalId ?: when (goalTitle.lowercase()) {
+            "build muscle" -> "1"
+            "weight loss", "weight management" -> "2"
+            "improve fitness", "fitness" -> "3"
+            "endurance" -> "4"
+            else -> "1"
+        }
+        val targetEmail = email ?: _profileState.value.email
+        val targetUserId = userId ?: _profileState.value.userId
+        saveHealthGoal(goalId = resolvedId, goalTitle = goalTitle, userId = targetUserId, email = targetEmail)
+    }
+
     fun saveHealthGoal(goalId: String, goalTitle: String, userId: Int? = null, email: String? = null) {
+        val targetEmail = email ?: _profileState.value.email
+        val targetUserId = userId ?: _profileState.value.userId
+
+        // 1. Instantly update in-memory UI state so UI responds with zero delay
         _profileState.update { it.copy(primaryGoal = goalTitle) }
         _healthGoalsState.update { it.copy(selectedGoal = goalTitle) }
 
         viewModelScope.launch {
-            val req = SaveHealthGoalRequest(userId = userId, email = email, goalId = goalId, goalTitle = goalTitle)
+            val req = SaveHealthGoalRequest(
+                userId = targetUserId,
+                email = targetEmail,
+                goalId = goalId,
+                goalTitle = goalTitle,
+                primaryGoal = goalTitle
+            )
             profileRepository.saveHealthGoal(req).collect { resource ->
                 when (resource) {
                     is Resource.Loading -> {
                         _healthGoalsState.update { it.copy(isLoading = true, errorMessage = null) }
                     }
                     is Resource.Success -> {
-                        val selected = resource.data.selectedGoal ?: goalTitle
+                        val selected = resource.data.selectedGoal ?: resource.data.primaryGoal ?: goalTitle
                         _healthGoalsState.update {
                             it.copy(
                                 isLoading = false,

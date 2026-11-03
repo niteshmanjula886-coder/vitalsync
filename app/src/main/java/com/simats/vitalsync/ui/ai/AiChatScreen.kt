@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.ai
 
+import android.app.Application
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -36,14 +37,16 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -58,12 +61,16 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.simats.vitalsync.ui.ai.viewmodel.AiViewModel
+import com.simats.vitalsync.ui.ai.viewmodel.AiViewModelFactory
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -78,57 +85,33 @@ data class ChatMessage(
     val timeText: String
 )
 
-private val initialChatMessages = listOf(
-    ChatMessage("1", "USER", "How was my activity this week?", "9:00 AM"),
-    ChatMessage("2", "AI", "You're making great progress! Your activity is up 12% from your weekly average. A 15-minute walk today can help you stay on track.", "9:01 AM")
-)
-
-private fun generateAiResponse(query: String): String {
-    val q = query.lowercase()
-    return when {
-        q.contains("activity") || q.contains("step") || q.contains("walk") ->
-            "Your step count today is 6,245 steps (78% of target). You've covered 4.2 km and burned 320 kcal. Keep moving to hit your 8,000 steps goal!"
-        q.contains("sleep") || q.contains("rest") || q.contains("bed") ->
-            "Your sleep last night was 7h 32m with an optimal Sleep Score of 88. Deep and REM sleep cycles were well balanced for recovery."
-        q.contains("water") || q.contains("drink") || q.contains("hydrat") ->
-            "You have logged 5 / 8 glasses of water today. Drink 3 more glasses before 8:00 PM to complete your daily hydration goal!"
-        q.contains("protein") || q.contains("food") || q.contains("diet") || q.contains("calori") ->
-            "Today you've logged 1,820 kcal and 115g protein. For your muscle gain target, aim for another 15g protein in your evening meal."
-        q.contains("workout") || q.contains("gym") || q.contains("lift") || q.contains("volume") ->
-            "Your workout volume reached 18,500 kg across 4 sessions this week! Excellent training consistency. Make sure to recover well."
-        q.contains("heart") || q.contains("bpm") || q.contains("pulse") ->
-            "Your resting heart rate is 76 BPM (Normal range: 60-90 BPM). Your cardiovascular trends are healthy and stable."
-        else ->
-            "I've analyzed your health profile! Your overall Wellness Score is 88/100. Ask me anything about workouts, diet, sleep, or hydration!"
-    }
-}
-
 @Composable
 fun AiChatScreen(
     modifier: Modifier = Modifier,
+    viewModel: AiViewModel = viewModel(
+        factory = AiViewModelFactory(LocalContext.current.applicationContext as Application)
+    ),
     onBackClick: () -> Unit = {},
     onChatHistoryClick: () -> Unit = {}
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     var messageInput by remember { mutableStateOf("") }
     var isListeningForVoice by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
 
-    val messages = remember { mutableStateListOf<ChatMessage>().apply { addAll(initialChatMessages) } }
     val scrollState = rememberScrollState()
 
-    LaunchedEffect(messages.size) {
+    // Smooth auto-scroll to bottom whenever message count changes or AI begins typing
+    LaunchedEffect(uiState.messages.size, uiState.isSending) {
         scrollState.animateScrollTo(scrollState.maxValue)
     }
 
-    fun sendMessageText(textToSend: String) {
-        val userText = textToSend.trim()
-        if (userText.isEmpty()) return
-
-        messages.add(ChatMessage(System.currentTimeMillis().toString(), "USER", userText, "Just now"))
+    fun submitMessage(textToSend: String) {
+        val trimmed = textToSend.trim()
+        if (trimmed.isEmpty()) return
         messageInput = ""
         isListeningForVoice = false
-
-        val aiText = generateAiResponse(userText)
-        messages.add(ChatMessage((System.currentTimeMillis() + 1).toString(), "AI", aiText, "Just now"))
+        viewModel.sendMessage(trimmed)
     }
 
     // Smooth Animated Blur Dp
@@ -163,7 +146,7 @@ fun AiChatScreen(
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Header Bar
+                // Header Bar with Jr. Doctor Branding & Live Engine Status
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -182,30 +165,81 @@ fun AiChatScreen(
 
                         Spacer(modifier = Modifier.width(8.dp))
 
-                        Text(
-                            text = "VitalSync AI Assistant",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFEDE9FE)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "🩺", fontSize = 18.sp)
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column {
+                            Text(
+                                text = "VitalSync AI ✨",
+                                fontSize = 19.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF10B981))
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = uiState.activeModelLabel,
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF059669),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
                     }
 
-                    IconButton(
-                        onClick = onChatHistoryClick,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Text(
-                            text = "•••",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6B7280)
-                        )
+                    Box {
+                        IconButton(
+                            onClick = { showMenu = true },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Text(
+                                text = "•••",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Clear Conversation") },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.clearChatHistory()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("View History") },
+                                onClick = {
+                                    showMenu = false
+                                    onChatHistoryClick()
+                                }
+                            )
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Top Greeting Card
+                // Jr. Doctor Introduction & Telemetry Sync Banner
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
@@ -219,7 +253,7 @@ fun AiChatScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "✨ Your personal wellness companion",
+                                text = "✨ General & RAG-Enhanced AI",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF7C3AED)
@@ -232,7 +266,7 @@ fun AiChatScreen(
                                     .padding(horizontal = 8.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "Online",
+                                    text = "Ollama Active",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF15803D)
@@ -240,31 +274,54 @@ fun AiChatScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         Text(
-                            text = "💬 Hi Alex 👋 How can I help with your wellness today?",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827),
-                            lineHeight = 24.sp
+                            text = "Hello! I am your versatile AI assistant powered by Qwen3 (4B) and verified RAG medical knowledge. Ask me anything: from science, movies, and code to personalized vitals, workout recovery, and nutrition.",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF1E1B4B),
+                            lineHeight = 20.sp
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Suggested Prompts
-                SuggestedPromptChip("How was my activity this week?") { sendMessageText("How was my activity this week?") }
-                Spacer(modifier = Modifier.height(8.dp))
-                SuggestedPromptChip("How can I improve my sleep?") { sendMessageText("How can I improve my sleep?") }
-                Spacer(modifier = Modifier.height(8.dp))
-                SuggestedPromptChip("Give me my wellness summary.") { sendMessageText("Give me my wellness summary.") }
+                // Clinical Suggested Prompts
+                Text(
+                    text = "Quick Inquiries",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF6B7280)
+                )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                SuggestedPromptChip("🩺 Review my resting heart rate today") {
+                    submitMessage("Can you review my resting heart rate and cardiovascular trends today?")
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                SuggestedPromptChip("💧 Check today's hydration target") {
+                    submitMessage("How much water have I consumed today, and what is my remaining hydration goal?")
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                SuggestedPromptChip("🌙 How was my sleep recovery?") {
+                    submitMessage("Analyze my sleep score and duration from last night.")
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                SuggestedPromptChip("🥗 Best high protein sources for muscle gain") {
+                    submitMessage("What are the best high protein sources for building muscle?")
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                SuggestedPromptChip("🎬 Who directed Inception and what is it about?") {
+                    submitMessage("Who directed Inception and what is it about?")
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
 
                 Text(
-                    text = "Chat History",
+                    text = "Conversational Memory",
                     fontSize = 11.sp,
                     color = Color(0xFF9CA3AF),
                     modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -273,63 +330,124 @@ fun AiChatScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Dynamic Chat Messages List
-                messages.forEach { msg ->
+                uiState.messages.forEach { msg ->
                     if (msg.sender == "USER") {
-                        Box(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(start = 40.dp, bottom = 12.dp)
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(VitalTealDark)
-                                .padding(16.dp)
+                                .padding(start = 48.dp, bottom = 12.dp),
+                            horizontalAlignment = Alignment.End
                         ) {
-                            Text(
-                                text = msg.text,
-                                fontSize = 14.sp,
-                                color = Color.White,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    } else {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(end = 20.dp, bottom = 12.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    text = "✨ VitalSync AI",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF7C3AED)
-                                )
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(VitalTealDark)
+                                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                            ) {
                                 Text(
                                     text = msg.text,
                                     fontSize = 14.sp,
-                                    color = Color(0xFF111827),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Medium,
                                     lineHeight = 20.sp
+                                )
+                            }
+                            if (msg.timeText.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    text = msg.timeText,
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF9CA3AF)
+                                )
+                            }
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(end = 28.dp, bottom = 12.dp),
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "✨ Jr. Doctor",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF7C3AED)
+                                        )
+
+                                        if (msg.timeText.isNotBlank()) {
+                                            Text(
+                                                text = msg.timeText,
+                                                fontSize = 10.sp,
+                                                color = Color(0xFF9CA3AF)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Text(
+                                        text = msg.text,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF111827),
+                                        lineHeight = 20.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Pulsating "Jr. Doctor is thinking..." Bubble
+                if (uiState.isSending) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = 40.dp, bottom = 12.dp),
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Card(
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                PulsingThinkingDots()
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Jr. Doctor is analyzing your vitals...",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF7C3AED)
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Bottom Message Input Bar (Slide up smoothly above soft keyboard)
+            // Bottom Input Bar
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .imePadding()
-                    .padding(vertical = 12.dp)
+                    .padding(bottom = 12.dp)
             ) {
                 OutlinedTextField(
                     value = messageInput,
@@ -337,7 +455,7 @@ fun AiChatScreen(
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
                         Text(
-                            text = if (isListeningForVoice) "Listening to your voice..." else "Message VitalSync AI...",
+                            text = if (isListeningForVoice) "Listening to your voice..." else "Ask VitalSync AI anything...",
                             fontSize = 14.sp,
                             color = Color(0xFF9CA3AF)
                         )
@@ -345,7 +463,7 @@ fun AiChatScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(24.dp),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = { sendMessageText(messageInput) }),
+                    keyboardActions = KeyboardActions(onSend = { submitMessage(messageInput) }),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = Color.White,
                         unfocusedContainerColor = Color.White,
@@ -359,7 +477,7 @@ fun AiChatScreen(
                             modifier = Modifier.padding(end = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Interactive Animated AI Voice Orb Icon (Replaces plain mic emoji)
+                            // Interactive Animated AI Voice Orb Icon
                             Box(
                                 modifier = Modifier
                                     .size(34.dp)
@@ -383,9 +501,9 @@ fun AiChatScreen(
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(CircleShape)
-                                    .background(VitalTealPrimary)
-                                    .clickable {
-                                        sendMessageText(messageInput)
+                                    .background(if (messageInput.isNotBlank() && !uiState.isSending) VitalTealPrimary else Color(0xFFD1D5DB))
+                                    .clickable(enabled = messageInput.isNotBlank() && !uiState.isSending) {
+                                        submitMessage(messageInput)
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -401,10 +519,11 @@ fun AiChatScreen(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "General wellness information only. Not a medical diagnosis.",
-                    fontSize = 11.sp,
+                    text = "VitalSync AI provides general answers and wellness insights. Not a substitute for clinical emergency diagnosis.",
+                    fontSize = 10.sp,
                     color = Color(0xFF9CA3AF),
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -433,10 +552,9 @@ fun AiChatScreen(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.clickable {
-                    sendMessageText("How was my activity and sleep quality this week?")
+                    submitMessage("How was my activity and sleep quality this week?")
                 }
             ) {
-                // 🔮 Pure Ultra-Vivid Glowing AI Particle Orb
                 Box(
                     modifier = Modifier.size(210.dp),
                     contentAlignment = Alignment.Center
@@ -449,7 +567,6 @@ fun AiChatScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // "Speak now..." Glowing Label
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
@@ -470,6 +587,62 @@ fun AiChatScreen(
     }
 }
 
+@Composable
+private fun PulsingThinkingDots() {
+    val transition = rememberInfiniteTransition(label = "ThinkingDots")
+    val alpha1 by transition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Dot1"
+    )
+    val alpha2 by transition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Dot2"
+    )
+    val alpha3 by transition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Dot3"
+    )
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF7C3AED).copy(alpha = alpha1))
+        )
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF7C3AED).copy(alpha = alpha2))
+        )
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF7C3AED).copy(alpha = alpha3))
+        )
+    }
+}
+
 // 🔮 Ultra-Vivid Futuristic Glowing Violet/Magenta/Cyan AI Particle Orb Animation
 @Composable
 fun AiVoiceSphereAnimation(
@@ -478,7 +651,6 @@ fun AiVoiceSphereAnimation(
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "AiVoiceSphereTransition")
 
-    // Continuous Primary Rotation
     val rotationAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
@@ -489,7 +661,6 @@ fun AiVoiceSphereAnimation(
         label = "SphereRotation"
     )
 
-    // Counter Rotation for Gyroscope Effect
     val counterRotationAngle by infiniteTransition.animateFloat(
         initialValue = 360f,
         targetValue = 0f,
@@ -500,7 +671,6 @@ fun AiVoiceSphereAnimation(
         label = "CounterRotation"
     )
 
-    // Pulsating Aura Scale
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 0.92f,
         targetValue = 1.10f,
@@ -511,7 +681,6 @@ fun AiVoiceSphereAnimation(
         label = "SphereAuraPulse"
     )
 
-    // Fluid Wave Oscillations
     val wavePhase by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 2f * Math.PI.toFloat(),
@@ -519,137 +688,100 @@ fun AiVoiceSphereAnimation(
             animation = tween(durationMillis = 1600, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "WavePhase"
+        label = "SphereWavePhase"
     )
 
-    // Reusable Path to prevent allocations during 120 FPS draw phase
-    val ribbonPath = remember { Path() }
-
     Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-        val centerX = w / 2f
-        val centerY = h / 2f
-        val baseRadius = (minOf(w, h) / 2.2f) * (if (isListening) pulseScale else 1f)
+        val centerX = size.width / 2f
+        val centerY = size.height / 2f
+        val baseRadius = (size.minDimension / 2f) * 0.72f * pulseScale
 
-        // 1. Hyper-Glow Outer Background Radial Gradient
+        // Ambient Soft Core Glow
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    Color(0xFFE086D3).copy(alpha = 0.75f),
-                    Color(0xFFC084FC).copy(alpha = 0.50f),
-                    Color(0xFF8B5CF6).copy(alpha = 0.30f),
-                    Color(0xFF38BDF8).copy(alpha = 0.15f),
+                    Color(0x99A855F7),
+                    Color(0x55EC4899),
+                    Color(0x2238BDF8),
                     Color.Transparent
                 ),
                 center = Offset(centerX, centerY),
-                radius = baseRadius * 1.65f
+                radius = baseRadius * 1.35f
             ),
-            radius = baseRadius * 1.65f,
+            radius = baseRadius * 1.35f,
             center = Offset(centerX, centerY)
         )
 
-        // 2. Inner Glowing Core Nucleus Sphere
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    Color.White,
-                    Color(0xFFF472B6),
-                    Color(0xFFA855F7),
-                    Color.Transparent
-                ),
-                center = Offset(centerX, centerY),
-                radius = baseRadius * 0.45f
-            ),
-            radius = baseRadius * 0.45f,
-            center = Offset(centerX, centerY)
-        )
+        // Fluid Outer Shell
+        val numPoints = 28
+        val path1 = Path()
+        val path2 = Path()
 
-        // 3. Multi-Axis 3D Gyroscope Energy Swirl Rings (45°, -45°, 90°)
-        val ribbonColorsList = listOf(
-            listOf(Color(0xFFFFFFFF), Color(0xFFF472B6), Color(0xFFA855F7), Color(0xFF38BDF8)),
-            listOf(Color(0xFF38BDF8), Color(0xFFC084FC), Color(0xFFEC4899), Color(0xFFFFFFFF)),
-            listOf(Color(0xFFE9D5FF), Color(0xFF8B5CF6), Color(0xFF0284C7), Color(0xFFF472B6))
-        )
+        for (i in 0 until numPoints) {
+            val angle = (i.toFloat() / numPoints) * 2f * Math.PI.toFloat()
+            val totalAngle1 = angle + Math.toRadians(rotationAngle.toDouble()).toFloat()
+            val totalAngle2 = angle - Math.toRadians(counterRotationAngle.toDouble()).toFloat()
 
-        repeat(3) { ribbonIndex ->
-            val angleOffset = ribbonIndex * (Math.PI.toFloat() * 2f / 3f) + (if (ribbonIndex % 2 == 0) rotationAngle else counterRotationAngle) * (Math.PI.toFloat() / 180f)
-            ribbonPath.reset()
-            val steps = 40
-            for (step in 0..steps) {
-                val t = step.toFloat() / steps
-                val angle = t * 2f * Math.PI.toFloat()
-                val waveDistort = sin(angle * 3f + wavePhase + ribbonIndex) * 0.18f
-                val r = baseRadius * (1f + waveDistort)
+            val r1 = baseRadius + (sin((angle * 3f + wavePhase).toDouble()).toFloat() * 10f)
+            val r2 = baseRadius * 0.85f + (cos((angle * 4f - wavePhase).toDouble()).toFloat() * 8f)
 
-                val tiltScale = if (ribbonIndex == 0) 0.65f else if (ribbonIndex == 1) 0.45f else 0.85f
-                val x = centerX + r * cos(angle + angleOffset)
-                val y = centerY + r * sin(angle + angleOffset) * tiltScale
+            val x1 = centerX + r1 * cos(totalAngle1.toDouble()).toFloat()
+            val y1 = centerY + r1 * sin(totalAngle1.toDouble()).toFloat()
 
-                if (step == 0) ribbonPath.moveTo(x, y) else ribbonPath.lineTo(x, y)
-            }
-            ribbonPath.close()
+            val x2 = centerX + r2 * cos(totalAngle2.toDouble()).toFloat()
+            val y2 = centerY + r2 * sin(totalAngle2.toDouble()).toFloat()
 
-            drawPath(
-                path = ribbonPath,
-                brush = Brush.sweepGradient(
-                    colors = ribbonColorsList[ribbonIndex],
-                    center = Offset(centerX, centerY)
-                ),
-                style = Stroke(width = 2.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-            )
-        }
-
-        // 4. Spherical Particle Lattice Mesh Nodes
-        val latitudeRings = 13
-        for (i in 0 until latitudeRings) {
-            val normI = (i.toFloat() / (latitudeRings - 1)) * 2f - 1f
-            val ringRadiusY = sqrt((1f - normI * normI).coerceAtLeast(0f)) * baseRadius
-            val ringCenterY = centerY + normI * baseRadius * 0.85f
-
-            val dotsCount = 30
-            for (j in 0 until dotsCount) {
-                val dotAngle = (j.toFloat() / dotsCount) * 2f * Math.PI.toFloat() + (rotationAngle * Math.PI.toFloat() / 180f) * (if (i % 2 == 0) 1.2f else -1.2f)
-                val dotX = centerX + ringRadiusY * cos(dotAngle)
-                val dotY = ringCenterY + ringRadiusY * sin(dotAngle) * 0.38f
-
-                val waveDistort = sin(wavePhase * 2.2f + dotAngle * 2.5f + i) * 4.0.dp.toPx()
-                val dotAlpha = ((sin(dotAngle + wavePhase) + 1f) / 2f * 0.75f + 0.30f).coerceIn(0.15f, 1f)
-
-                val dotColor = if (j % 3 == 0) Color(0xFF38BDF8) else if (j % 2 == 0) Color(0xFFF472B6) else Color(0xFFFFFFFF)
-
-                drawCircle(
-                    color = dotColor.copy(alpha = dotAlpha),
-                    radius = (2.2.dp.toPx() + waveDistort * 0.12f).coerceAtLeast(1.dp.toPx()),
-                    center = Offset(dotX, dotY + waveDistort)
-                )
+            if (i == 0) {
+                path1.moveTo(x1, y1)
+                path2.moveTo(x2, y2)
+            } else {
+                path1.lineTo(x1, y1)
+                path2.lineTo(x2, y2)
             }
         }
+        path1.close()
+        path2.close()
 
-        // 5. Outer Bright Glowing Glass Rim
-        drawCircle(
+        drawPath(
+            path = path1,
             brush = Brush.sweepGradient(
-                colors = listOf(Color(0xFFFFFFFF), Color(0xFFF472B6), Color(0xFF38BDF8), Color(0xFFA855F7), Color(0xFFFFFFFF)),
+                colors = listOf(
+                    Color(0xFF8B5CF6),
+                    Color(0xFFEC4899),
+                    Color(0xFF06B6D4),
+                    Color(0xFF8B5CF6)
+                ),
                 center = Offset(centerX, centerY)
             ),
-            radius = baseRadius,
-            center = Offset(centerX, centerY),
-            style = Stroke(width = 3.2.dp.toPx())
+            style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
         )
 
-        // 6. Floating Orbiting Sparkle Star Particles around Sphere Edge
-        val sparkleCount = 12
-        for (s in 0 until sparkleCount) {
-            val sparkleAngle = (s.toFloat() / sparkleCount) * 2f * Math.PI.toFloat() + (counterRotationAngle * Math.PI.toFloat() / 180f) * 1.5f
-            val orbitR = baseRadius * (1.15f + 0.1f * sin(wavePhase + s))
-            val sx = centerX + orbitR * cos(sparkleAngle)
-            val sy = centerY + orbitR * sin(sparkleAngle) * 0.6f
+        drawPath(
+            path = path2,
+            brush = Brush.sweepGradient(
+                colors = listOf(
+                    Color(0xFF38BDF8),
+                    Color(0xFFC084FC),
+                    Color(0xFFF472B6),
+                    Color(0xFF38BDF8)
+                ),
+                center = Offset(centerX, centerY)
+            ),
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+        )
 
-            val sparkleAlpha = ((sin(wavePhase * 3f + s) + 1f) / 2f).coerceIn(0.2f, 1f)
+        // Floating Micro Particles
+        val particleCount = 14
+        for (j in 0 until particleCount) {
+            val pAngle = (j.toFloat() / particleCount) * 2f * Math.PI.toFloat() + (wavePhase * 0.7f)
+            val pDist = baseRadius * 0.55f + (sin((j * 1.5f + wavePhase).toDouble()).toFloat() * 20f)
+            val px = centerX + pDist * cos(pAngle.toDouble()).toFloat()
+            val py = centerY + pDist * sin(pAngle.toDouble()).toFloat()
+
             drawCircle(
-                color = Color.White.copy(alpha = sparkleAlpha),
-                radius = 2.4.dp.toPx(),
-                center = Offset(sx, sy)
+                color = if (j % 2 == 0) Color(0xFFE9D5FF) else Color(0xFFBAE6FD),
+                radius = (2.2.dp.toPx()),
+                center = Offset(px, py)
             )
         }
     }

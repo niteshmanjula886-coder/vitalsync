@@ -145,6 +145,12 @@ class ProfileRepository(
             if (response.isSuccessful && response.body() != null) {
                 val body = response.body()!!
                 if (body.success) {
+                    val updatedGoal = body.selectedGoal ?: body.primaryGoal ?: request.goalTitle
+                    if (!updatedGoal.isNullOrBlank()) {
+                        sessionManager?.getUser()?.let { user ->
+                            sessionManager?.saveUserSession(user.copy(primaryGoal = updatedGoal))
+                        }
+                    }
                     emit(Resource.Success(body))
                 } else {
                     emit(Resource.Error(body.message ?: "Failed to save health goal"))

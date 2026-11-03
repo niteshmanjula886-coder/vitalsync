@@ -57,6 +57,8 @@ import com.simats.vitalsync.ui.activity.viewmodel.ActivityViewModelFactory
 import com.simats.vitalsync.ui.ai.AiChatHistoryScreen
 import com.simats.vitalsync.ui.ai.AiChatScreen
 import com.simats.vitalsync.ui.ai.WeeklyHealthReportScreen
+import com.simats.vitalsync.ui.ai.viewmodel.AiViewModel
+import com.simats.vitalsync.ui.ai.viewmodel.AiViewModelFactory
 import com.simats.vitalsync.ui.auth.ForgotPasswordScreen
 import com.simats.vitalsync.ui.auth.LoginScreen
 import com.simats.vitalsync.ui.auth.PasswordSuccessScreen
@@ -232,6 +234,10 @@ class MainActivity : ComponentActivity() {
                 val activityViewModel: ActivityViewModel = viewModel(
                     factory = ActivityViewModelFactory()
                 )
+                val aiViewModel: AiViewModel = viewModel(
+                    factory = AiViewModelFactory(application)
+                )
+                val aiUiState by aiViewModel.uiState.collectAsState()
 
                 val deviceManager = remember { HealthDeviceManager.getInstance(applicationContext) }
                 val coroutineScope = rememberCoroutineScope()
@@ -662,7 +668,7 @@ class MainActivity : ComponentActivity() {
                                     userAge = globalUserAge,
                                     userHeight = userHeightCm,
                                     userWeight = userWeightKg,
-                                    userPrimaryGoal = profileState.primaryGoal ?: "Improve Fitness",
+                                    userPrimaryGoal = profileState.primaryGoal ?: healthGoalsState.selectedGoal,
                                     userPhotoBitmap = globalProfilePhotoBitmap,
                                     heartRateValue = heartRateFormatted,
                                     heartRateStatus = heartRateStatusFormatted,
@@ -702,6 +708,8 @@ class MainActivity : ComponentActivity() {
                                     onPrivacySecurityClick = { currentScreen = ScreenState.PRIVACY_SECURITY },
                                     onSettingsClick = { currentScreen = ScreenState.SETTINGS },
                                     onHelpSupportClick = { currentScreen = ScreenState.HELP_SUPPORT },
+                                    aiInsightTitle = aiUiState.dailyInsight?.title,
+                                    aiInsightSummary = aiUiState.dailyInsight?.summary,
                                     onAskAiClick = { currentScreen = ScreenState.AI_CHAT },
                                     onStartWorkoutSplitClick = { currentScreen = ScreenState.GYM_SPLIT_SELECT },
                                     onOpenNutritionTrackerClick = { currentScreen = ScreenState.NUTRITION_DASHBOARD },
@@ -893,6 +901,7 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.AI_CHAT -> {
                                 AiChatScreen(
+                                    viewModel = aiViewModel,
                                     onBackClick = {
                                         homeInitialTab = 2
                                         currentScreen = ScreenState.MAIN
@@ -1077,13 +1086,18 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             ScreenState.HEALTH_GOALS -> {
+                                val currentGoal = profileState.primaryGoal ?: healthGoalsState.selectedGoal
                                 HealthGoalsScreen(
-                                    initialGoalId = when ((profileState.primaryGoal ?: healthGoalsState.selectedGoal).lowercase()) {
-                                        "fitness", "improve fitness" -> "1"
-                                        "better sleep" -> "2"
-                                        "weight management", "weight loss" -> "3"
-                                        "general wellness" -> "4"
-                                        else -> "1"
+                                    initialGoalId = when (currentGoal.lowercase()) {
+                                        "build muscle" -> "1"
+                                        "weight loss", "weight management" -> "2"
+                                        "improve fitness", "fitness" -> "3"
+                                        "endurance" -> "4"
+                                        else -> "3"
+                                    },
+                                    currentGoalTitle = currentGoal,
+                                    onGoalSelected = { goalTitle ->
+                                        profileViewModel.onGoalSelected(goalTitle = goalTitle, email = currentEmail)
                                     },
                                     onBackClick = {
                                         homeInitialTab = 3

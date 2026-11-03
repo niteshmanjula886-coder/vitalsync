@@ -140,6 +140,8 @@ fun HomeScreen(
     connectedDeviceName: String? = null,
     onPairWatchClick: () -> Unit = {},
     showAiInsights: Boolean = true,
+    aiInsightTitle: String? = null,
+    aiInsightSummary: String? = null,
     onLogoutClick: () -> Unit = {}
 ) {
     var selectedBottomTab by remember(initialTab) { mutableIntStateOf(initialTab) }
@@ -219,15 +221,24 @@ fun HomeScreen(
                         onActivityClick = onActivityClick,
                         onSleepClick = onSleepClick,
                         onHydrationClick = onHydrationClick,
-                        showAiInsights = showAiInsights
+                        showAiInsights = showAiInsights,
+                        aiInsightTitle = aiInsightTitle,
+                        aiInsightSummary = aiInsightSummary,
+                        onAskAiClick = onAskAiClick
                     )
-                    2 -> AiScreen(onAskAiClick = onAskAiClick)
+                    2 -> AiScreen(
+                        wellnessScore = wellnessScore,
+                        aiInsightTitle = aiInsightTitle,
+                        aiInsightSummary = aiInsightSummary,
+                        onAskAiClick = onAskAiClick
+                    )
                     3 -> ProfileScreen(
                         userName = userName,
                         userInitials = userInitials,
                         userAge = userAge,
                         userHeight = userHeight,
                         userWeight = userWeight,
+                        userPrimaryGoal = userPrimaryGoal,
                         userPhotoBitmap = userPhotoBitmap,
                         onEditProfileClick = onPersonalInformationClick,
                         onPersonalInformationClick = onPersonalInformationClick,
@@ -285,7 +296,10 @@ private fun HomeDashboardContent(
     onActivityClick: () -> Unit,
     onSleepClick: () -> Unit,
     onHydrationClick: () -> Unit,
-    showAiInsights: Boolean = true
+    showAiInsights: Boolean = true,
+    aiInsightTitle: String? = null,
+    aiInsightSummary: String? = null,
+    onAskAiClick: () -> Unit = {}
 ) {
     var targetAngle by remember(wellnessScore) {
         mutableFloatStateOf(if (wellnessScore > 0) (wellnessScore / 100f) * 260f else 0f)
@@ -712,7 +726,9 @@ private fun HomeDashboardContent(
         // AI Insight Banner Card (Adaptive Dark/Light Theme)
         if (showAiInsights) {
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onAskAiClick() },
             shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -724,7 +740,7 @@ private fun HomeDashboardContent(
                     SparkleIconPurple(modifier = Modifier.size(18.dp), color = Color(0xFF7C3AED))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "AI insight",
+                        text = aiInsightTitle ?: "Jr. Doctor Daily Insight",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF7C3AED)
@@ -734,7 +750,7 @@ private fun HomeDashboardContent(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Your activity is 12% higher than your weekly average.",
+                    text = aiInsightSummary ?: "Your vitals, activity, and recovery metrics are synchronized with your health goals.",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onBackground,

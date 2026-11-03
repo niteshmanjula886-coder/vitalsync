@@ -37,6 +37,9 @@ object RetrofitClient {
     private var vitalsApiServiceInstance: VitalsApiService? = null
 
     @Volatile
+    private var aiApiServiceInstance: AiApiService? = null
+
+    @Volatile
     var authHeaderProvider: (() -> String?)? = null
 
     private val okHttpClient: OkHttpClient by lazy {
@@ -113,6 +116,7 @@ object RetrofitClient {
                 hydrationApiServiceInstance = null
                 profileApiServiceInstance = null
                 vitalsApiServiceInstance = null
+                aiApiServiceInstance = null
             }
         }
     }
@@ -173,6 +177,13 @@ object RetrofitClient {
         get() = vitalsApiServiceInstance ?: synchronized(this) {
             vitalsApiServiceInstance ?: getRetrofit().create(VitalsApiService::class.java).also {
                 vitalsApiServiceInstance = it
+            }
+        }
+
+    val aiApiService: AiApiService
+        get() = aiApiServiceInstance ?: synchronized(this) {
+            aiApiServiceInstance ?: getRetrofit().create(AiApiService::class.java).also {
+                aiApiServiceInstance = it
             }
         }
 }

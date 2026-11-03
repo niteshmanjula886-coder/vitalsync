@@ -49,6 +49,9 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun AiScreen(
     modifier: Modifier = Modifier,
+    wellnessScore: Int = 82,
+    aiInsightTitle: String? = null,
+    aiInsightSummary: String? = null,
     onAskAiClick: () -> Unit = {}
 ) {
     Column(
@@ -125,7 +128,7 @@ fun AiScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "82 / 100",
+                                text = "${if (wellnessScore > 0) wellnessScore else 82} / 100",
                                 fontSize = 28.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF111827)
@@ -136,7 +139,7 @@ fun AiScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "Your overall wellness has improved this week.",
+                        text = aiInsightSummary ?: "Your overall wellness has improved this week.",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF111827),

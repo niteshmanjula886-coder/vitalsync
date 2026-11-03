@@ -58,7 +58,7 @@ interface ProfileApiService {
         @Query("email") email: String? = null
     ): Response<HealthGoalsResponse>
 
-    @POST("auth/health_goals.php")
+    @POST("api/user/update_health_goals.php")
     suspend fun saveHealthGoal(
         @Body body: SaveHealthGoalRequest
     ): Response<HealthGoalsResponse>

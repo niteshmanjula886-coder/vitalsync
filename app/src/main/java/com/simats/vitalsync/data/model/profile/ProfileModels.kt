@@ -70,6 +70,8 @@ data class HealthGoalsResponse(
     val message: String? = null,
     @SerializedName("selected_goal")
     val selectedGoal: String? = null,
+    @SerializedName("primary_goal")
+    val primaryGoal: String? = null,
     @SerializedName("available_goals")
     val availableGoals: List<HealthGoalItem> = emptyList()
 )
@@ -82,7 +84,9 @@ data class SaveHealthGoalRequest(
     @SerializedName("goal_id")
     val goalId: String? = null,
     @SerializedName("goal_title")
-    val goalTitle: String? = null
+    val goalTitle: String? = null,
+    @SerializedName("primary_goal")
+    val primaryGoal: String? = null
 )
 
 data class ReminderItem(
