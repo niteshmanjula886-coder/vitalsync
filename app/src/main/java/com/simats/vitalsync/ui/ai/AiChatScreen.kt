@@ -266,7 +266,7 @@ fun AiChatScreen(
                                     .padding(horizontal = 8.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "Ollama Active",
+                                    text = "AI Active",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF15803D)
@@ -277,7 +277,7 @@ fun AiChatScreen(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Text(
-                            text = "Hello! I am your versatile AI assistant powered by Qwen3 (4B) and verified RAG medical knowledge. Ask me anything: from science, movies, and code to personalized vitals, workout recovery, and nutrition.",
+                            text = "Hello! I am your versatile AI assistant powered by verified RAG medical knowledge and personal vitals telemetry. Ask me anything: from science, movies, and code to personalized vitals, workout recovery, and nutrition.",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF1E1B4B),

@@ -710,6 +710,216 @@ fun HydrationDetailScreen(
             }
         }
 
+        // Active AI Hydration Insight Card
+        state.aiInsight?.let { insight ->
+            Spacer(modifier = Modifier.height(16.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "✨", fontSize = 16.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "AI Hydration Insight",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFE0F2FE))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "Score: ${insight.hydrationScore}/100",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0369A1)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = insight.title,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F9F7A)
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = insight.summary,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        color = Color(0xFF374151)
+                    )
+
+                    if (insight.actionableAdvice.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFF0FDF4))
+                                .padding(12.dp)
+                        ) {
+                            Row {
+                                Text(text = "💡", fontSize = 13.sp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = insight.actionableAdvice,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF166534)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Powered by ${insight.modelUsed}",
+                        fontSize = 10.sp,
+                        color = Color(0xFF9CA3AF)
+                    )
+                }
+            }
+        }
+
+        // Multi-Week Historical Trends & Goal Completion Rates Card
+        if (state.weeklyAggregations.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Historical Weekly Volume",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
+                            state.weeklySummary?.let { sum ->
+                                Text(
+                                    text = "8-Wk Avg: ${String.format(Locale.US, "%,d", sum.overallAvgDailyMl)} ml/day • Trend: ${sum.trendDirection}",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF6B7280)
+                                )
+                            }
+                        }
+
+                        state.weeklySummary?.let { sum ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (sum.trendDirection == "increasing") Color(0xFFDCFCE7) else Color(0xFFF1F5F9))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = if (sum.trendPercentage >= 0) "+${sum.trendPercentage}%" else "${sum.trendPercentage}%",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (sum.trendDirection == "increasing") Color(0xFF15803D) else Color(0xFF475569)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    state.weeklyAggregations.forEach { weekItem ->
+                        Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = weekItem.weekLabel,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (weekItem.isCurrentWeek) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (weekItem.isCurrentWeek) Color(0xFF0F9F7A) else Color(0xFF1F2937)
+                                    )
+                                    if (weekItem.isCurrentWeek) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(Color(0xFFE8F6F0))
+                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "Current",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF0F9F7A)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Text(
+                                    text = "${String.format(Locale.US, "%,d", weekItem.totalVolumeMl)} ml (${weekItem.completionRatePercent.toInt()}%)",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (weekItem.completionRatePercent >= 75) Color(0xFF0F9F7A) else Color(0xFF6B7280)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            // Linear completion progress bar
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(Color(0xFFF1F5F9))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(fraction = (weekItem.completionRatePercent / 100f).coerceIn(0f, 1f))
+                                        .height(6.dp)
+                                        .clip(RoundedCornerShape(3.dp))
+                                        .background(
+                                            if (weekItem.completionRatePercent >= 100) Color(0xFF10B981)
+                                            else if (weekItem.completionRatePercent >= 75) Color(0xFF0F9F7A)
+                                            else if (weekItem.completionRatePercent >= 50) Color(0xFF34D399)
+                                            else Color(0xFFFBBF24)
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
     }
 

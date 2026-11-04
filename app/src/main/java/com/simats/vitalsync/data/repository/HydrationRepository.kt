@@ -6,6 +6,7 @@ import com.simats.vitalsync.data.model.hydration.LogWaterResponse
 import com.simats.vitalsync.data.model.hydration.ResetHydrationResponse
 import com.simats.vitalsync.data.model.hydration.UpdateHydrationSettingsRequest
 import com.simats.vitalsync.data.model.hydration.UpdateHydrationSettingsResponse
+import com.simats.vitalsync.data.model.hydration.WeeklyHydrationHistoryDataDto
 import com.simats.vitalsync.data.network.HydrationApiService
 import com.simats.vitalsync.data.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
@@ -133,6 +134,28 @@ class HydrationRepository(
             }
         } catch (e: Exception) {
             emit(Resource.Error(e.localizedMessage ?: "Network error deleting log entry"))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    fun getWeeklyHistory(
+        userId: Int? = null,
+        email: String? = null
+    ): Flow<Resource<WeeklyHydrationHistoryDataDto>> = flow {
+        emit(Resource.Loading)
+        try {
+            val response = apiService.getWeeklyHistory(userId = userId, email = email)
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                if (body.success && body.data != null) {
+                    emit(Resource.Success(body.data))
+                } else {
+                    emit(Resource.Error(body.message.ifBlank { "Failed to load weekly hydration history" }))
+                }
+            } else {
+                emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error(e.localizedMessage ?: "Network error loading weekly hydration history"))
         }
     }.flowOn(Dispatchers.IO)
 

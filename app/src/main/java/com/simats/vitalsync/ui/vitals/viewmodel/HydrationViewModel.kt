@@ -2,8 +2,11 @@ package com.simats.vitalsync.ui.vitals.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.simats.vitalsync.data.model.hydration.HydrationAiInsightDto
 import com.simats.vitalsync.data.model.hydration.HydrationLogDto
+import com.simats.vitalsync.data.model.hydration.WeeklyHistoryItemDto
 import com.simats.vitalsync.data.model.hydration.WeeklyHydrationDayDto
+import com.simats.vitalsync.data.model.hydration.WeeklyHydrationSummaryDto
 import com.simats.vitalsync.data.repository.HydrationRepository
 import com.simats.vitalsync.data.repository.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +25,9 @@ data class HydrationUiState(
     val isReminderEnabled: Boolean = true,
     val logs: List<HydrationLogDto> = emptyList(),
     val weeklyHistory: List<WeeklyHydrationDayDto> = emptyList(),
+    val weeklyAggregations: List<WeeklyHistoryItemDto> = emptyList(),
+    val weeklySummary: WeeklyHydrationSummaryDto? = null,
+    val aiInsight: HydrationAiInsightDto? = null,
     val lastLoggedAmountMl: Int = 0,
     val showToast: Boolean = false,
     val isActionLoading: Boolean = false,
@@ -66,6 +72,24 @@ class HydrationViewModel(
                                 errorMessage = resource.message
                             )
                         }
+                    }
+                }
+            }
+        }
+        loadWeeklyHistory(email)
+    }
+
+    fun loadWeeklyHistory(email: String, userId: Int? = null) {
+        viewModelScope.launch {
+            repository.getWeeklyHistory(userId = userId, email = email).collect { resource ->
+                if (resource is Resource.Success) {
+                    val historyData = resource.data
+                    _hydrationState.update {
+                        it.copy(
+                            weeklyAggregations = historyData.weeklyHistory,
+                            weeklySummary = historyData.summary,
+                            aiInsight = historyData.aiInsight
+                        )
                     }
                 }
             }

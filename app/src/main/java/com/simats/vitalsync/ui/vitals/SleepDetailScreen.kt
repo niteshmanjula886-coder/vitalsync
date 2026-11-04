@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.FitnessRepository
 import com.simats.vitalsync.data.SleepRecord
+import com.simats.vitalsync.ui.theme.SleepColorStandards
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 import kotlinx.coroutines.delay
@@ -213,11 +214,15 @@ fun SleepDetailScreen(
             }
         }
 
-        // Top Sleep Overview & Goal Progress Card
+        val qualityPresentation = remember(totalSleepMinutes) {
+            SleepColorStandards.getPresentation(totalSleepMinutes)
+        }
+
+        // Top Sleep Overview & Goal Progress Card with Dynamic Quality Color Coding
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
+            colors = CardDefaults.cardColors(containerColor = qualityPresentation.containerColor),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
@@ -227,23 +232,23 @@ fun SleepDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "🌙 Today's Sleep Summary",
+                        text = "🌙 ${qualityPresentation.status} • ${qualityPresentation.qualityLabel}",
                         fontSize = 13.sp,
-                        color = Color(0xFF7C3AED),
+                        color = qualityPresentation.badgeTextColor,
                         fontWeight = FontWeight.Bold
                     )
 
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(if (isRecordedSaved) Color(0xFFDCFCE7) else Color(0xFFDDD6FE))
+                            .background(Color.White)
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = if (isRecordedSaved) "Logged ✓" else "Calculated",
+                            text = if (isRecordedSaved) "Logged ✓" else qualityPresentation.status,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isRecordedSaved) Color(0xFF15803D) else Color(0xFF6D28D9)
+                            color = qualityPresentation.badgeTextColor
                         )
                     }
                 }
@@ -260,28 +265,28 @@ fun SleepDetailScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "$progressPercent% of 8h daily target goal",
-                    fontSize = 13.sp,
-                    color = Color(0xFF6B7280),
+                    text = "$progressPercent% of ${targetSleepMinutes / 60}h daily target • ${qualityPresentation.medicalMeaning}",
+                    fontSize = 12.sp,
+                    color = Color(0xFF4B5563),
                     fontWeight = FontWeight.Medium
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Daily Sleep Target Progress Bar
+                // Daily Sleep Target Progress Bar with Dynamic Severity Fill
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(10.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE9D5FF))
+                        .background(qualityPresentation.primaryColor.copy(alpha = 0.2f))
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(progressRatio)
                             .height(10.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF8B5CF6))
+                            .background(qualityPresentation.primaryColor)
                     )
                 }
 
@@ -414,7 +419,12 @@ fun SleepDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(text = "Calculated Total Sleep:", fontSize = 13.sp, color = Color(0xFF475569))
-                        Text(text = "$formattedDurationStr ($totalSleepMinutes mins)", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF7C3AED))
+                        Text(
+                            text = "$formattedDurationStr • ${qualityPresentation.status}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = qualityPresentation.primaryColor
+                        )
                     }
                 }
 
@@ -490,29 +500,37 @@ fun SleepDetailScreen(
 
                     repeat(12) { i ->
                         val x = spacing + i * (barWidth + spacing)
-                        val hDeep = size.height * (0.2f + (i % 3) * 0.1f) * chartProgress
-                        val hLight = size.height * (0.35f + (i % 2) * 0.1f) * chartProgress
-                        val hRem = size.height * (0.2f) * chartProgress
+                        val hDeep = size.height * (0.22f + (i % 3) * 0.04f) * chartProgress
+                        val hLight = size.height * (0.46f + (i % 2) * 0.05f) * chartProgress
+                        val hRem = size.height * (0.22f) * chartProgress
+                        val hAwake = size.height * 0.06f * chartProgress
 
-                        // Deep
+                        // 1. Deep Sleep Stage (Bottom) - Non-REM Stage 3/4 (#3F51B5)
                         drawRoundRect(
-                            color = Color(0xFF0F9F7A),
+                            color = SleepColorStandards.StageDeep,
                             topLeft = Offset(x, size.height - hDeep),
                             size = Size(barWidth, hDeep),
                             cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
                         )
-                        // Light
+                        // 2. Light Sleep Stage (Middle) - Non-REM Stage 1/2 (#03A9F4)
                         drawRoundRect(
-                            color = Color(0xFF8B5CF6),
+                            color = SleepColorStandards.StageLight,
                             topLeft = Offset(x, size.height - hDeep - hLight),
                             size = Size(barWidth, hLight),
                             cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
                         )
-                        // REM
+                        // 3. REM Sleep Stage - Rapid Eye Movement (#7E57C2)
                         drawRoundRect(
-                            color = Color(0xFFC084FC),
+                            color = SleepColorStandards.StageRem,
                             topLeft = Offset(x, size.height - hDeep - hLight - hRem),
                             size = Size(barWidth, hRem),
+                            cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                        )
+                        // 4. Awake / Disruptions (Top) - Micro-arousals (#FF7043)
+                        drawRoundRect(
+                            color = SleepColorStandards.StageAwake,
+                            topLeft = Offset(x, size.height - hDeep - hLight - hRem - hAwake),
+                            size = Size(barWidth, hAwake),
                             cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
                         )
                     }
@@ -520,17 +538,75 @@ fun SleepDetailScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Stage Breakdown List
+                // Stage Breakdown List with Standardized High-Contrast Colors
                 val deepStr = "${(totalSleepMinutes * 0.22f).toInt() / 60}h ${(totalSleepMinutes * 0.22f).toInt() % 60}m"
                 val lightStr = "${(totalSleepMinutes * 0.52f).toInt() / 60}h ${(totalSleepMinutes * 0.52f).toInt() % 60}m"
                 val remStr = "${(totalSleepMinutes * 0.21f).toInt() / 60}h ${(totalSleepMinutes * 0.21f).toInt() % 60}m"
                 val awakeStr = "${(totalSleepMinutes * 0.05f).toInt()}m"
 
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SleepStageRow(label = "Deep sleep", duration = deepStr, color = Color(0xFF0F9F7A))
-                    SleepStageRow(label = "Light sleep", duration = lightStr, color = Color(0xFF8B5CF6))
-                    SleepStageRow(label = "REM", duration = remStr, color = Color(0xFFC084FC))
-                    SleepStageRow(label = "Awake", duration = awakeStr, color = Color(0xFFE5E7EB))
+                    SleepStageRow(label = "Deep Sleep (Physical Repair)", duration = deepStr, color = SleepColorStandards.StageDeep)
+                    SleepStageRow(label = "REM Sleep (Cognitive Restoration)", duration = remStr, color = SleepColorStandards.StageRem)
+                    SleepStageRow(label = "Light Sleep (Physiological Rest)", duration = lightStr, color = SleepColorStandards.StageLight)
+                    SleepStageRow(label = "Awake / Disruptions", duration = awakeStr, color = SleepColorStandards.StageAwake)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Standardized Sleep Quality Thresholds & Medical Meaning Legend Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Text(
+                    text = "Sleep Quality Thresholds",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
+                Text(
+                    text = "Clinical recovery standards and stage color codes:",
+                    fontSize = 12.sp,
+                    color = Color(0xFF6B7280),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    QualityThresholdRow(
+                        title = "Optimal / Restorative",
+                        threshold = "≥ 7.5 hrs • Score ≥ 85",
+                        meaning = "Restorative sleep, robust physical recovery",
+                        color = SleepColorStandards.OptimalGreen,
+                        bgColor = SleepColorStandards.OptimalGreenBg
+                    )
+                    QualityThresholdRow(
+                        title = "Moderate / Fair",
+                        threshold = "6.0 – 7.4 hrs • Score 70–84",
+                        meaning = "Mild deficit, acceptable baseline recovery",
+                        color = SleepColorStandards.ModerateAmber,
+                        bgColor = SleepColorStandards.ModerateAmberBg
+                    )
+                    QualityThresholdRow(
+                        title = "Deficit / Poor",
+                        threshold = "< 6.0 hrs • Score < 70",
+                        meaning = "Critical sleep debt, elevated cortisol",
+                        color = SleepColorStandards.DeficitRed,
+                        bgColor = SleepColorStandards.DeficitRedBg
+                    )
+                    QualityThresholdRow(
+                        title = "Excessive / Extended",
+                        threshold = "> 9.5 hrs",
+                        meaning = "Hypersomnia or rebound sleep compensation",
+                        color = SleepColorStandards.ExcessivePurple,
+                        bgColor = SleepColorStandards.ExcessivePurpleBg
+                    )
                 }
             }
         }
@@ -648,6 +724,68 @@ private fun CalendarIcon(modifier: Modifier = Modifier) {
         }
 
         drawPath(path = calPath, color = Color(0xFF6B7280), style = Stroke(width = 1.6.dp.toPx()))
+    }
+}
+
+@Composable
+private fun QualityThresholdRow(
+    title: String,
+    threshold: String,
+    meaning: String,
+    color: Color,
+    bgColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFFF8FAFC))
+            .padding(10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column {
+                Text(
+                    text = title,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B)
+                )
+                Text(
+                    text = meaning,
+                    fontSize = 11.sp,
+                    color = Color(0xFF64748B),
+                    lineHeight = 15.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(bgColor)
+                .padding(horizontal = 6.dp, vertical = 3.dp)
+        ) {
+            Text(
+                text = threshold,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+        }
     }
 }
 

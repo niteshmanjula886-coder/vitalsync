@@ -6,6 +6,7 @@ import com.simats.vitalsync.data.model.hydration.LogWaterResponse
 import com.simats.vitalsync.data.model.hydration.ResetHydrationResponse
 import com.simats.vitalsync.data.model.hydration.UpdateHydrationSettingsRequest
 import com.simats.vitalsync.data.model.hydration.UpdateHydrationSettingsResponse
+import com.simats.vitalsync.data.model.hydration.WeeklyHydrationHistoryResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -42,5 +43,11 @@ interface HydrationApiService {
         @Query("email") email: String,
         @Query("id") logId: Int
     ): Response<ResetHydrationResponse>
+
+    @GET("api/hydration/get_weekly_history.php")
+    suspend fun getWeeklyHistory(
+        @Query("user_id") userId: Int? = null,
+        @Query("email") email: String? = null
+    ): Response<WeeklyHydrationHistoryResponse>
 }
 
