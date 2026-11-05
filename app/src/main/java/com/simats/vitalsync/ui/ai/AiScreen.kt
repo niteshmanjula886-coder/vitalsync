@@ -43,6 +43,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.model.ai.AiInsightResponse
+import com.simats.vitalsync.ui.common.AiInsightCard
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
@@ -52,6 +54,10 @@ fun AiScreen(
     wellnessScore: Int = 82,
     aiInsightTitle: String? = null,
     aiInsightSummary: String? = null,
+    aiInsight: AiInsightResponse? = null,
+    isInsightLoading: Boolean = false,
+    isBtConnected: Boolean = false,
+    onPairWatchClick: () -> Unit = {},
     onAskAiClick: () -> Unit = {}
 ) {
     Column(
@@ -90,6 +96,17 @@ fun AiScreen(
                     ChatBubbleIcon(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onBackground)
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Dynamic Real-time AI Health Insight
+            AiInsightCard(
+                insight = aiInsight,
+                isLoading = isInsightLoading,
+                isBtConnected = isBtConnected,
+                onPairWatchClick = onPairWatchClick,
+                onClick = onAskAiClick
+            )
 
             Spacer(modifier = Modifier.height(20.dp))
 

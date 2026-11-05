@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -127,11 +128,26 @@ fun StartActivityScreen(
 
             // OVERALL ACTIVITY PERFORMANCE STATS Section
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                SectionHeader("OVERALL ACTIVITY PERFORMANCE STATS")
+                Text(
+                    text = "OVERALL ACTIVITY PERFORMANCE STATS",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF9CA3AF),
+                    letterSpacing = 0.5.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 4.dp)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Box(
                     modifier = Modifier
@@ -140,7 +156,14 @@ fun StartActivityScreen(
                         .clickable { onRefreshStatsClick() }
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text(text = "🔄 Refresh Stats", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD97706))
+                    Text(
+                        text = "🔄 Refresh Stats",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFD97706),
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
             }
 
@@ -543,7 +566,10 @@ private fun ActivityStatRowItem(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(text = icon, fontSize = 20.sp)
             Spacer(modifier = Modifier.width(10.dp))
             Column {
@@ -552,9 +578,24 @@ private fun ActivityStatRowItem(
             }
         }
 
+        Spacer(modifier = Modifier.width(8.dp))
+
         Column(horizontalAlignment = Alignment.End) {
-            Text(text = distance, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            Text(text = calories, fontSize = 12.sp, color = Color(0xFF6B7280))
+            Text(
+                text = distance,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111827),
+                maxLines = 1,
+                softWrap = false
+            )
+            Text(
+                text = calories,
+                fontSize = 12.sp,
+                color = Color(0xFF6B7280),
+                maxLines = 1,
+                softWrap = false
+            )
         }
     }
 }
@@ -611,7 +652,9 @@ private fun ActivityOptionCard(
                 Text(
                     text = subtitle,
                     fontSize = 11.sp,
-                    color = Color(0xFF6B7280)
+                    color = Color(0xFF6B7280),
+                    maxLines = 2,
+                    lineHeight = 15.sp
                 )
             }
         }

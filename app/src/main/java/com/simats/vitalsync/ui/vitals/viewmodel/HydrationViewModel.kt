@@ -2,11 +2,13 @@ package com.simats.vitalsync.ui.vitals.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.simats.vitalsync.data.model.ai.AiInsightResponse
 import com.simats.vitalsync.data.model.hydration.HydrationAiInsightDto
 import com.simats.vitalsync.data.model.hydration.HydrationLogDto
 import com.simats.vitalsync.data.model.hydration.WeeklyHistoryItemDto
 import com.simats.vitalsync.data.model.hydration.WeeklyHydrationDayDto
 import com.simats.vitalsync.data.model.hydration.WeeklyHydrationSummaryDto
+import com.simats.vitalsync.data.network.RetrofitClient
 import com.simats.vitalsync.data.repository.HydrationRepository
 import com.simats.vitalsync.data.repository.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +30,7 @@ data class HydrationUiState(
     val weeklyAggregations: List<WeeklyHistoryItemDto> = emptyList(),
     val weeklySummary: WeeklyHydrationSummaryDto? = null,
     val aiInsight: HydrationAiInsightDto? = null,
+    val aiInsightResponse: AiInsightResponse? = null,
     val lastLoggedAmountMl: Int = 0,
     val showToast: Boolean = false,
     val isActionLoading: Boolean = false,
@@ -92,6 +95,35 @@ class HydrationViewModel(
                         )
                     }
                 }
+            }
+        }
+    }
+
+    fun fetchAiInsight(
+        userId: Int = 1,
+        isBtConnected: Boolean = false,
+        hydrationMl: Int? = null,
+        sleepText: String? = null,
+        sleepScore: Int? = null,
+        steps: Int? = null,
+        targetWaterMl: Int? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.aiApiService.getAiInsight(
+                    userId = userId,
+                    isBtConnected = isBtConnected,
+                    hydrationMl = hydrationMl,
+                    sleepText = sleepText,
+                    sleepScore = sleepScore,
+                    steps = steps,
+                    targetWaterMl = targetWaterMl
+                )
+                if (response.isSuccessful && response.body() != null) {
+                    _hydrationState.update { it.copy(aiInsightResponse = response.body()) }
+                }
+            } catch (e: Exception) {
+                // Keep existing insight
             }
         }
     }

@@ -1,24 +1,46 @@
 package com.simats.vitalsync.data.network
 
+import android.os.Build
+
 object ApiConstants {
-    /**
-     * Globally accessible Devtunnel base URL connecting to the VitalSync PHP backend on XAMPP.
-     * Can be accessed from anywhere: physical Android devices over mobile data, any Wi-Fi, and emulators.
-     */
-    const val DEFAULT_BASE_URL = "https://z11l1qr6-80.inc1.devtunnels.ms/vitalsync_background/"
 
     /**
-     * Local machine LAN IP fallback (for local subnet Wi-Fi testing without internet).
+     * Local machine LAN IP (for physical devices connected to same Wi-Fi).
      */
     const val LAN_BASE_URL = "http://172.23.176.95/vitalsync_background/"
 
     /**
-     * Android emulator loopback fallback.
+     * Android emulator loopback.
      */
     const val EMULATOR_BASE_URL = "http://10.0.2.2/vitalsync_background/"
 
-    // Network timeout settings
-    const val CONNECT_TIMEOUT_SECONDS = 30L
+    /**
+     * Optional remote DevTunnel URL (if running).
+     */
+    const val REMOTE_DEVTUNNEL_URL = "https://z11l1qr6-80.inc1.devtunnels.ms/vitalsync_background/"
+
+    /**
+     * Determines whether current device is an Android Emulator.
+     */
+    val isRunningOnEmulator: Boolean
+        get() = Build.FINGERPRINT.startsWith("generic")
+                || Build.FINGERPRINT.startsWith("unknown")
+                || Build.MODEL.contains("google_sdk")
+                || Build.MODEL.contains("Emulator")
+                || Build.MODEL.contains("Android SDK built for x86")
+                || Build.HARDWARE.contains("goldfish")
+                || Build.HARDWARE.contains("ranchu")
+
+    /**
+     * Active Default Base URL:
+     * - Uses 10.0.2.2 if running on an Android Emulator
+     * - Uses host LAN IP 172.23.176.95 for physical phones on Wi-Fi
+     */
+    val DEFAULT_BASE_URL: String
+        get() = if (isRunningOnEmulator) EMULATOR_BASE_URL else LAN_BASE_URL
+
+    // Network timeout settings - accommodates local CPU inference for AI
+    const val CONNECT_TIMEOUT_SECONDS = 60L
     const val READ_TIMEOUT_SECONDS = 120L
     const val WRITE_TIMEOUT_SECONDS = 60L
 }

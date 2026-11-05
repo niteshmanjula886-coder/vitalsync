@@ -31,9 +31,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -72,7 +74,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.model.ai.AiInsightResponse
 import com.simats.vitalsync.ui.ai.AiScreen
+import com.simats.vitalsync.ui.common.AiInsightCard
 import com.simats.vitalsync.ui.gym.GymModeScreen
 import com.simats.vitalsync.ui.profile.ProfileScreen
 import com.simats.vitalsync.ui.theme.VitalCardBg
@@ -142,12 +146,16 @@ fun HomeScreen(
     showAiInsights: Boolean = true,
     aiInsightTitle: String? = null,
     aiInsightSummary: String? = null,
+    aiInsight: AiInsightResponse? = null,
+    isInsightLoading: Boolean = false,
     onLogoutClick: () -> Unit = {}
 ) {
     var selectedBottomTab by remember(initialTab) { mutableIntStateOf(initialTab) }
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             HomeBottomNavigationBar(
@@ -224,12 +232,18 @@ fun HomeScreen(
                         showAiInsights = showAiInsights,
                         aiInsightTitle = aiInsightTitle,
                         aiInsightSummary = aiInsightSummary,
+                        aiInsight = aiInsight,
+                        isInsightLoading = isInsightLoading,
                         onAskAiClick = onAskAiClick
                     )
                     2 -> AiScreen(
                         wellnessScore = wellnessScore,
                         aiInsightTitle = aiInsightTitle,
                         aiInsightSummary = aiInsightSummary,
+                        aiInsight = aiInsight,
+                        isInsightLoading = isInsightLoading,
+                        isBtConnected = isDeviceConnected,
+                        onPairWatchClick = onPairWatchClick,
                         onAskAiClick = onAskAiClick
                     )
                     3 -> ProfileScreen(
@@ -299,6 +313,8 @@ private fun HomeDashboardContent(
     showAiInsights: Boolean = true,
     aiInsightTitle: String? = null,
     aiInsightSummary: String? = null,
+    aiInsight: AiInsightResponse? = null,
+    isInsightLoading: Boolean = false,
     onAskAiClick: () -> Unit = {}
 ) {
     var targetAngle by remember(wellnessScore) {
@@ -723,41 +739,15 @@ private fun HomeDashboardContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // AI Insight Banner Card (Adaptive Dark/Light Theme)
+        // AI Insight Banner Card (Dynamic Real-time Telemetry & BLE Grounded)
         if (showAiInsights) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onAskAiClick() },
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(18.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SparkleIconPurple(modifier = Modifier.size(18.dp), color = Color(0xFF7C3AED))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = aiInsightTitle ?: "Jr. Doctor Daily Insight",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF7C3AED)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = aiInsightSummary ?: "Your vitals, activity, and recovery metrics are synchronized with your health goals.",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    lineHeight = 20.sp
-                )
-            }
-        }
+            AiInsightCard(
+                insight = aiInsight,
+                isLoading = isInsightLoading,
+                isBtConnected = isDeviceConnected,
+                onPairWatchClick = onPairWatchClick,
+                onClick = onAskAiClick
+            )
         }
     }
 }
@@ -884,6 +874,7 @@ private fun HomeBottomNavigationBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.BottomCenter
     ) {

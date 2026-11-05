@@ -68,6 +68,8 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -527,17 +529,21 @@ fun HydrationDetailScreen(
                 ) {
                     Text(
                         text = "Weekly hydration history",
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = Color(0xFF111827),
+                        modifier = Modifier.weight(1f, fill = false)
                     )
+
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     // Strict Log-Calculated Average Summary
                     Text(
                         text = "Avg: $weeklyAverageFormatted",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F9F7A)
+                        color = Color(0xFF0F9F7A),
+                        textAlign = TextAlign.End
                     )
                 }
 
@@ -776,16 +782,20 @@ fun HydrationDetailScreen(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFFF0FDF4))
-                                .padding(12.dp)
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
                         ) {
-                            Row {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(text = "💡", fontSize = 13.sp)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = insight.actionableAdvice,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF166534)
+                                    color = Color(0xFF166534),
+                                    lineHeight = 16.sp,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
                                 )
                             }
                         }

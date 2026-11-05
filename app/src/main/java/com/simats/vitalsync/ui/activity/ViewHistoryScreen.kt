@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -39,6 +41,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -246,17 +249,22 @@ fun ViewHistoryScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(text = icon, fontSize = 22.sp)
 
                             Spacer(modifier = Modifier.width(12.dp))
 
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = record.activityType,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF111827)
+                                    color = Color(0xFF111827),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 val stepsSubtext = if (record.steps > 0) "${String.format(Locale.US, "%,d", record.steps)} steps · " else ""
@@ -265,23 +273,36 @@ fun ViewHistoryScreen(
                                     text = "${stepsSubtext}Duration: $durationStr · ${record.caloriesBurned} kcal$paceSubtext",
                                     fontSize = 12.sp,
                                     color = Color(0xFF0F9F7A),
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
 
-                        Column(horizontalAlignment = Alignment.End) {
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            modifier = Modifier
+                                .wrapContentWidth(Alignment.End)
+                                .widthIn(min = 80.dp)
+                        ) {
                             Text(
                                 text = distanceStr,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                color = Color(0xFF111827),
+                                maxLines = 1,
+                                softWrap = false
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = record.dateString,
                                 fontSize = 11.sp,
-                                color = Color(0xFF9CA3AF)
+                                color = Color(0xFF9CA3AF),
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }

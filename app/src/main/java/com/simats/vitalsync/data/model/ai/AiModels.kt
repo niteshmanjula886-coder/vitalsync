@@ -2,9 +2,79 @@ package com.simats.vitalsync.data.model.ai
 
 import com.google.gson.annotations.SerializedName
 
+data class AiChatSessionDto(
+    @SerializedName("id")
+    val id: Int = 0,
+
+    @SerializedName("title")
+    val title: String = "New Chat",
+
+    @SerializedName("message_count", alternate = ["messageCount"])
+    val messageCount: Int = 0,
+
+    @SerializedName("last_message", alternate = ["lastMessage"])
+    val lastMessage: String = "",
+
+    @SerializedName("created_at", alternate = ["createdAt"])
+    val createdAt: String = "",
+
+    @SerializedName("updated_at", alternate = ["updatedAt"])
+    val updatedAt: String = ""
+)
+
+data class AiSessionListResponse(
+    @SerializedName("success")
+    val success: Boolean = false,
+
+    @SerializedName("count")
+    val count: Int = 0,
+
+    @SerializedName("sessions")
+    val sessions: List<AiChatSessionDto> = emptyList(),
+
+    @SerializedName("message")
+    val message: String? = null
+)
+
+data class AiCreateSessionRequest(
+    @SerializedName("user_id")
+    val userId: Int? = null,
+
+    @SerializedName("title")
+    val title: String = "New Chat"
+)
+
+data class AiCreateSessionResponse(
+    @SerializedName("success")
+    val success: Boolean = false,
+
+    @SerializedName("session_id", alternate = ["sessionId"])
+    val sessionId: Int = 0,
+
+    @SerializedName("session")
+    val session: AiChatSessionDto? = null,
+
+    @SerializedName("message")
+    val message: String? = null
+)
+
+data class AiBaseResponse(
+    @SerializedName("success")
+    val success: Boolean = false,
+
+    @SerializedName("message")
+    val message: String? = null,
+
+    @SerializedName("session_id", alternate = ["sessionId"])
+    val sessionId: Int? = null
+)
+
 data class AiChatMessageDto(
     @SerializedName("id")
     val id: String = "",
+
+    @SerializedName("session_id", alternate = ["sessionId"])
+    val sessionId: Int? = null,
 
     @SerializedName("sender")
     val sender: String = "AI", // "USER" or "AI"
@@ -12,7 +82,7 @@ data class AiChatMessageDto(
     @SerializedName("text")
     val text: String = "",
 
-    @SerializedName("timeText")
+    @SerializedName("timeText", alternate = ["time_text"])
     val timeText: String = "",
 
     @SerializedName("model_used", alternate = ["modelUsed"])
@@ -22,6 +92,12 @@ data class AiChatMessageDto(
 data class AiChatListResponse(
     @SerializedName("success")
     val success: Boolean = false,
+
+    @SerializedName("session_id", alternate = ["sessionId"])
+    val sessionId: Int? = null,
+
+    @SerializedName("session_title", alternate = ["sessionTitle"])
+    val sessionTitle: String? = null,
 
     @SerializedName("count")
     val count: Int = 0,
@@ -37,11 +113,17 @@ data class AiChatRequest(
     @SerializedName("user_id")
     val userId: Int? = null,
 
+    @SerializedName("session_id", alternate = ["sessionId"])
+    val sessionId: Int? = null,
+
     @SerializedName("email")
     val email: String? = null,
 
+    @SerializedName("message_text")
+    val messageText: String,
+
     @SerializedName("message")
-    val message: String
+    val message: String = messageText
 )
 
 data class AiChatResponse(
@@ -51,10 +133,16 @@ data class AiChatResponse(
     @SerializedName("status")
     val status: String? = null,
 
-    @SerializedName("user_message")
+    @SerializedName("session_id", alternate = ["sessionId"])
+    val sessionId: Int? = null,
+
+    @SerializedName("session_title", alternate = ["sessionTitle"])
+    val sessionTitle: String? = null,
+
+    @SerializedName("user_message", alternate = ["userMessage"])
     val userMessage: AiChatMessageDto? = null,
 
-    @SerializedName("ai_response")
+    @SerializedName("ai_response", alternate = ["aiResponse"])
     val aiResponse: AiChatMessageDto? = null,
 
     @SerializedName("message")
@@ -110,5 +198,54 @@ data class AiHistoryClearResponse(
 
     @SerializedName("deleted_count")
     val deletedCount: Int? = null
+)
+
+data class AiInsightData(
+    @SerializedName("score")
+    val score: Int = 80,
+
+    @SerializedName("status_title", alternate = ["statusTitle", "title"])
+    val statusTitle: String = "AI Health Insight",
+
+    @SerializedName("summary")
+    val summary: String = "",
+
+    @SerializedName("action_tip", alternate = ["actionTip", "actionableAdvice", "actionable_advice"])
+    val actionTip: String = "",
+
+    @SerializedName("is_bt_connected", alternate = ["isBtConnected", "bluetoothConnected"])
+    val isBtConnected: Boolean = false
+)
+
+data class AiInsightResponse(
+    @SerializedName("success")
+    val success: Boolean = false,
+
+    @SerializedName("status")
+    val status: String? = null,
+
+    @SerializedName("score")
+    val score: Int = 80,
+
+    @SerializedName("status_title", alternate = ["statusTitle", "title"])
+    val statusTitle: String = "AI Health Insight",
+
+    @SerializedName("summary")
+    val summary: String = "",
+
+    @SerializedName("action_tip", alternate = ["actionTip", "actionableAdvice", "actionable_advice"])
+    val actionTip: String = "",
+
+    @SerializedName("is_bt_connected", alternate = ["isBtConnected", "bluetoothConnected"])
+    val isBtConnected: Boolean = false,
+
+    @SerializedName("model_used", alternate = ["modelUsed"])
+    val modelUsed: String? = null,
+
+    @SerializedName("insight")
+    val insight: AiInsightData? = null,
+
+    @SerializedName("message")
+    val message: String? = null
 )
 

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -31,6 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
@@ -199,12 +202,24 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        
+        // Ensure system status bar (clock/battery) and bottom navigation bar are always enabled and visible
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.isAppearanceLightStatusBars = true
+        insetsController.isAppearanceLightNavigationBars = true
+        insetsController.show(WindowInsetsCompat.Type.systemBars())
 
         val repository = FitnessRepository.getInstance(applicationContext)
 
         setContent {
             var isDarkModeEnabled by remember { mutableStateOf(false) }
+
+            val windowInsetsController = remember(window) { WindowCompat.getInsetsController(window, window.decorView) }
+            SideEffect {
+                windowInsetsController.isAppearanceLightStatusBars = !isDarkModeEnabled
+                windowInsetsController.isAppearanceLightNavigationBars = !isDarkModeEnabled
+            }
 
             VitalsyncTheme(darkTheme = isDarkModeEnabled) {
                 val context = LocalContext.current
@@ -268,9 +283,13 @@ class MainActivity : ComponentActivity() {
                 val weeklyReportState by profileViewModel.weeklyReportState.collectAsState()
 
                 val vitalsSummaryState by vitalsViewModel.summaryState.collectAsState()
+                val vitalsAiInsight by vitalsViewModel.aiInsightState.collectAsState()
+                val isVitalsAiLoading by vitalsViewModel.isAiInsightLoading.collectAsState()
+                val isBtConnected = (deviceConnStatus == DeviceConnectionStatus.CONNECTED)
 
-                LaunchedEffect(currentEmail) {
+                LaunchedEffect(currentEmail, isBtConnected) {
                     if (currentEmail.isNotBlank()) {
+                        val uid = currentUser?.id ?: 1
                         deviceManager.userEmail = currentEmail
                         profileViewModel.fetchProfile(email = currentEmail)
                         vitalsViewModel.fetchSummary(email = currentEmail)
@@ -279,6 +298,9 @@ class MainActivity : ComponentActivity() {
                         heartRateViewModel.fetchAnalytics(currentEmail)
                         activityViewModel.loadSummary(email = currentEmail)
                         activityViewModel.loadSessions(email = currentEmail)
+                        aiViewModel.fetchDynamicAiInsight(userId = uid, isBtConnected = isBtConnected)
+                        vitalsViewModel.fetchAiInsight(userId = uid, isBtConnected = isBtConnected)
+                        hydrationViewModel.fetchAiInsight(userId = uid, isBtConnected = isBtConnected)
                     }
                 }
 
@@ -514,6 +536,42 @@ class MainActivity : ComponentActivity() {
                     "0 ml / ${String.format(Locale.US, "%,d", targetWaterMl)} ml"
                 }
 
+                val liveSleepScore = sleepSummary?.sleepScore ?: localSleepRecord?.sleepScore ?: 85
+
+                // Synchronize live telemetry (Hydration, Sleep, Steps) with AI insight on screen changes or metric updates
+                LaunchedEffect(currentScreen, consumedWaterMl, sleepDurationFormatted, isBtConnected) {
+                    if (currentEmail.isNotBlank()) {
+                        val uid = currentUser?.id ?: 1
+                        aiViewModel.fetchDynamicAiInsight(
+                            userId = uid,
+                            isBtConnected = isBtConnected,
+                            hydrationMl = consumedWaterMl,
+                            sleepText = sleepDurationFormatted,
+                            sleepScore = liveSleepScore,
+                            steps = totalDisplaySteps,
+                            targetWaterMl = targetWaterMl
+                        )
+                        vitalsViewModel.fetchAiInsight(
+                            userId = uid,
+                            isBtConnected = isBtConnected,
+                            hydrationMl = consumedWaterMl,
+                            sleepText = sleepDurationFormatted,
+                            sleepScore = liveSleepScore,
+                            steps = totalDisplaySteps,
+                            targetWaterMl = targetWaterMl
+                        )
+                        hydrationViewModel.fetchAiInsight(
+                            userId = uid,
+                            isBtConnected = isBtConnected,
+                            hydrationMl = consumedWaterMl,
+                            sleepText = sleepDurationFormatted,
+                            sleepScore = liveSleepScore,
+                            steps = totalDisplaySteps,
+                            targetWaterMl = targetWaterMl
+                        )
+                    }
+                }
+
                 Box(modifier = Modifier.fillMaxSize()) {
                     AnimatedContent(
                         targetState = currentScreen,
@@ -710,6 +768,8 @@ class MainActivity : ComponentActivity() {
                                     onHelpSupportClick = { currentScreen = ScreenState.HELP_SUPPORT },
                                     aiInsightTitle = aiUiState.dailyInsight?.title,
                                     aiInsightSummary = aiUiState.dailyInsight?.summary,
+                                    aiInsight = aiUiState.aiInsight ?: vitalsAiInsight,
+                                    isInsightLoading = aiUiState.isInsightLoading || isVitalsAiLoading,
                                     onAskAiClick = { currentScreen = ScreenState.AI_CHAT },
                                     onStartWorkoutSplitClick = { currentScreen = ScreenState.GYM_SPLIT_SELECT },
                                     onOpenNutritionTrackerClick = { currentScreen = ScreenState.NUTRITION_DASHBOARD },
@@ -1300,6 +1360,9 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.VITAL_SIGNS -> {
                                 VitalSignsScreen(
+                                    aiInsight = aiUiState.aiInsight ?: vitalsAiInsight,
+                                    isInsightLoading = aiUiState.isInsightLoading || isVitalsAiLoading,
+                                    isBtConnected = isBtConnected,
                                     heartRateValue = if (hrSummary != null && hrSummary.bpm > 0) "${hrSummary.bpm} bpm" else "--",
                                     heartRateStatus = if (hrSummary != null && hrSummary.bpm > 0) hrSummary.status else "No data available",
                                     heartRateUpdated = if (hrSummary != null && hrSummary.recordedAt.isNotBlank()) hrSummary.recordedAt else "No readings",
@@ -1316,6 +1379,8 @@ class MainActivity : ComponentActivity() {
                                         homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN
                                     },
+                                    onPairWatchClick = { showBlePairingSheet = true },
+                                    onAskAiClick = { currentScreen = ScreenState.AI_CHAT },
                                     onHeartRateClick = { currentScreen = ScreenState.HEART_RATE_DETAIL },
                                     onBloodPressureClick = { currentScreen = ScreenState.BLOOD_PRESSURE_DETAIL },
                                     onSpO2Click = { currentScreen = ScreenState.SPO2_DETAIL },

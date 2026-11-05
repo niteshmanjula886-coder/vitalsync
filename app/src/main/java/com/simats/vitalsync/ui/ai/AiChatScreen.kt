@@ -20,35 +20,47 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,15 +77,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.simats.vitalsync.data.model.ai.AiChatSessionDto
 import com.simats.vitalsync.ui.ai.viewmodel.AiViewModel
 import com.simats.vitalsync.ui.ai.viewmodel.AiViewModelFactory
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -99,10 +114,12 @@ fun AiChatScreen(
     var isListeningForVoice by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
 
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
     // Smooth auto-scroll to bottom whenever message count changes or AI begins typing
-    LaunchedEffect(uiState.messages.size, uiState.isSending) {
+    LaunchedEffect(uiState.messages.size, uiState.isAiThinking, uiState.isSending) {
         scrollState.animateScrollTo(scrollState.maxValue)
     }
 
@@ -121,121 +138,196 @@ fun AiChatScreen(
         label = "ChatBlurAnimation"
     )
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .imePadding()
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                modifier = Modifier
+                    .width(310.dp)
+                    .fillMaxHeight(),
+                drawerContainerColor = Color(0xFFFAFCFB),
+                drawerShape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp)
+            ) {
+                ChatSessionsDrawerContent(
+                    sessions = uiState.sessions,
+                    currentSessionId = uiState.currentSessionId,
+                    isLoading = uiState.isLoadingSessions,
+                    onNewChatClick = {
+                        coroutineScope.launch { drawerState.close() }
+                        viewModel.startNewChat()
+                    },
+                    onSelectSession = { session ->
+                        coroutineScope.launch { drawerState.close() }
+                        viewModel.selectSession(session)
+                    },
+                    onDeleteSession = { sessionId ->
+                        viewModel.deleteSession(sessionId)
+                    },
+                    onCloseDrawer = {
+                        coroutineScope.launch { drawerState.close() }
+                    }
+                )
+            }
+        }
     ) {
-        // Main Chat Conversation Content (Blurred when AI Voice Animation is Active)
-        Column(
-            modifier = Modifier
+        Box(
+            modifier = modifier
                 .fillMaxSize()
-                .blur(chatBlurDp)
-                .padding(horizontal = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .background(Color(0xFFFAFCFB))
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .imePadding()
         ) {
+            // Main Chat Conversation Content (Blurred when AI Voice Animation is Active)
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(scrollState)
+                    .fillMaxSize()
+                    .blur(chatBlurDp)
+                    .padding(horizontal = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Header Bar with Jr. Doctor Branding & Live Engine Status
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(scrollState)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = onBackClick,
-                            modifier = Modifier.size(36.dp)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Header Bar with Session History Drawer Toggle, Jr. Doctor Branding & Quick New Chat
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
                         ) {
-                            BackArrowIcon(
-                                modifier = Modifier.size(20.dp),
-                                color = Color(0xFF111827)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFEDE9FE)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = "🩺", fontSize = 18.sp)
-                        }
-
-                        Spacer(modifier = Modifier.width(10.dp))
-
-                        Column {
-                            Text(
-                                text = "VitalSync AI ✨",
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(7.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF10B981))
+                            IconButton(
+                                onClick = onBackClick,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                BackArrowIcon(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color(0xFF111827)
                                 )
-                                Spacer(modifier = Modifier.width(5.dp))
+                            }
+
+                            IconButton(
+                                onClick = { coroutineScope.launch { drawerState.open() } },
+                                modifier = Modifier.size(36.dp)
+                            ) {
                                 Text(
-                                    text = uiState.activeModelLabel,
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF059669),
-                                    fontWeight = FontWeight.SemiBold
+                                    text = "☰",
+                                    fontSize = 20.sp,
+                                    color = Color(0xFF111827),
+                                    fontWeight = FontWeight.Bold
                                 )
+                            }
+
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFEDE9FE)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "🩺", fontSize = 17.sp)
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "VitalSync AI ✨",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF111827),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF10B981))
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (uiState.currentSessionTitle.isNotBlank() && uiState.currentSessionTitle != "New Chat") {
+                                            uiState.currentSessionTitle
+                                        } else {
+                                            uiState.activeModelLabel
+                                        },
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF059669),
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Quick New Chat Action Button
+                            IconButton(
+                                onClick = { viewModel.startNewChat() },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Text(
+                                    text = "✏️",
+                                    fontSize = 16.sp
+                                )
+                            }
+
+                            Box {
+                                IconButton(
+                                    onClick = { showMenu = true },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Text(
+                                        text = "•••",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF6B7280)
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = showMenu,
+                                    onDismissRequest = { showMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("+ New Chat") },
+                                        onClick = {
+                                            showMenu = false
+                                            viewModel.startNewChat()
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Chat History (Drawer)") },
+                                        onClick = {
+                                            showMenu = false
+                                            coroutineScope.launch { drawerState.open() }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Clear Current Chat") },
+                                        onClick = {
+                                            showMenu = false
+                                            viewModel.clearChatHistory()
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
-
-                    Box {
-                        IconButton(
-                            onClick = { showMenu = true },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Text(
-                                text = "•••",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF6B7280)
-                            )
-                        }
-
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Clear Conversation") },
-                                onClick = {
-                                    showMenu = false
-                                    viewModel.clearChatHistory()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("View History") },
-                                onClick = {
-                                    showMenu = false
-                                    onChatHistoryClick()
-                                }
-                            )
-                        }
-                    }
-                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -381,7 +473,7 @@ fun AiChatScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = "✨ Jr. Doctor",
+                                            text = "✨ VitalSync AI",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color(0xFF7C3AED)
@@ -410,34 +502,9 @@ fun AiChatScreen(
                     }
                 }
 
-                // Pulsating "Jr. Doctor is thinking..." Bubble
-                if (uiState.isSending) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(end = 40.dp, bottom = 12.dp),
-                        horizontalAlignment = Alignment.Start
-                    ) {
-                        Card(
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                PulsingThinkingDots()
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = "Jr. Doctor is analyzing your vitals...",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF7C3AED)
-                                )
-                            }
-                        }
-                    }
+                // Dedicated AI Thinking / Typing Bubble
+                if (uiState.isAiThinking || uiState.isSending) {
+                    TypingIndicatorBubble()
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -586,60 +653,318 @@ fun AiChatScreen(
         }
     }
 }
+}
 
 @Composable
-private fun PulsingThinkingDots() {
-    val transition = rememberInfiniteTransition(label = "ThinkingDots")
-    val alpha1 by transition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 1.0f,
+private fun ChatSessionsDrawerContent(
+    sessions: List<AiChatSessionDto>,
+    currentSessionId: Int?,
+    isLoading: Boolean,
+    onNewChatClick: () -> Unit,
+    onSelectSession: (AiChatSessionDto) -> Unit,
+    onDeleteSession: (Int) -> Unit,
+    onCloseDrawer: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(16.dp)
+    ) {
+        // Drawer Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "💬",
+                    fontSize = 20.sp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "VitalSync AI History",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
+            }
+            IconButton(
+                onClick = onCloseDrawer,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Text(
+                    text = "✕",
+                    fontSize = 16.sp,
+                    color = Color(0xFF6B7280),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Prominent "+ New Chat" Button
+        Button(
+            onClick = onNewChatClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = VitalTealDark)
+        ) {
+            Text(
+                text = "✏️  + New Chat",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Past Conversations",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF6B7280)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (isLoading && sessions.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = VitalTealPrimary,
+                    strokeWidth = 2.dp
+                )
+            }
+        } else if (sessions.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "📝", fontSize = 28.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "No saved conversations yet.\nTap '+ New Chat' to begin!",
+                        fontSize = 13.sp,
+                        color = Color(0xFF9CA3AF),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(sessions, key = { it.id }) { sess ->
+                    val isSelected = (sess.id == currentSessionId)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectSession(sess) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) Color(0xFFEDE9FE) else Color(0xFFF3F4F6)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = sess.title,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color(0xFF7C3AED) else Color(0xFF1F2937),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                val timeDisplay = sess.updatedAt.takeIf { it.isNotBlank() }?.take(16) ?: ""
+                                val msgCountStr = if (sess.messageCount > 0) "${sess.messageCount} msgs" else ""
+                                val metaText = listOf(timeDisplay, msgCountStr).filter { it.isNotBlank() }.joinToString(" • ")
+                                if (metaText.isNotBlank()) {
+                                    Text(
+                                        text = metaText,
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF9CA3AF)
+                                    )
+                                }
+                            }
+
+                            IconButton(
+                                onClick = { onDeleteSession(sess.id) },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Text(
+                                    text = "🗑️",
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TypingIndicatorBubble(
+    modifier: Modifier = Modifier
+) {
+    val transition = rememberInfiniteTransition(label = "TypingIndicatorTransition")
+
+    // Vertical bounce offset per dot spaced sequentially (0ms, 150ms, 300ms)
+    val dot1Offset by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = -5f,
         animationSpec = infiniteRepeatable(
-            animation = tween(600, easing = LinearEasing),
+            animation = tween(durationMillis = 400, delayMillis = 0, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "Dot1"
+        label = "Dot1Offset"
     )
-    val alpha2 by transition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 1.0f,
+    val dot2Offset by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = -5f,
         animationSpec = infiniteRepeatable(
-            animation = tween(600, delayMillis = 200, easing = LinearEasing),
+            animation = tween(durationMillis = 400, delayMillis = 150, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "Dot2"
+        label = "Dot2Offset"
     )
-    val alpha3 by transition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 1.0f,
+    val dot3Offset by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = -5f,
         animationSpec = infiniteRepeatable(
-            animation = tween(600, delayMillis = 400, easing = LinearEasing),
+            animation = tween(durationMillis = 400, delayMillis = 300, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "Dot3"
+        label = "Dot3Offset"
     )
 
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically
+    // Pulsing alpha per dot spaced sequentially (0ms, 150ms, 300ms)
+    val dot1Alpha by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 400, delayMillis = 0, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Dot1Alpha"
+    )
+    val dot2Alpha by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 400, delayMillis = 150, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Dot2Alpha"
+    )
+    val dot3Alpha by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 400, delayMillis = 300, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Dot3Alpha"
+    )
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(end = 28.dp, bottom = 12.dp),
+        horizontalAlignment = Alignment.Start
     ) {
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF7C3AED).copy(alpha = alpha1))
-        )
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF7C3AED).copy(alpha = alpha2))
-        )
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF7C3AED).copy(alpha = alpha3))
-        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "✨ VitalSync AI",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF7C3AED)
+                    )
+
+                    Text(
+                        text = "Thinking...",
+                        fontSize = 10.sp,
+                        color = Color(0xFF9CA3AF)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .offset(y = dot1Offset.dp)
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF7C3AED).copy(alpha = dot1Alpha))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .offset(y = dot2Offset.dp)
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF7C3AED).copy(alpha = dot2Alpha))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .offset(y = dot3Offset.dp)
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF7C3AED).copy(alpha = dot3Alpha))
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(
+                        text = "VitalSync AI is thinking...",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF7C3AED)
+                    )
+                }
+            }
+        }
     }
 }
 

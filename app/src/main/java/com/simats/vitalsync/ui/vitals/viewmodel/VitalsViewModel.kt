@@ -2,7 +2,9 @@ package com.simats.vitalsync.ui.vitals.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.simats.vitalsync.data.model.ai.AiInsightResponse
 import com.simats.vitalsync.data.model.vitals.AddVitalReadingRequest
+import com.simats.vitalsync.data.network.RetrofitClient
 import com.simats.vitalsync.data.model.vitals.BloodPressureResponse
 import com.simats.vitalsync.data.model.vitals.BmiDetailData
 import com.simats.vitalsync.data.model.vitals.HeartRateDetailData
@@ -83,6 +85,44 @@ class VitalsViewModel(
 
     private val _addReadingState = MutableStateFlow(AddReadingUiState())
     val addReadingState: StateFlow<AddReadingUiState> = _addReadingState.asStateFlow()
+
+    private val _aiInsightState = MutableStateFlow<AiInsightResponse?>(null)
+    val aiInsightState: StateFlow<AiInsightResponse?> = _aiInsightState.asStateFlow()
+
+    private val _isAiInsightLoading = MutableStateFlow(false)
+    val isAiInsightLoading: StateFlow<Boolean> = _isAiInsightLoading.asStateFlow()
+
+    fun fetchAiInsight(
+        userId: Int = 1,
+        isBtConnected: Boolean = false,
+        hydrationMl: Int? = null,
+        sleepText: String? = null,
+        sleepScore: Int? = null,
+        steps: Int? = null,
+        targetWaterMl: Int? = null
+    ) {
+        viewModelScope.launch {
+            _isAiInsightLoading.value = true
+            try {
+                val response = RetrofitClient.aiApiService.getAiInsight(
+                    userId = userId,
+                    isBtConnected = isBtConnected,
+                    hydrationMl = hydrationMl,
+                    sleepText = sleepText,
+                    sleepScore = sleepScore,
+                    steps = steps,
+                    targetWaterMl = targetWaterMl
+                )
+                if (response.isSuccessful && response.body() != null) {
+                    _aiInsightState.value = response.body()
+                }
+            } catch (e: Exception) {
+                // Silently fallback or keep previous
+            } finally {
+                _isAiInsightLoading.value = false
+            }
+        }
+    }
 
     fun fetchSummary(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
@@ -292,4 +332,6 @@ class VitalsViewModel(
         _addReadingState.value = AddReadingUiState()
     }
 }
+
+typealias VitalSignsViewModel = VitalsViewModel
 

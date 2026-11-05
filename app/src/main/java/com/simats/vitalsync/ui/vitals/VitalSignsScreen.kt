@@ -41,6 +41,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.model.ai.AiInsightResponse
+import com.simats.vitalsync.ui.common.AiInsightCard
 import com.simats.vitalsync.ui.theme.VitalCardBg
 import com.simats.vitalsync.ui.theme.VitalMainBackground
 import com.simats.vitalsync.ui.theme.VitalNavSelectedBg
@@ -54,6 +56,9 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun VitalSignsScreen(
     modifier: Modifier = Modifier,
+    aiInsight: AiInsightResponse? = null,
+    isInsightLoading: Boolean = false,
+    isBtConnected: Boolean = false,
     heartRateValue: String = "--",
     heartRateStatus: String = "No data available",
     heartRateUpdated: String = "No readings",
@@ -69,6 +74,8 @@ fun VitalSignsScreen(
     bmiValue: String = "--",
     bmiStatus: String = "Not set",
     onBackClick: () -> Unit = {},
+    onPairWatchClick: () -> Unit = {},
+    onAskAiClick: () -> Unit = {},
     onHeartRateClick: () -> Unit = {},
     onBloodPressureClick: () -> Unit = {},
     onSpO2Click: () -> Unit = {},
@@ -131,7 +138,18 @@ fun VitalSignsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Dynamic Real-time AI Health Insight
+            AiInsightCard(
+                insight = aiInsight,
+                isLoading = isInsightLoading,
+                isBtConnected = isBtConnected,
+                onPairWatchClick = onPairWatchClick,
+                onClick = onAskAiClick
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // 6 Grid Metric Cards with Dynamic Classification Colors
             // Row 1: Heart Rate & Blood Pressure
@@ -306,10 +324,9 @@ private fun VitalTileCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -321,14 +338,18 @@ private fun VitalTileCard(
                         text = status,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = statusColor
+                        color = statusColor,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
 
                 Text(
                     text = updatedAt,
-                    fontSize = 9.sp,
-                    color = VitalTextSecondary
+                    fontSize = 10.sp,
+                    color = VitalTextSecondary,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
 

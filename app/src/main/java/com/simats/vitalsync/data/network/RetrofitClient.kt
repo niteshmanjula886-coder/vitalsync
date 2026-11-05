@@ -60,43 +60,66 @@ object RetrofitClient {
                 }
 
                 val requestWithHeaders = requestBuilder.build()
+                val originalUrl = originalRequest.url.toString()
+
+                var response: okhttp3.Response? = null
+                var attemptException: Exception? = null
 
                 try {
-                    chain.proceed(requestWithHeaders)
-                } catch (primaryException: Exception) {
-                    val originalUrl = originalRequest.url.toString()
-                    if (originalUrl.startsWith(ApiConstants.DEFAULT_BASE_URL)) {
-                        // Fallback 1: Try host LAN IP
-                        val lanUrl = originalUrl.replace(ApiConstants.DEFAULT_BASE_URL, ApiConstants.LAN_BASE_URL)
-                        val lanRequest = originalRequest.newBuilder()
-                            .url(lanUrl)
+                    response = chain.proceed(requestWithHeaders)
+                } catch (e: Exception) {
+                    attemptException = e
+                    response = null
+                }
+
+                // If primary request was successful or a client error (e.g. 400/401/404), return it immediately
+                if (response != null && response.code < 500) {
+                    return@addInterceptor response
+                }
+
+                // If primary failed (server error 500+ or network exception), attempt fallbacks
+                response?.close()
+
+                val candidateUrls = if (ApiConstants.isRunningOnEmulator) {
+                    listOf(ApiConstants.EMULATOR_BASE_URL, ApiConstants.LAN_BASE_URL)
+                } else {
+                    listOf(ApiConstants.LAN_BASE_URL, ApiConstants.EMULATOR_BASE_URL)
+                }
+
+                for (fallbackBase in candidateUrls) {
+                    if (!originalUrl.startsWith(fallbackBase)) {
+                        val currentBasePrefix = when {
+                            originalUrl.startsWith(ApiConstants.EMULATOR_BASE_URL) -> ApiConstants.EMULATOR_BASE_URL
+                            originalUrl.startsWith(ApiConstants.LAN_BASE_URL) -> ApiConstants.LAN_BASE_URL
+                            originalUrl.startsWith(ApiConstants.REMOTE_DEVTUNNEL_URL) -> ApiConstants.REMOTE_DEVTUNNEL_URL
+                            else -> currentBaseUrl
+                        }
+                        val altUrl = originalUrl.replace(currentBasePrefix, fallbackBase)
+                        val altRequest = originalRequest.newBuilder()
+                            .url(altUrl)
                             .header("Connection", "close")
                             .build()
                         try {
-                            chain.proceed(lanRequest)
-                        } catch (_: Exception) {
-                            // Fallback 2: Try Android emulator loopback
-                            val emuUrl = originalUrl.replace(ApiConstants.DEFAULT_BASE_URL, ApiConstants.EMULATOR_BASE_URL)
-                            val emuRequest = originalRequest.newBuilder()
-                                .url(emuUrl)
-                                .header("Connection", "close")
-                                .build()
-                            try {
-                                chain.proceed(emuRequest)
-                            } catch (_: Exception) {
-                                throw primaryException
+                            val altResponse = chain.proceed(altRequest)
+                            if (altResponse.isSuccessful || altResponse.code < 500) {
+                                return@addInterceptor altResponse
                             }
-                        }
-                    } else {
-                        throw primaryException
+                            altResponse.close()
+                        } catch (_: Exception) {}
                     }
                 }
+
+                // If all fallbacks failed, throw original exception or proceed with original request
+                if (attemptException != null) {
+                    throw attemptException
+                }
+                chain.proceed(requestWithHeaders)
             }
             .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
             .addInterceptor(logging)
-            .connectTimeout(ApiConstants.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .readTimeout(ApiConstants.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .writeTimeout(ApiConstants.WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
     }
