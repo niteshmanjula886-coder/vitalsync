@@ -111,7 +111,10 @@ data class AiChatListResponse(
 
 data class AiChatRequest(
     @SerializedName("user_id")
-    val userId: Int? = null,
+    val user_id: Int = 0,
+
+    @SerializedName("message")
+    val message: String = "",
 
     @SerializedName("session_id", alternate = ["sessionId"])
     val sessionId: Int? = null,
@@ -120,15 +123,34 @@ data class AiChatRequest(
     val email: String? = null,
 
     @SerializedName("message_text")
-    val messageText: String,
+    val messageText: String = message
+) {
+    val userId: Int? get() = if (user_id > 0) user_id else null
 
-    @SerializedName("message")
-    val message: String = messageText
-)
+    constructor(
+        userId: Int?,
+        sessionId: Int?,
+        email: String?,
+        messageText: String,
+        message: String = messageText
+    ) : this(
+        user_id = userId ?: 0,
+        message = message,
+        sessionId = sessionId,
+        email = email,
+        messageText = messageText
+    )
+}
 
 data class AiChatResponse(
     @SerializedName("success")
     val success: Boolean = false,
+
+    @SerializedName("reply")
+    val reply: String? = null,
+
+    @SerializedName("message")
+    val message: String? = null,
 
     @SerializedName("status")
     val status: String? = null,
@@ -143,10 +165,7 @@ data class AiChatResponse(
     val userMessage: AiChatMessageDto? = null,
 
     @SerializedName("ai_response", alternate = ["aiResponse"])
-    val aiResponse: AiChatMessageDto? = null,
-
-    @SerializedName("message")
-    val message: String? = null
+    val aiResponse: AiChatMessageDto? = null
 )
 
 data class AiDailyInsightDto(
@@ -249,3 +268,28 @@ data class AiInsightResponse(
     val message: String? = null
 )
 
+
+data class ChatHistoryMessage(
+    @SerializedName("id")
+    val id: Int = 0,
+
+    @SerializedName("sender")
+    val sender: String = "user", // "user" or "ai"
+
+    @SerializedName("message")
+    val message: String = "",
+
+    @SerializedName("created_at")
+    val createdAt: String = ""
+)
+
+data class ChatHistoryResponse(
+    @SerializedName("success")
+    val success: Boolean = false,
+
+    @SerializedName("messages")
+    val messages: List<ChatHistoryMessage> = emptyList(),
+
+    @SerializedName("message")
+    val message: String? = null
+)

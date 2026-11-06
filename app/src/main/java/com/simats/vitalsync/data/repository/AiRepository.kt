@@ -1,4 +1,4 @@
-package com.simats.vitalsync.data.repository
+﻿package com.simats.vitalsync.data.repository
 
 import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.ai.AiChatListResponse
@@ -22,7 +22,7 @@ class AiRepository(
     private val sessionManager: SessionManager? = null
 ) {
 
-    private fun getCurrentUserId(): Int? {
+    fun getCurrentUserId(): Int? {
         val user = sessionManager?.getUser()
         return if (user != null && user.id > 0) user.id else null
     }
@@ -113,19 +113,11 @@ class AiRepository(
             }
         }
 
-    suspend fun sendChatMessage(message: String, sessionId: Int? = null, userId: Int? = null, email: String? = null): Resource<AiChatResponse> =
+    suspend fun sendAiChatMessage(userId: Int, message: String): Resource<AiChatResponse> =
         withContext(Dispatchers.IO) {
             try {
-                val resolvedUserId = userId ?: getCurrentUserId()
-                val resolvedEmail = email ?: getCurrentUserEmail()
-                val request = AiChatRequest(
-                    userId = resolvedUserId,
-                    sessionId = sessionId,
-                    email = resolvedEmail,
-                    messageText = message,
-                    message = message
-                )
-                val response = apiService.sendChatMessage(request)
+                val request = AiChatRequest(user_id = userId, message = message)
+                val response = apiService.sendAiChatMessage(request)
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null && body.success) {
@@ -137,8 +129,34 @@ class AiRepository(
                     Resource.Error("HTTP Error: ${response.code()} ${response.message()}", response.code())
                 }
             } catch (e: Exception) {
-                Resource.Error(e.localizedMessage ?: "Failed to connect to AI engine", throwable = e)
+                Resource.Error(e.localizedMessage ?: "Failed to connect to local AI engine", throwable = e)
             }
+        }
+
+    suspend fun getChatHistory(userId: Int? = null): Resource<List<com.simats.vitalsync.data.model.ai.ChatHistoryMessage>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val resolvedUserId = userId ?: getCurrentUserId() ?: 1
+                val response = apiService.getChatHistory(resolvedUserId)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null && body.success) {
+                        Resource.Success(body.messages)
+                    } else {
+                        Resource.Error(body?.message ?: "Failed to retrieve chat history")
+                    }
+                } else {
+                    Resource.Error("HTTP Error: ${response.code()}", response.code())
+                }
+            } catch (e: Exception) {
+                Resource.Error(e.localizedMessage ?: "Failed to load chat history", throwable = e)
+            }
+        }
+
+    suspend fun sendChatMessage(message: String, sessionId: Int? = null, userId: Int? = null, email: String? = null): Resource<AiChatResponse> =
+        withContext(Dispatchers.IO) {
+            val resolvedUserId = userId ?: getCurrentUserId() ?: 1
+            sendAiChatMessage(resolvedUserId, message)
         }
 
     suspend fun getDailyInsight(userId: Int? = null, refresh: Boolean = false): Resource<AiDailyInsightDto> =
@@ -213,3 +231,4 @@ class AiRepository(
             }
         }
 }
+

@@ -17,7 +17,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
 
-interface AiApiService {
+interface AiApiService : ApiService {
 
     @GET("ai/sessions.php")
     suspend fun getSessions(

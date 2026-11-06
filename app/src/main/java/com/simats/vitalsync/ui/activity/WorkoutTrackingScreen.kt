@@ -1,4 +1,7 @@
+
 package com.simats.vitalsync.ui.activity
+
+import androidx.activity.compose.BackHandler
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -69,6 +72,10 @@ fun WorkoutTrackingScreen(
     onFinishTrackingWithData: ((durationSeconds: Int, distanceKm: Float, caloriesBurned: Int, avgPace: String, avgHeartRate: Int?, steps: Int) -> Unit)? = null
 ) {
     // Executable Live Workout Session Timer State
+    BackHandler(enabled = true) {
+        onBackClick()
+    }
+
     var isWorkoutStarted by remember { mutableStateOf(false) }
     var isTimerRunning by remember { mutableStateOf(false) }
     var workoutSeconds by remember { mutableIntStateOf(0) }
@@ -282,7 +289,7 @@ fun WorkoutTrackingScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(text = "Workout Exercises", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                Text(text = "4 exercises · 12 sets", fontSize = 12.sp, color = Color(0xFF6B7280))
+                Text(text = "4 exercises Â· 12 sets", fontSize = 12.sp, color = Color(0xFF6B7280))
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -295,7 +302,7 @@ fun WorkoutTrackingScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    Text(text = "Current exercise · 2/4", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                    Text(text = "Current exercise Â· 2/4", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = "Dumbbell shoulder press", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
 
@@ -346,7 +353,7 @@ fun WorkoutTrackingScreen(
 
                         Column {
                             Text(text = "Rest & recover", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                            Text(text = "Next set: 3 · 10 reps @ 12 kg", fontSize = 12.sp, color = Color(0xFF6B7280))
+                            Text(text = "Next set: 3 Â· 10 reps @ 12 kg", fontSize = 12.sp, color = Color(0xFF6B7280))
                         }
                     }
 
@@ -521,3 +528,4 @@ fun WorkoutTrackingScreenPreview() {
         WorkoutTrackingScreen()
     }
 }
+

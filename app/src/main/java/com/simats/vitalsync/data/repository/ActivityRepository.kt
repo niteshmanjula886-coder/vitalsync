@@ -1,4 +1,4 @@
-package com.simats.vitalsync.data.repository
+﻿package com.simats.vitalsync.data.repository
 
 import com.google.gson.Gson
 import com.simats.vitalsync.data.model.activity.ActivityHistoryItem
@@ -203,6 +203,41 @@ class ActivityRepository(
         }
     }.flowOn(Dispatchers.IO)
 
+    /**
+     * Synchronize live daily step count to backend
+     */
+    fun syncDailySteps(
+        email: String,
+        stepCount: Int,
+        targetSteps: Int = 8000,
+        distanceKm: Float = 0f,
+        caloriesKcal: Int = 0,
+        activeMinutes: Int = 0
+    ): Flow<Resource<String>> = flow {
+        emit(Resource.Loading)
+        try {
+            val req = com.simats.vitalsync.data.model.activity.SyncDailyStepsRequest(
+                email = email,
+                stepCount = stepCount,
+                targetSteps = targetSteps,
+                distanceKm = distanceKm,
+                caloriesKcal = caloriesKcal,
+                activeMinutes = activeMinutes
+            )
+            val response = apiService.syncDailySteps(req)
+            if (response.isSuccessful && response.body() != null) {
+                emit(Resource.Success(response.body()!!.message))
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()) ?: "Error syncing daily steps (${response.code()})"
+                emit(Resource.Error(errorMsg, response.code()))
+            }
+        } catch (e: IOException) {
+            emit(Resource.Error("Network error connecting to backend.", throwable = e))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.localizedMessage ?: "Unexpected error", throwable = e))
+        }
+    }.flowOn(Dispatchers.IO)
+
     private fun parseErrorMessage(errorBody: ResponseBody?): String? {
         return try {
             val jsonString = errorBody?.string() ?: return null
@@ -213,3 +248,4 @@ class ActivityRepository(
         }
     }
 }
+

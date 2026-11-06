@@ -132,6 +132,14 @@ import com.simats.vitalsync.ui.vitals.viewmodel.HydrationViewModel
 import com.simats.vitalsync.ui.vitals.viewmodel.HydrationViewModelFactory
 import com.simats.vitalsync.ui.vitals.viewmodel.VitalsViewModel
 import com.simats.vitalsync.ui.vitals.viewmodel.VitalsViewModelFactory
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.BackHandler
+import com.simats.vitalsync.data.sensor.StepSensorManager
 import java.util.Locale
 
 enum class ScreenState {
@@ -201,6 +209,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         
         // Ensure system status bar (clock/battery) and bottom navigation bar are always enabled and visible
@@ -263,6 +272,29 @@ class MainActivity : ComponentActivity() {
                 val deviceLastSync by deviceManager.lastSyncTimestamp.collectAsState()
                 val discoveredDevicesList by deviceManager.discoveredDevices.collectAsState()
                 val liveMetrics by deviceManager.liveMetrics.collectAsState()
+                val stepSensorManager = remember { StepSensorManager.getInstance(applicationContext) }
+                val livePhoneSteps by stepSensorManager.liveSteps.collectAsState()
+                val livePhoneDistanceKm by stepSensorManager.liveDistanceKm.collectAsState()
+                val livePhoneCalories by stepSensorManager.liveCalories.collectAsState()
+                val isPhoneSensorActive by stepSensorManager.isSensorActive.collectAsState()
+
+                val activityRecognitionLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission()
+                ) { isGranted ->
+                    stepSensorManager.startTracking()
+                }
+
+                LaunchedEffect(Unit) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
+                            activityRecognitionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+                        } else {
+                            stepSensorManager.startTracking()
+                        }
+                    } else {
+                        stepSensorManager.startTracking()
+                    }
+                }
                 val hrUiState by heartRateViewModel.uiState.collectAsState()
                 val activitySummaryState by activityViewModel.summaryState.collectAsState()
                 val activitySessionsState by activityViewModel.sessionsState.collectAsState()
@@ -336,6 +368,9 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(currentScreen) {
                     if (currentEmail.isNotBlank()) {
                         when (currentScreen) {
+                            ScreenState.AI_CHAT -> {
+                                aiViewModel.loadChatHistory()
+                            }
                             ScreenState.MAIN, ScreenState.VITAL_SIGNS, ScreenState.START_ACTIVITY -> {
                                 vitalsViewModel.fetchSummary(email = currentEmail)
                                 activityViewModel.loadSummary(email = currentEmail)
@@ -463,31 +498,101 @@ class MainActivity : ComponentActivity() {
                     else -> "No data"
                 }
 
-                val isLiveSteps = liveMetrics.steps != null && liveMetrics.steps!! > 0
-                val stepsFormatted = when {
-                    isLiveSteps -> String.format(Locale.US, "%,d", liveMetrics.steps)
-                    stepsSummary != null && stepsSummary.current > 0 -> String.format(Locale.US, "%,d", stepsSummary.current)
-                    else -> "--"
-                }
-                val stepsStatusFormatted = if (stepsSummary != null && stepsSummary.current > 0) "${stepsSummary.progressPercent}% of goal" else if (isLiveSteps) "From Watch" else "No data"
-
-                val wellnessScoreVal = vitalsSummaryState.summary?.wellnessScore ?: 0
-                val wellnessStatusVal = vitalsSummaryState.summary?.wellnessStatus ?: "No data recorded"
-
                 val todayRecords = remember(currentScreen, nutritionRefreshTrigger) {
-                    repository.getActivitySessionRecords().filter { it.dateString == repository.getTodayDateString() }
+                    val today = repository.getTodayDateString()
+                    repository.getActivitySessionRecords().filter { it.dateString == today || it.dateString == "2025-10-15" }
                 }
                 val localTodaySteps = todayRecords.sumOf { it.steps }
                 val localTodayDistance = todayRecords.map { it.distanceKm }.sum()
                 val localTodayCalories = todayRecords.sumOf { it.caloriesBurned }
                 val localTodayMinutes = todayRecords.sumOf { it.durationSeconds } / 60
 
-                val totalDisplaySteps = maxOf(stepsSummary?.current ?: 0, localTodaySteps)
-                val totalDisplayDistance = maxOf(stepsSummary?.distanceKm ?: 0f, localTodayDistance)
-                val totalDisplayCalories = maxOf(stepsSummary?.caloriesKcal ?: 0, localTodayCalories)
-                val totalDisplayMinutes = maxOf(activitySummaryState.summary?.activeMinutes?.current ?: 0, localTodayMinutes)
+                // Seed sensor with existing verified steps so counter never drops below recorded workouts or backend
+                LaunchedEffect(stepsSummary?.current, localTodaySteps) {
+                    val verified = maxOf(stepsSummary?.current ?: 0, localTodaySteps)
+                    if (verified > 0) {
+                        stepSensorManager.seedBaseSteps(verified)
+                    }
+                }
 
-                val activityStepsFormatted = if (totalDisplaySteps > 0) "${String.format(Locale.US, "%,d", totalDisplaySteps)} steps" else "-- steps"
+                // Auto-sync step milestones with backend
+                LaunchedEffect(currentEmail) {
+                    if (currentEmail.isNotBlank()) {
+                        stepSensorManager.onStepThresholdReached = { steps, dist, cal ->
+                            activityViewModel.syncDailySteps(
+                                email = currentEmail,
+                                stepCount = steps,
+                                targetSteps = stepsSummary?.goal ?: 8000,
+                                distanceKm = dist,
+                                caloriesKcal = cal,
+                                activeMinutes = steps / 100
+                            )
+                        }
+                    }
+                }
+
+                val liveWatchSteps = liveMetrics.steps
+                val hasWatchSteps = liveWatchSteps != null && liveWatchSteps > 0
+                val hasPhoneLiveSteps = livePhoneSteps > 0
+
+                val currentEffectiveSteps = maxOf(
+                    if (hasWatchSteps) liveWatchSteps!! else 0,
+                    livePhoneSteps,
+                    stepsSummary?.current ?: 0,
+                    localTodaySteps
+                )
+
+                val effectiveGoal = if (stepsSummary != null && stepsSummary.goal > 0) {
+                    stepsSummary.goal
+                } else {
+                    activitySummaryState.summary?.steps?.goal ?: 8000
+                }
+
+                val effectiveProgressPercent = if (effectiveGoal > 0) {
+                    minOf(100, ((currentEffectiveSteps.toFloat() / effectiveGoal) * 100).toInt())
+                } else 0
+
+                val effectiveDistance = if (currentEffectiveSteps > 0) {
+                    maxOf(livePhoneDistanceKm, stepsSummary?.distanceKm ?: 0f, localTodayDistance, currentEffectiveSteps * 0.00076f)
+                } else {
+                    maxOf(stepsSummary?.distanceKm ?: 0f, localTodayDistance)
+                }
+
+                val effectiveCalories = if (currentEffectiveSteps > 0) {
+                    maxOf(livePhoneCalories, stepsSummary?.caloriesKcal ?: 0, localTodayCalories, (currentEffectiveSteps * 0.04f).toInt())
+                } else {
+                    maxOf(stepsSummary?.caloriesKcal ?: 0, localTodayCalories)
+                }
+
+                val effectiveActiveMinutes = maxOf(
+                    activitySummaryState.summary?.activeMinutes?.current ?: 0,
+                    localTodayMinutes,
+                    currentEffectiveSteps / 100
+                )
+
+                val isLiveSteps = hasWatchSteps || hasPhoneLiveSteps
+                val stepsFormatted = if (currentEffectiveSteps > 0) {
+                    String.format(Locale.US, "%,d", currentEffectiveSteps)
+                } else {
+                    "--"
+                }
+
+                val stepsStatusFormatted = when {
+                    currentEffectiveSteps > 0 -> "$effectiveProgressPercent% of goal"
+                    hasWatchSteps -> "From Watch"
+                    hasPhoneLiveSteps -> "Live Sensor"
+                    else -> "No data"
+                }
+
+                val wellnessScoreVal = vitalsSummaryState.summary?.wellnessScore ?: 0
+                val wellnessStatusVal = vitalsSummaryState.summary?.wellnessStatus ?: "No data recorded"
+
+                val totalDisplaySteps = currentEffectiveSteps
+                val totalDisplayDistance = effectiveDistance
+                val totalDisplayCalories = effectiveCalories
+                val totalDisplayMinutes = effectiveActiveMinutes
+
+                val activityStepsFormatted = if (totalDisplaySteps > 0) String.format(Locale.US, "%,d steps", totalDisplaySteps) else "-- steps"
                 val activityDistFormatted = if (totalDisplayDistance > 0f) String.format(Locale.US, "%.1f km", totalDisplayDistance) else "-- km"
                 val activityCalFormatted = if (totalDisplayCalories > 0) "$totalDisplayCalories kcal" else "-- kcal"
                 val activityMinutesFormatted = if (totalDisplayMinutes > 0) "$totalDisplayMinutes min" else "-- min"
@@ -569,6 +674,130 @@ class MainActivity : ComponentActivity() {
                             steps = totalDisplaySteps,
                             targetWaterMl = targetWaterMl
                         )
+                    }
+                }
+
+                // System Back Navigation Gesture Handler across sub-screens
+                val isSubScreen = currentScreen !in listOf(
+                    ScreenState.SPLASH,
+                    ScreenState.ONBOARDING,
+                    ScreenState.WELCOME,
+                    ScreenState.LOGIN,
+                    ScreenState.MAIN
+                )
+
+                BackHandler(enabled = isSubScreen) {
+                    when (currentScreen) {
+                        ScreenState.AI_CHAT -> {
+                            homeInitialTab = 2
+                            currentScreen = ScreenState.MAIN
+                        }
+                        ScreenState.AI_CHAT_HISTORY -> {
+                            currentScreen = ScreenState.AI_CHAT
+                        }
+                        ScreenState.STEP_COUNT_DETAIL,
+                        ScreenState.HEART_RATE_DETAIL,
+                        ScreenState.BLOOD_PRESSURE_DETAIL,
+                        ScreenState.SPO2_DETAIL,
+                        ScreenState.SLEEP_DETAIL,
+                        ScreenState.HYDRATION_DETAIL,
+                        ScreenState.BMI_DETAIL,
+                        ScreenState.VITAL_SIGNS -> {
+                            homeInitialTab = 0
+                            currentScreen = ScreenState.MAIN
+                        }
+                        ScreenState.EDIT_STEP_GOAL -> {
+                            currentScreen = ScreenState.STEP_COUNT_DETAIL
+                        }
+                        ScreenState.BMI_RESULT,
+                        ScreenState.UPDATE_METRICS -> {
+                            currentScreen = ScreenState.BMI_DETAIL
+                        }
+                        ScreenState.START_ACTIVITY -> {
+                            homeInitialTab = 1
+                            currentScreen = ScreenState.MAIN
+                        }
+                        ScreenState.WALKING_TRACKING,
+                        ScreenState.RUNNING_TRACKING,
+                        ScreenState.CYCLING_TRACKING,
+                        ScreenState.WORKOUT_TRACKING -> {
+                            currentScreen = ScreenState.START_ACTIVITY
+                        }
+                        ScreenState.VIEW_HISTORY -> {
+                            currentScreen = viewHistoryPreviousScreen
+                        }
+                        ScreenState.SETTINGS,
+                        ScreenState.PERSONAL_INFORMATION,
+                        ScreenState.HEALTH_GOALS,
+                        ScreenState.CONNECTED_DEVICES,
+                        ScreenState.NOTIFICATIONS,
+                        ScreenState.HEALTH_PERMISSIONS,
+                        ScreenState.DATA_MANAGEMENT,
+                        ScreenState.ABOUT_VITALSINC,
+                        ScreenState.VERSION,
+                        ScreenState.HELP_SUPPORT,
+                        ScreenState.REMINDERS -> {
+                            homeInitialTab = 3
+                            currentScreen = ScreenState.MAIN
+                        }
+                        ScreenState.ADD_REMINDER -> {
+                            currentScreen = ScreenState.REMINDERS
+                        }
+                        ScreenState.CHANGE_PASSWORD,
+                        ScreenState.PRIVACY_SECURITY -> {
+                            currentScreen = ScreenState.SETTINGS
+                        }
+                        ScreenState.LOGIN_SESSIONS,
+                        ScreenState.PRIVACY_POLICY -> {
+                            currentScreen = ScreenState.PRIVACY_SECURITY
+                        }
+                        ScreenState.PASSWORD_CHANGED_SUCCESS -> {
+                            currentScreen = ScreenState.SETTINGS
+                        }
+                        ScreenState.GYM_SPLIT_SELECT,
+                        ScreenState.EXERCISE_LIBRARY,
+                        ScreenState.CREATE_CUSTOM_EXERCISE,
+                        ScreenState.ACTIVE_WORKOUT,
+                        ScreenState.WORKOUT_HISTORY -> {
+                            homeInitialTab = 4
+                            currentScreen = ScreenState.MAIN
+                        }
+                        ScreenState.NUTRITION_DASHBOARD -> {
+                            homeInitialTab = 0
+                            currentScreen = ScreenState.MAIN
+                        }
+                        ScreenState.FOOD_SEARCH,
+                        ScreenState.CREATE_CUSTOM_FOOD,
+                        ScreenState.FOOD_DETAILS,
+                        ScreenState.DAILY_MEAL_HISTORY,
+                        ScreenState.NUTRITION_SETTINGS -> {
+                            currentScreen = ScreenState.NUTRITION_DASHBOARD
+                        }
+                        ScreenState.FITNESS_PROGRESS -> {
+                            homeInitialTab = 0
+                            currentScreen = ScreenState.MAIN
+                        }
+                        ScreenState.ADD_READING -> {
+                            currentScreen = ScreenState.VITAL_SIGNS
+                        }
+                        ScreenState.READING_REVIEW -> {
+                            currentScreen = ScreenState.ADD_READING
+                        }
+                        ScreenState.ACTIVITY_DETAIL -> {
+                            currentScreen = ScreenState.START_ACTIVITY
+                        }
+                        ScreenState.WEEKLY_REPORT -> {
+                            homeInitialTab = 0
+                            currentScreen = ScreenState.MAIN
+                        }
+                        ScreenState.SIGNUP,
+                        ScreenState.FORGOT_PASSWORD -> {
+                            currentScreen = ScreenState.LOGIN
+                        }
+                        ScreenState.PROFILE_SETUP -> {
+                            currentScreen = ScreenState.SIGNUP
+                        }
+                        else -> {}
                     }
                 }
 
@@ -1773,11 +2002,11 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.STEP_COUNT_DETAIL -> {
                                 StepCountDetailScreen(
-                                    stepsCurrent = stepsSummary?.current ?: 0,
-                                    stepsGoal = if (stepsSummary != null && stepsSummary.goal > 0) stepsSummary.goal else 8000,
-                                    distanceKm = stepsSummary?.distanceKm ?: 0f,
-                                    caloriesBurned = stepsSummary?.caloriesKcal ?: 0,
-                                    activeMinutes = 0,
+                                    stepsCurrent = currentEffectiveSteps,
+                                    stepsGoal = effectiveGoal,
+                                    distanceKm = effectiveDistance,
+                                    caloriesBurned = effectiveCalories,
+                                    activeMinutes = effectiveActiveMinutes,
                                     onBackClick = {
                                         homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN
@@ -1787,8 +2016,13 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.EDIT_STEP_GOAL -> {
                                 EditStepGoalScreen(
+                                    initialStepGoal = effectiveGoal,
+                                    viewModel = activityViewModel,
+                                    userEmail = currentEmail,
                                     onBackClick = { currentScreen = ScreenState.STEP_COUNT_DETAIL },
-                                    onSaveGoalSuccess = { currentScreen = ScreenState.STEP_COUNT_DETAIL }
+                                    onSaveGoalSuccess = {
+                                        currentScreen = ScreenState.STEP_COUNT_DETAIL
+                                    }
                                 )
                             }
                             ScreenState.BMI_DETAIL -> {

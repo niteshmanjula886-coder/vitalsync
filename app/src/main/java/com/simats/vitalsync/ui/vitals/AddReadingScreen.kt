@@ -58,7 +58,7 @@ fun AddReadingScreen(
     readingType: VitalReadingType = VitalReadingType.HEART_RATE,
     readingValue: String? = null,
     readingStatus: String? = null,
-    timestamp: String = java.text.SimpleDateFormat("Today at h:mm a", java.util.Locale.getDefault()).format(java.util.Date()),
+    timestamp: String = java.text.SimpleDateFormat("'Today at 'h:mm a", java.util.Locale.getDefault()).format(java.util.Date()),
     onBackClick: () -> Unit = {},
     onDoneClick: () -> Unit = {}
 ) {

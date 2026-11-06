@@ -7,17 +7,17 @@ object ApiConstants {
     /**
      * Local machine LAN IP (for physical devices connected to same Wi-Fi).
      */
-    const val LAN_BASE_URL = "http://172.23.176.95/vitalsync_background/"
+    const val LAN_BASE_URL = "http://10.154.129.52/vitalsync-backend/"
 
     /**
      * Android emulator loopback.
      */
-    const val EMULATOR_BASE_URL = "http://10.0.2.2/vitalsync_background/"
+    const val EMULATOR_BASE_URL = "http://10.0.2.2/vitalsync-backend/"
 
     /**
      * Optional remote DevTunnel URL (if running).
      */
-    const val REMOTE_DEVTUNNEL_URL = "https://z11l1qr6-80.inc1.devtunnels.ms/vitalsync_background/"
+    const val REMOTE_DEVTUNNEL_URL = "https://z11l1qr6-80.inc1.devtunnels.ms/vitalsync-backend/"
 
     /**
      * Determines whether current device is an Android Emulator.

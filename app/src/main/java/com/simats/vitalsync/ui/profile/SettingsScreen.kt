@@ -1,4 +1,7 @@
+
 package com.simats.vitalsync.ui.profile
+
+import androidx.activity.compose.BackHandler
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -62,6 +65,10 @@ fun SettingsScreen(
     onAboutClick: () -> Unit = {},
     onVersionClick: () -> Unit = {}
 ) {
+    BackHandler(enabled = true) {
+        onBackClick()
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -140,7 +147,11 @@ fun SettingsScreen(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+            BackHandler(enabled = true) {
+        onBackClick()
+    }
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
                 SettingsSwitchRow("Push Notifications", pushNotifications) {
                     onPushNotificationsToggle(it)
                 }
@@ -209,7 +220,11 @@ fun SettingsScreen(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            BackHandler(enabled = true) {
+        onBackClick()
+    }
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -255,7 +270,11 @@ fun SettingsScreen(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+            BackHandler(enabled = true) {
+        onBackClick()
+    }
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
                 SettingsNavigationRow("About VitalSync", onClick = onAboutClick)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(
@@ -397,3 +416,4 @@ fun SettingsScreenPreview() {
         SettingsScreen()
     }
 }
+

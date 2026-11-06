@@ -43,16 +43,19 @@ object RetrofitClient {
     var authHeaderProvider: (() -> String?)? = null
 
     private val okHttpClient: OkHttpClient by lazy {
-        val logging = HttpLoggingInterceptor().apply {
+        val logging = HttpLoggingInterceptor { message ->
+            android.util.Log.d("API_DEBUG", message)
+        }.apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
 
         OkHttpClient.Builder()
-            // Always set Connection: close and inject Authorization header from active session
+            // Always set Connection: close, bypass dev-tunnel anti-abuse page, and inject Authorization header from active session
             .addInterceptor { chain ->
                 val originalRequest = chain.request()
                 val requestBuilder = originalRequest.newBuilder()
                     .header("Connection", "close")
+                    .header("X-Tunnel-Skip-Anti-Abuse", "true")
 
                 val token = authHeaderProvider?.invoke()
                 if (!token.isNullOrBlank() && originalRequest.header("Authorization") == null) {
@@ -68,6 +71,7 @@ object RetrofitClient {
                 try {
                     response = chain.proceed(requestWithHeaders)
                 } catch (e: Exception) {
+                    android.util.Log.e("API_DEBUG", "Request to $originalUrl failed: ${e.message}", e)
                     attemptException = e
                     response = null
                 }
@@ -81,9 +85,9 @@ object RetrofitClient {
                 response?.close()
 
                 val candidateUrls = if (ApiConstants.isRunningOnEmulator) {
-                    listOf(ApiConstants.EMULATOR_BASE_URL, ApiConstants.LAN_BASE_URL)
+                    listOf(ApiConstants.EMULATOR_BASE_URL, ApiConstants.LAN_BASE_URL, ApiConstants.REMOTE_DEVTUNNEL_URL)
                 } else {
-                    listOf(ApiConstants.LAN_BASE_URL, ApiConstants.EMULATOR_BASE_URL)
+                    listOf(ApiConstants.LAN_BASE_URL, ApiConstants.REMOTE_DEVTUNNEL_URL, ApiConstants.EMULATOR_BASE_URL)
                 }
 
                 for (fallbackBase in candidateUrls) {
@@ -95,9 +99,10 @@ object RetrofitClient {
                             else -> currentBaseUrl
                         }
                         val altUrl = originalUrl.replace(currentBasePrefix, fallbackBase)
-                        val altRequest = originalRequest.newBuilder()
+                        val altRequest = requestWithHeaders.newBuilder()
                             .url(altUrl)
                             .header("Connection", "close")
+                            .header("X-Tunnel-Skip-Anti-Abuse", "true")
                             .build()
                         try {
                             val altResponse = chain.proceed(altRequest)
@@ -105,7 +110,9 @@ object RetrofitClient {
                                 return@addInterceptor altResponse
                             }
                             altResponse.close()
-                        } catch (_: Exception) {}
+                        } catch (e: Exception) {
+                            android.util.Log.w("API_DEBUG", "Fallback request to $altUrl failed: ${e.message}")
+                        }
                     }
                 }
 

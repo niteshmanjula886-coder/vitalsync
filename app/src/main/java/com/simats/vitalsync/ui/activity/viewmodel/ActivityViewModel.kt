@@ -1,4 +1,4 @@
-package com.simats.vitalsync.ui.activity.viewmodel
+﻿package com.simats.vitalsync.ui.activity.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -168,6 +168,30 @@ class ActivityViewModel(
         }
     }
 
+    fun syncDailySteps(
+        email: String,
+        stepCount: Int,
+        targetSteps: Int = 8000,
+        distanceKm: Float = 0f,
+        caloriesKcal: Int = 0,
+        activeMinutes: Int = 0
+    ) {
+        viewModelScope.launch {
+            repository.syncDailySteps(
+                email = email,
+                stepCount = stepCount,
+                targetSteps = targetSteps,
+                distanceKm = distanceKm,
+                caloriesKcal = caloriesKcal,
+                activeMinutes = activeMinutes
+            ).collect { res ->
+                if (res is Resource.Success) {
+                    loadSummary(email)
+                }
+            }
+        }
+    }
+
     fun resetSaveSessionState() {
         _saveSessionState.value = SaveSessionUiState()
     }
@@ -176,4 +200,5 @@ class ActivityViewModel(
         _stepGoalState.update { it.copy(isSavedSuccess = false) }
     }
 }
+
 

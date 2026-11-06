@@ -1,5 +1,7 @@
 package com.simats.vitalsync.ui.ai
 
+import androidx.activity.compose.BackHandler
+
 import android.app.Application
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -117,6 +119,19 @@ fun AiChatScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+
+    // Automatically load chat history on launch / screen entry
+    LaunchedEffect(Unit) {
+        viewModel.loadChatHistory()
+    }
+
+    BackHandler(enabled = true) {
+        if (drawerState.isOpen) {
+            coroutineScope.launch { drawerState.close() }
+        } else {
+            onBackClick()
+        }
+    }
 
     // Smooth auto-scroll to bottom whenever message count changes or AI begins typing
     LaunchedEffect(uiState.messages.size, uiState.isAiThinking, uiState.isSending) {
@@ -243,7 +258,7 @@ fun AiChatScreen(
 
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "VitalSync AI ✨",
+                                    text = "🩺 VitalSync AI ✨",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF111827),
@@ -390,7 +405,7 @@ fun AiChatScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                SuggestedPromptChip("🩺 Review my resting heart rate today") {
+                SuggestedPromptChip("❤️ Review my resting heart rate today") {
                     submitMessage("Can you review my resting heart rate and cardiovascular trends today?")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
@@ -398,11 +413,11 @@ fun AiChatScreen(
                     submitMessage("How much water have I consumed today, and what is my remaining hydration goal?")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
-                SuggestedPromptChip("🌙 How was my sleep recovery?") {
+                SuggestedPromptChip("😴 How was my sleep recovery?") {
                     submitMessage("Analyze my sleep score and duration from last night.")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
-                SuggestedPromptChip("🥗 Best high protein sources for muscle gain") {
+                SuggestedPromptChip("🥩 Best high protein sources for muscle gain") {
                     submitMessage("What are the best high protein sources for building muscle?")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
@@ -755,7 +770,7 @@ private fun ChatSessionsDrawerContent(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "📝", fontSize = 28.sp)
+                    Text(text = "📋", fontSize = 28.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "No saved conversations yet.\nTap '+ New Chat' to begin!",
@@ -1153,8 +1168,22 @@ private fun SuggestedPromptChip(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = text, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-            Text(text = "↗", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9CA3AF))
+            Text(
+                text = text,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF374151),
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "→",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF9CA3AF)
+            )
         }
     }
 }
@@ -1187,3 +1216,4 @@ fun AiChatScreenPreview() {
         AiChatScreen()
     }
 }
+

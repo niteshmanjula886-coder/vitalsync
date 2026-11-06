@@ -1,4 +1,4 @@
-package com.simats.vitalsync.data.network
+﻿package com.simats.vitalsync.data.network
 
 import com.simats.vitalsync.data.model.activity.ActivitySessionsResponse
 import com.simats.vitalsync.data.model.activity.ActivitySummaryResponse
@@ -50,9 +50,15 @@ interface ActivityApiService {
         @Body request: RecordSessionRequest
     ): Response<BaseResponse>
 
+        @POST("steps/sync_daily_steps.php")
+    suspend fun syncDailySteps(
+        @Body request: com.simats.vitalsync.data.model.activity.SyncDailyStepsRequest
+    ): Response<com.simats.vitalsync.data.model.activity.SyncDailyStepsResponse>
+
     @GET("activity/history.php")
     suspend fun getHistory(
         @Query("email") email: String
     ): Response<HistoryResponse>
 }
+
 

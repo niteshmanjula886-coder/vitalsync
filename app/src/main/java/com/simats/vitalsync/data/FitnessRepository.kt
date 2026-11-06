@@ -1,4 +1,4 @@
-package com.simats.vitalsync.data
+﻿package com.simats.vitalsync.data
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -64,7 +64,7 @@ class FitnessRepository private constructor(context: Context) {
 
     // SLEEP RECORD PERSISTENCE
     fun getSleepRecord(dateStr: String): SleepRecord? {
-        val jsonStr = prefs.getString("key_sleep_record_$dateStr", null) ?: return null
+        val jsonStr = prefs.getString("key_sleep_record_$dateStr", null) ?: prefs.getString("key_sleep_record_2025-10-15", null) ?: return null
         return try {
             val obj = JSONObject(jsonStr)
             SleepRecord(
@@ -280,7 +280,7 @@ class FitnessRepository private constructor(context: Context) {
     }
 
     fun getMealEntriesForDate(dateStr: String): List<MealEntry> {
-        val jsonStr = prefs.getString("key_meals_$dateStr", null) ?: return if (dateStr == "2025-10-15") getSampleMealsForToday() else emptyList()
+        val jsonStr = prefs.getString("key_meals_$dateStr", null) ?: return if (dateStr == "2025-10-15" || dateStr == getTodayDateString()) getSampleMealsForToday() else emptyList()
         val list = mutableListOf<MealEntry>()
         try {
             val array = JSONArray(jsonStr)
@@ -571,7 +571,7 @@ class FitnessRepository private constructor(context: Context) {
         prefs.edit().putString("key_custom_foods", array.toString()).apply()
     }
 
-    fun getTodayDateString(): String = "2025-10-15"
+    fun getTodayDateString(): String = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
 
     private fun getSampleMealsForToday(): List<MealEntry> {
         return listOf(
@@ -608,3 +608,4 @@ class FitnessRepository private constructor(context: Context) {
         )
     }
 }
+

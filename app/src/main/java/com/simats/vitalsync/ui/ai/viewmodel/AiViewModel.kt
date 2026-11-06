@@ -12,6 +12,7 @@ import com.simats.vitalsync.data.model.ai.AiInsightResponse
 import com.simats.vitalsync.data.repository.AiRepository
 import com.simats.vitalsync.data.repository.Resource
 import com.simats.vitalsync.ui.ai.ChatMessage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,11 +52,58 @@ class AiViewModel(
 
     init {
         loadDailyInsight()
-        loadSessionsAndInitialChat()
+        loadChatHistory()
+        loadSessions()
     }
 
     private fun getCurrentTimeText(): String {
         return SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+    }
+
+    fun loadChatHistory(userId: Int? = null) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingMessages = true, errorMessage = null) }
+            val resolvedUserId = userId ?: repository.getCurrentUserId() ?: 1
+            when (val result = repository.getChatHistory(resolvedUserId)) {
+                is Resource.Success -> {
+                    val historyMessages = result.data.map { dto ->
+                        val timeStr = formatTimestampToTime(dto.createdAt)
+                        ChatMessage(
+                            id = dto.id.toString(),
+                            sender = if (dto.sender.equals("user", ignoreCase = true)) "USER" else "AI",
+                            text = dto.message,
+                            timeText = timeStr
+                        )
+                    }
+                    _uiState.update {
+                        it.copy(
+                            messages = historyMessages,
+                            isLoadingMessages = false
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update { it.copy(isLoadingMessages = false) }
+                    loadSessionsAndInitialChat()
+                }
+                is Resource.Loading -> {}
+            }
+        }
+    }
+
+    private fun formatTimestampToTime(timestamp: String?): String {
+        if (timestamp.isNullOrBlank()) return getCurrentTimeText()
+        return try {
+            val sdfIn = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val d = sdfIn.parse(timestamp)
+            if (d != null) {
+                SimpleDateFormat("hh:mm a", Locale.getDefault()).format(d)
+            } else {
+                timestamp
+            }
+        } catch (_: Exception) {
+            timestamp
+        }
     }
 
     fun loadSessions() {
@@ -193,8 +241,8 @@ class AiViewModel(
         }
     }
 
-    fun sendMessage(messageText: String) {
-        val trimmed = messageText.trim()
+    fun sendMessage(userId: Int, prompt: String) {
+        val trimmed = prompt.trim()
         if (trimmed.isEmpty()) return
 
         val userMsgId = UUID.randomUUID().toString()
@@ -205,8 +253,6 @@ class AiViewModel(
             text = trimmed,
             timeText = timeNow
         )
-
-        val targetSessionId = _uiState.value.currentSessionId
 
         // Optimistically append user message to UI immediately and activate thinking state
         _isAiThinking.value = true
@@ -219,50 +265,30 @@ class AiViewModel(
             )
         }
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                when (val result = repository.sendChatMessage(trimmed, sessionId = targetSessionId)) {
+                when (val result = repository.sendAiChatMessage(userId = userId, message = trimmed)) {
                     is Resource.Success -> {
-                        val aiDto = result.data.aiResponse
-                        val newSessionId = result.data.sessionId ?: targetSessionId
-                        val newTitle = result.data.sessionTitle ?: _uiState.value.currentSessionTitle
+                        val replyText = result.data.reply
+                            ?: result.data.aiResponse?.text
+                            ?: result.data.message
+                            ?: "VitalSync AI response received."
 
-                        val aiMsg = if (aiDto != null && aiDto.text.isNotBlank()) {
-                            ChatMessage(
-                                id = aiDto.id.ifEmpty { UUID.randomUUID().toString() },
-                                sender = if (aiDto.sender.isNotBlank()) aiDto.sender.uppercase() else "AI",
-                                text = aiDto.text,
-                                timeText = aiDto.timeText.ifEmpty { getCurrentTimeText() }
-                            )
-                        } else {
-                            ChatMessage(
-                                id = UUID.randomUUID().toString(),
-                                sender = "AI",
-                                text = result.data.message ?: "VitalSync AI response received.",
-                                timeText = getCurrentTimeText()
-                            )
-                        }
-
-                        val modelLabel = aiDto?.modelUsed?.let { m ->
-                            when {
-                                m.contains("qwen", ignoreCase = true) -> "Qwen2.5 (1.5B) • Active"
-                                m.contains("vitals", ignoreCase = true) -> "Live Vitals Sync • Grounded"
-                                m.contains("rag", ignoreCase = true) -> "Verified RAG • Grounded"
-                                m.contains("fallback", ignoreCase = true) -> "VitalSync AI • Resilient"
-                                else -> "$m • Active"
-                            }
-                        } ?: "Qwen2.5 (1.5B) • Active"
+                        val aiMsg = ChatMessage(
+                            id = UUID.randomUUID().toString(),
+                            sender = "AI",
+                            text = replyText,
+                            timeText = getCurrentTimeText()
+                        )
 
                         _uiState.update {
                             it.copy(
                                 messages = it.messages + aiMsg,
-                                currentSessionId = newSessionId,
-                                currentSessionTitle = newTitle,
-                                activeModelLabel = modelLabel
+                                activeModelLabel = "Qwen2.5 (1.5B) • Active"
                             )
                         }
 
-                        // Refresh sessions list in background so new session or updated timestamp shows up
+                        // Refresh sessions list in background
                         loadSessions()
                     }
                     is Resource.Error -> {
@@ -270,7 +296,7 @@ class AiViewModel(
                         val errorNotice = ChatMessage(
                             id = UUID.randomUUID().toString(),
                             sender = "AI",
-                            text = "⚠️ Unable to reach VitalSync AI: $errorMsg. Please ensure the local server is reachable and try again.",
+                            text = "⚠️ Unable to reach VitalSync AI: $errorMsg. Please ensure the local server and Ollama (qwen2.5:1.5b) are running.",
                             timeText = getCurrentTimeText()
                         )
                         _uiState.update {
@@ -292,6 +318,11 @@ class AiViewModel(
                 }
             }
         }
+    }
+
+    fun sendMessage(messageText: String) {
+        val resolvedUserId = repository.getCurrentUserId() ?: 1
+        sendMessage(userId = resolvedUserId, prompt = messageText)
     }
 
     fun loadDailyInsight(forceRefresh: Boolean = false) {

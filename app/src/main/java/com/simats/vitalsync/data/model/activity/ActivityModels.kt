@@ -232,3 +232,40 @@ data class ActivityHistoryItem(
     val time: String = ""
 )
 
+
+/**
+ * Sync Daily Steps Request payload
+ */
+data class SyncDailyStepsRequest(
+    @SerializedName("email")
+    val email: String? = null,
+
+    @SerializedName("step_count")
+    val stepCount: Int = 0,
+
+    @SerializedName("target_steps")
+    val targetSteps: Int = 8000,
+
+    @SerializedName("distance_km")
+    val distanceKm: Float = 0f,
+
+    @SerializedName("calories_kcal")
+    val caloriesKcal: Int = 0,
+
+    @SerializedName("active_minutes")
+    val activeMinutes: Int = 0,
+
+    @SerializedName("logged_date")
+    val loggedDate: String? = null
+)
+
+/**
+ * Sync Daily Steps Response
+ */
+data class SyncDailyStepsResponse(
+    @SerializedName("status")
+    val status: String = "",
+
+    @SerializedName("message")
+    val message: String = ""
+)
