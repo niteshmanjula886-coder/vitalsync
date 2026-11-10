@@ -21,7 +21,8 @@ interface AiApiService : ApiService {
 
     @GET("ai/sessions.php")
     suspend fun getSessions(
-        @Query("user_id") userId: Int? = null
+        @Query("user_id") userId: Int? = null,
+        @Query("email") email: String? = null
     ): Response<AiSessionListResponse>
 
     @POST("ai/sessions.php")
@@ -32,7 +33,8 @@ interface AiApiService : ApiService {
     @DELETE("ai/sessions.php")
     suspend fun deleteSession(
         @Query("session_id") sessionId: Int,
-        @Query("user_id") userId: Int? = null
+        @Query("user_id") userId: Int? = null,
+        @Query("email") email: String? = null
     ): Response<AiBaseResponse>
 
     @GET("ai/chat.php")
@@ -68,7 +70,8 @@ interface AiApiService : ApiService {
     @DELETE("ai/chat.php")
     suspend fun clearChatHistory(
         @Query("user_id") userId: Int? = null,
-        @Query("session_id") sessionId: Int? = null
+        @Query("session_id") sessionId: Int? = null,
+        @Query("email") email: String? = null
     ): Response<AiHistoryClearResponse>
 }
 

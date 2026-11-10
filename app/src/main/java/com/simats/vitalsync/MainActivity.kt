@@ -385,7 +385,16 @@ class MainActivity : ComponentActivity() {
                     if (currentEmail.isNotBlank()) {
                         when (currentScreen) {
                             ScreenState.AI_CHAT -> {
-                                aiViewModel.loadChatHistory()
+                                aiViewModel.loadSessionsAndInitialChat(
+                                    userId = profileState.userId.takeIf { it > 0 },
+                                    email = currentEmail
+                                )
+                            }
+                            ScreenState.AI_CHAT_HISTORY -> {
+                                aiViewModel.loadSessions(
+                                    userId = profileState.userId.takeIf { it > 0 },
+                                    email = currentEmail
+                                )
                             }
                             ScreenState.MAIN -> {
                                 vitalsViewModel.fetchSummary(email = currentEmail)
@@ -1410,6 +1419,8 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.AI_CHAT -> {
                                 AiChatScreen(
+                                    userId = profileState.userId.takeIf { it > 0 },
+                                    userEmail = currentEmail,
                                     viewModel = aiViewModel,
                                     onBackClick = {
                                         homeInitialTab = 2
@@ -1420,9 +1431,28 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.AI_CHAT_HISTORY -> {
                                 AiChatHistoryScreen(
+                                    sessions = aiUiState.sessions,
                                     onBackClick = { currentScreen = ScreenState.AI_CHAT },
+                                    onSelectSession = { session ->
+                                        aiViewModel.selectSession(
+                                            session = session,
+                                            userId = profileState.userId.takeIf { it > 0 },
+                                            email = currentEmail
+                                        )
+                                        currentScreen = ScreenState.AI_CHAT
+                                    },
+                                    onDeleteSession = { sessId ->
+                                        aiViewModel.deleteSession(
+                                            sessionId = sessId,
+                                            userId = profileState.userId.takeIf { it > 0 },
+                                            email = currentEmail
+                                        )
+                                    },
                                     onSelectConversation = { currentScreen = ScreenState.AI_CHAT },
-                                    onNewChatClick = { currentScreen = ScreenState.AI_CHAT }
+                                    onNewChatClick = {
+                                        aiViewModel.startNewChat()
+                                        currentScreen = ScreenState.AI_CHAT
+                                    }
                                 )
                             }
                             ScreenState.WEEKLY_REPORT -> {

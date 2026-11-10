@@ -42,9 +42,11 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.model.ai.AiChatSessionDto
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -57,24 +59,30 @@ data class ChatConversation(
     val previewMessage: String
 )
 
-private val defaultConversations = listOf(
-    ChatConversation("c1", "Activity Progress This Week", "Yesterday", 14, "You're making great progress! Your activity is up 12% from your weekly average..."),
-    ChatConversation("c2", "Sleep Optimization & REM Advice", "Oct 12", 8, "Aim for a consistent sleep schedule to improve your sleep score above 88..."),
-    ChatConversation("c3", "Daily Hydration & Water Goals", "Oct 10", 5, "Drinking 8 glasses of water daily helps maintain optimal heart rate stability..."),
-    ChatConversation("c4", "Post-Workout Recovery & Protein", "Oct 8", 12, "For optimal muscle recovery, aim for 25-30g of protein within 1 hour post workout...")
-)
-
 @Composable
 fun AiChatHistoryScreen(
     modifier: Modifier = Modifier,
+    sessions: List<AiChatSessionDto> = emptyList(),
     onBackClick: () -> Unit = {},
     onSelectConversation: (ChatConversation) -> Unit = {},
+    onSelectSession: (AiChatSessionDto) -> Unit = {},
+    onDeleteSession: (Int) -> Unit = {},
     onNewChatClick: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    val conversations = remember { mutableStateListOf<ChatConversation>().apply { addAll(defaultConversations) } }
+    val conversations = remember(sessions) {
+        sessions.map { sess ->
+            ChatConversation(
+                id = sess.id.toString(),
+                title = sess.title.ifBlank { "New Chat" },
+                dateText = sess.updatedAt.takeIf { it.isNotBlank() }?.take(16) ?: "Recent",
+                messageCount = sess.messageCount,
+                previewMessage = sess.lastMessage.ifBlank { "Tap to resume conversation" }
+            )
+        }
+    }
 
-    val filteredConversations = remember(searchQuery, conversations.size) {
+    val filteredConversations = remember(searchQuery, conversations) {
         conversations.filter {
             it.title.contains(searchQuery, ignoreCase = true) || it.previewMessage.contains(searchQuery, ignoreCase = true)
         }
@@ -162,11 +170,17 @@ fun AiChatHistoryScreen(
                 }
             } else {
                 filteredConversations.forEach { conversation ->
+                    val matchingSession = sessions.firstOrNull { it.id.toString() == conversation.id }
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 6.dp)
-                            .clickable { onSelectConversation(conversation) },
+                            .clickable {
+                                if (matchingSession != null) {
+                                    onSelectSession(matchingSession)
+                                }
+                                onSelectConversation(conversation)
+                            },
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -183,17 +197,21 @@ fun AiChatHistoryScreen(
                                 ) {
                                     Text(text = "💬", fontSize = 18.sp)
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Column {
+                                    Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = conversation.title,
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF111827)
+                                            color = Color(0xFF111827),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                         Text(
                                             text = "${conversation.dateText} • ${conversation.messageCount} messages",
                                             fontSize = 11.sp,
-                                            color = Color(0xFF6B7280)
+                                            color = Color(0xFF6B7280),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                 }
@@ -203,7 +221,9 @@ fun AiChatHistoryScreen(
                                     fontSize = 14.sp,
                                     modifier = Modifier
                                         .padding(start = 8.dp)
-                                        .clickable { conversations.remove(conversation) }
+                                        .clickable {
+                                            conversation.id.toIntOrNull()?.let { onDeleteSession(it) }
+                                        }
                                 )
                             }
 
@@ -220,7 +240,8 @@ fun AiChatHistoryScreen(
                                     text = conversation.previewMessage,
                                     fontSize = 12.sp,
                                     color = Color(0xFF4B5563),
-                                    maxLines = 2
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }

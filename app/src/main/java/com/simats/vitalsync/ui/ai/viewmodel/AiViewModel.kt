@@ -67,12 +67,13 @@ class AiViewModel(
         return SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
     }
 
-    fun loadChatHistory(userId: Int? = null) {
+    fun loadChatHistory(userId: Int? = null, email: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isLoadingMessages = true, errorMessage = null) }
             try {
-                val resolvedUserId = userId ?: repository.getCurrentUserId() ?: 1
-                when (val result = withTimeout(12_000L) { repository.getChatHistory(resolvedUserId) }) {
+                val resolvedUserId = userId ?: repository.getCurrentUserId()
+                val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: repository.getCurrentUserEmail()
+                when (val result = withTimeout(12_000L) { repository.getChatHistory(userId = resolvedUserId, email = resolvedEmail) }) {
                     is Resource.Success -> {
                         val historyMessages = result.data.map { dto ->
                             val timeStr = formatTimestampToTime(dto.createdAt)
@@ -127,11 +128,13 @@ class AiViewModel(
         }
     }
 
-    fun loadSessions() {
+    fun loadSessions(userId: Int? = null, email: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isLoadingSessions = true) }
             try {
-                when (val result = withTimeout(12_000L) { repository.getSessions() }) {
+                val resolvedUserId = userId ?: repository.getCurrentUserId()
+                val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: repository.getCurrentUserEmail()
+                when (val result = withTimeout(12_000L) { repository.getSessions(userId = resolvedUserId, email = resolvedEmail) }) {
                     is Resource.Success -> {
                         _uiState.update {
                             it.copy(
@@ -153,78 +156,95 @@ class AiViewModel(
         }
     }
 
-    fun loadSessionsAndInitialChat() {
-        viewModelScope.launch {
+    fun loadSessionsAndInitialChat(userId: Int? = null, email: String? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isLoadingSessions = true, isLoadingMessages = true) }
-            when (val sessResult = repository.getSessions()) {
-                is Resource.Success -> {
-                    val sessions = sessResult.data
-                    val firstSession = sessions.firstOrNull()
-                    val targetSessionId = firstSession?.id
-                    val targetTitle = firstSession?.title ?: "New Chat"
+            val resolvedUserId = userId ?: repository.getCurrentUserId()
+            val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: repository.getCurrentUserEmail()
+            try {
+                when (val sessResult = withTimeout(12_000L) { repository.getSessions(userId = resolvedUserId, email = resolvedEmail) }) {
+                    is Resource.Success -> {
+                        val sessions = sessResult.data
+                        val activeId = _uiState.value.currentSessionId?.takeIf { id -> sessions.any { it.id == id } }
+                        val targetSession = if (activeId != null) sessions.firstOrNull { it.id == activeId } else sessions.firstOrNull()
+                        val targetSessionId = targetSession?.id
+                        val targetTitle = targetSession?.title ?: "New Chat"
 
-                    _uiState.update {
-                        it.copy(
-                            sessions = sessions,
-                            currentSessionId = targetSessionId,
-                            currentSessionTitle = targetTitle,
-                            isLoadingSessions = false
-                        )
-                    }
+                        _uiState.update {
+                            it.copy(
+                                sessions = sessions,
+                                currentSessionId = targetSessionId,
+                                currentSessionTitle = targetTitle,
+                                isLoadingSessions = false
+                            )
+                        }
 
-                    if (targetSessionId != null) {
-                        loadChatMessages(targetSessionId)
-                    } else {
-                        _uiState.update { it.copy(isLoadingMessages = false, messages = emptyList()) }
+                        if (targetSessionId != null) {
+                            loadChatMessages(targetSessionId, userId = resolvedUserId, email = resolvedEmail)
+                        } else {
+                            loadChatHistory(userId = resolvedUserId, email = resolvedEmail)
+                        }
                     }
+                    is Resource.Error -> {
+                        _uiState.update { it.copy(isLoadingSessions = false) }
+                        loadChatHistory(userId = resolvedUserId, email = resolvedEmail)
+                    }
+                    is Resource.Loading -> {}
                 }
-                is Resource.Error -> {
-                    _uiState.update { it.copy(isLoadingSessions = false) }
-                    loadChatMessages(null)
-                }
-                is Resource.Loading -> {}
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isLoadingSessions = false, isLoadingMessages = false) }
             }
         }
     }
 
-    fun loadChatMessages(sessionId: Int? = _uiState.value.currentSessionId) {
-        viewModelScope.launch {
+    fun loadChatMessages(
+        sessionId: Int? = _uiState.value.currentSessionId,
+        userId: Int? = null,
+        email: String? = null
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isLoadingMessages = true, errorMessage = null) }
-            when (val result = repository.getChatMessages(sessionId = sessionId)) {
-                is Resource.Success -> {
-                    val resp = result.data
-                    val dtoList = resp.messages
-                    val domainMessages = dtoList.map { dto ->
-                        ChatMessage(
-                            id = dto.id.ifEmpty { UUID.randomUUID().toString() },
-                            sender = dto.sender.uppercase(),
-                            text = dto.text,
-                            timeText = dto.timeText.ifEmpty { getCurrentTimeText() }
-                        )
+            val resolvedUserId = userId ?: repository.getCurrentUserId()
+            val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: repository.getCurrentUserEmail()
+            try {
+                when (val result = withTimeout(12_000L) { repository.getChatMessages(sessionId = sessionId, userId = resolvedUserId, email = resolvedEmail) }) {
+                    is Resource.Success -> {
+                        val resp = result.data
+                        val dtoList = resp.messages
+                        val domainMessages = dtoList.map { dto ->
+                            ChatMessage(
+                                id = dto.id.ifEmpty { UUID.randomUUID().toString() },
+                                sender = dto.sender.uppercase(),
+                                text = dto.text,
+                                timeText = dto.timeText.ifEmpty { getCurrentTimeText() }
+                            )
+                        }
+                        _uiState.update {
+                            it.copy(
+                                messages = domainMessages,
+                                currentSessionId = resp.sessionId ?: sessionId,
+                                currentSessionTitle = resp.sessionTitle ?: it.currentSessionTitle,
+                                isLoadingMessages = false
+                            )
+                        }
                     }
-                    _uiState.update {
-                        it.copy(
-                            messages = domainMessages,
-                            currentSessionId = resp.sessionId ?: sessionId,
-                            currentSessionTitle = resp.sessionTitle ?: it.currentSessionTitle,
-                            isLoadingMessages = false
-                        )
+                    is Resource.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoadingMessages = false,
+                                errorMessage = result.message
+                            )
+                        }
                     }
+                    is Resource.Loading -> {}
                 }
-                is Resource.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoadingMessages = false,
-                            errorMessage = result.message
-                        )
-                    }
-                }
-                is Resource.Loading -> {}
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isLoadingMessages = false) }
             }
         }
     }
 
-    fun selectSession(session: AiChatSessionDto) {
+    fun selectSession(session: AiChatSessionDto, userId: Int? = null, email: String? = null) {
         if (_uiState.value.currentSessionId == session.id && _uiState.value.messages.isNotEmpty()) {
             return
         }
@@ -236,7 +256,7 @@ class AiViewModel(
                 errorMessage = null
             )
         }
-        loadChatMessages(session.id)
+        loadChatMessages(session.id, userId = userId, email = email)
     }
 
     fun startNewChat() {
@@ -250,30 +270,36 @@ class AiViewModel(
         }
     }
 
-    fun deleteSession(sessionId: Int) {
-        viewModelScope.launch {
-            when (repository.deleteSession(sessionId)) {
+    fun deleteSession(sessionId: Int, userId: Int? = null, email: String? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val resolvedUserId = userId ?: repository.getCurrentUserId()
+            val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: repository.getCurrentUserEmail()
+            when (repository.deleteSession(sessionId, userId = resolvedUserId, email = resolvedEmail)) {
                 is Resource.Success -> {
                     val wasActive = (_uiState.value.currentSessionId == sessionId)
-                    loadSessions()
+                    loadSessions(userId = resolvedUserId, email = resolvedEmail)
                     if (wasActive) {
                         startNewChat()
                     }
                 }
                 is Resource.Error -> {
-                    loadSessions()
+                    loadSessions(userId = resolvedUserId, email = resolvedEmail)
                 }
                 is Resource.Loading -> {}
             }
         }
     }
 
-    fun sendMessage(userId: Int, prompt: String) {
+    fun sendMessage(userId: Int, prompt: String, email: String? = null) {
         val trimmed = prompt.trim()
         if (trimmed.isEmpty()) return
 
         val userMsgId = UUID.randomUUID().toString()
         val timeNow = getCurrentTimeText()
+        val activeSessionId = _uiState.value.currentSessionId
+        val resolvedUserId = if (userId > 0) userId else (repository.getCurrentUserId() ?: 0)
+        val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: repository.getCurrentUserEmail()
+
         val optimisticUserMsg = ChatMessage(
             id = userMsgId,
             sender = "USER",
@@ -292,49 +318,73 @@ class AiViewModel(
             )
         }
 
+        fun appendErrorBubble(rawError: String) {
+            val formatted = if (rawError.startsWith("VitalSync AI", ignoreCase = true) ||
+                rawError.startsWith("Unable to reach", ignoreCase = true)
+            ) {
+                "⚠️ $rawError"
+            } else {
+                "⚠️ Unable to reach VitalSync AI: $rawError"
+            }
+            val errorNotice = ChatMessage(
+                id = UUID.randomUUID().toString(),
+                sender = "AI",
+                text = formatted,
+                timeText = getCurrentTimeText()
+            )
+            _uiState.update {
+                it.copy(
+                    messages = it.messages + errorNotice,
+                    errorMessage = rawError
+                )
+            }
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                when (val result = repository.sendAiChatMessage(userId = userId, message = trimmed)) {
+                when (val result = withTimeout(25_000L) {
+                    repository.sendAiChatMessage(
+                        userId = resolvedUserId,
+                        message = trimmed,
+                        sessionId = activeSessionId,
+                        email = resolvedEmail
+                    )
+                }) {
                     is Resource.Success -> {
-                        val replyText = result.data.reply
-                            ?: result.data.aiResponse?.text
-                            ?: result.data.message
-                            ?: "VitalSync AI response received."
+                        val replyText = result.data.reply?.takeIf { it.isNotBlank() }
+                            ?: result.data.message?.takeIf { it.isNotBlank() }
+                            ?: result.data.aiResponse?.text?.takeIf { it.isNotBlank() }
+                            ?: "VitalSync AI engine returned an empty response."
+
+                        val returnedSessionId = result.data.sessionId ?: result.data.aiResponse?.sessionId ?: activeSessionId
+                        val returnedSessionTitle = result.data.sessionTitle?.takeIf { it.isNotBlank() } ?: _uiState.value.currentSessionTitle
 
                         val aiMsg = ChatMessage(
-                            id = UUID.randomUUID().toString(),
+                            id = result.data.aiResponse?.id?.ifBlank { null } ?: UUID.randomUUID().toString(),
                             sender = "AI",
                             text = replyText,
-                            timeText = getCurrentTimeText()
+                            timeText = result.data.aiResponse?.timeText?.ifBlank { null } ?: getCurrentTimeText()
                         )
 
                         _uiState.update {
                             it.copy(
                                 messages = it.messages + aiMsg,
+                                currentSessionId = returnedSessionId,
+                                currentSessionTitle = returnedSessionTitle,
                                 activeModelLabel = "Qwen2.5 (1.5B) • Active"
                             )
                         }
 
-                        // Refresh sessions list in background
-                        loadSessions()
+                        // Refresh sessions list so drawer shows saved conversation immediately
+                        loadSessions(userId = resolvedUserId.takeIf { id -> id > 0 }, email = resolvedEmail)
                     }
                     is Resource.Error -> {
-                        val errorMsg = result.message ?: "Failed to receive response from AI."
-                        val errorNotice = ChatMessage(
-                            id = UUID.randomUUID().toString(),
-                            sender = "AI",
-                            text = "⚠️ Unable to reach VitalSync AI: $errorMsg. Please ensure the local server and Ollama (qwen2.5:1.5b) are running.",
-                            timeText = getCurrentTimeText()
-                        )
-                        _uiState.update {
-                            it.copy(
-                                messages = it.messages + errorNotice,
-                                errorMessage = errorMsg
-                            )
-                        }
+                        appendErrorBubble(result.message ?: "Failed to receive response from AI.")
                     }
                     is Resource.Loading -> {}
                 }
+            } catch (e: Exception) {
+                appendErrorBubble(ApiConstants.resolveNetworkErrorMessage(e))
             } finally {
                 _isAiThinking.value = false
                 _uiState.update {
@@ -347,9 +397,9 @@ class AiViewModel(
         }
     }
 
-    fun sendMessage(messageText: String) {
-        val resolvedUserId = repository.getCurrentUserId() ?: 1
-        sendMessage(userId = resolvedUserId, prompt = messageText)
+    fun sendMessage(messageText: String, explicitUserId: Int? = null, explicitEmail: String? = null) {
+        val resolvedUserId = explicitUserId?.takeIf { it > 0 } ?: repository.getCurrentUserId() ?: 0
+        sendMessage(userId = resolvedUserId, prompt = messageText, email = explicitEmail)
     }
 
     fun loadDailyInsight(forceRefresh: Boolean = false) {
@@ -448,16 +498,18 @@ class AiViewModel(
         }
     }
 
-    fun clearChatHistory() {
-        viewModelScope.launch {
+    fun clearChatHistory(userId: Int? = null, email: String? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val resolvedUserId = userId ?: repository.getCurrentUserId()
+            val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: repository.getCurrentUserEmail()
             val currSessionId = _uiState.value.currentSessionId
             if (currSessionId != null && currSessionId > 0) {
-                repository.deleteSession(currSessionId)
-                loadSessions()
+                repository.deleteSession(currSessionId, userId = resolvedUserId, email = resolvedEmail)
+                loadSessions(userId = resolvedUserId, email = resolvedEmail)
                 startNewChat()
             } else {
-                repository.clearChatHistory()
-                loadSessions()
+                repository.clearChatHistory(userId = resolvedUserId, email = resolvedEmail)
+                loadSessions(userId = resolvedUserId, email = resolvedEmail)
                 startNewChat()
             }
         }

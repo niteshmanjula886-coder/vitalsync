@@ -76,14 +76,20 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.ai.AiChatSessionDto
 import com.simats.vitalsync.ui.ai.viewmodel.AiViewModel
 import com.simats.vitalsync.ui.ai.viewmodel.AiViewModelFactory
@@ -105,12 +111,23 @@ data class ChatMessage(
 @Composable
 fun AiChatScreen(
     modifier: Modifier = Modifier,
+    userId: Int? = null,
+    userEmail: String = "",
     viewModel: AiViewModel = viewModel(
         factory = AiViewModelFactory(LocalContext.current.applicationContext as Application)
     ),
     onBackClick: () -> Unit = {},
     onChatHistoryClick: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager.getInstance(context) }
+    val resolvedUserId = remember(userId) {
+        userId?.takeIf { it > 0 } ?: sessionManager.getUser()?.id?.takeIf { it > 0 }
+    }
+    val resolvedEmail = remember(userEmail) {
+        userEmail.ifBlank { sessionManager.getUserEmail() ?: "" }
+    }
+
     val uiState by viewModel.uiState.collectAsState()
     var messageInput by remember { mutableStateOf("") }
     var isListeningForVoice by remember { mutableStateOf(false) }
@@ -120,9 +137,12 @@ fun AiChatScreen(
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    // Automatically load chat history on launch / screen entry
-    LaunchedEffect(Unit) {
-        viewModel.loadChatHistory()
+    // Load saved chat sessions and initial conversation for the active user
+    LaunchedEffect(resolvedUserId, resolvedEmail) {
+        viewModel.loadSessionsAndInitialChat(
+            userId = resolvedUserId,
+            email = resolvedEmail.ifBlank { null }
+        )
     }
 
     BackHandler(enabled = true) {
@@ -143,7 +163,11 @@ fun AiChatScreen(
         if (trimmed.isEmpty()) return
         messageInput = ""
         isListeningForVoice = false
-        viewModel.sendMessage(trimmed)
+        viewModel.sendMessage(
+            messageText = trimmed,
+            explicitUserId = resolvedUserId,
+            explicitEmail = resolvedEmail.ifBlank { null }
+        )
     }
 
     // Smooth Animated Blur Dp
@@ -173,10 +197,18 @@ fun AiChatScreen(
                     },
                     onSelectSession = { session ->
                         coroutineScope.launch { drawerState.close() }
-                        viewModel.selectSession(session)
+                        viewModel.selectSession(
+                            session = session,
+                            userId = resolvedUserId,
+                            email = resolvedEmail.ifBlank { null }
+                        )
                     },
                     onDeleteSession = { sessionId ->
-                        viewModel.deleteSession(sessionId)
+                        viewModel.deleteSession(
+                            sessionId = sessionId,
+                            userId = resolvedUserId,
+                            email = resolvedEmail.ifBlank { null }
+                        )
                     },
                     onCloseDrawer = {
                         coroutineScope.launch { drawerState.close() }
@@ -231,7 +263,13 @@ fun AiChatScreen(
                             }
 
                             IconButton(
-                                onClick = { coroutineScope.launch { drawerState.open() } },
+                                onClick = {
+                                    viewModel.loadSessions(
+                                        userId = resolvedUserId,
+                                        email = resolvedEmail.ifBlank { null }
+                                    )
+                                    coroutineScope.launch { drawerState.open() }
+                                },
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Text(
@@ -258,7 +296,7 @@ fun AiChatScreen(
 
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "🩺 VitalSync AI ✨",
+                                    text = "VitalSync AI ✨",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF111827),
@@ -326,9 +364,13 @@ fun AiChatScreen(
                                         }
                                     )
                                     DropdownMenuItem(
-                                        text = { Text("Chat History (Drawer)") },
+                                        text = { Text("Chat History") },
                                         onClick = {
                                             showMenu = false
+                                            viewModel.loadSessions(
+                                                userId = resolvedUserId,
+                                                email = resolvedEmail.ifBlank { null }
+                                            )
                                             coroutineScope.launch { drawerState.open() }
                                         }
                                     )
@@ -336,7 +378,10 @@ fun AiChatScreen(
                                         text = { Text("Clear Current Chat") },
                                         onClick = {
                                             showMenu = false
-                                            viewModel.clearChatHistory()
+                                            viewModel.clearChatHistory(
+                                                userId = resolvedUserId,
+                                                email = resolvedEmail.ifBlank { null }
+                                            )
                                         }
                                     )
                                 }
@@ -346,46 +391,41 @@ fun AiChatScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Clinical Suggested Prompts
-                Text(
-                    text = "Quick Inquiries",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF6B7280)
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                SuggestedPromptChip("❤️ Review my resting heart rate today") {
-                    submitMessage("Can you review my resting heart rate and cardiovascular trends today?")
+                if (uiState.messages.isEmpty() && !uiState.isLoadingMessages && !uiState.isAiThinking) {
+                    Spacer(modifier = Modifier.height(36.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 22.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(text = "🩺", fontSize = 28.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "How can I help today?",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827),
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Ask about your heart rate, sleep recovery, hydration goals, workout readiness, or any wellness question.",
+                                fontSize = 13.sp,
+                                color = Color(0xFF6B7280),
+                                lineHeight = 19.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                SuggestedPromptChip("💧 Check today's hydration target") {
-                    submitMessage("How much water have I consumed today, and what is my remaining hydration goal?")
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                SuggestedPromptChip("😴 How was my sleep recovery?") {
-                    submitMessage("Analyze my sleep score and duration from last night.")
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                SuggestedPromptChip("🥩 Best high protein sources for muscle gain") {
-                    submitMessage("What are the best high protein sources for building muscle?")
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                SuggestedPromptChip("🎬 Who directed Inception and what is it about?") {
-                    submitMessage("Who directed Inception and what is it about?")
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                Text(
-                    text = "Conversational Memory",
-                    fontSize = 11.sp,
-                    color = Color(0xFF9CA3AF),
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
 
                 // Dynamic Chat Messages List
                 uiState.messages.forEach { msg ->
@@ -456,11 +496,14 @@ fun AiChatScreen(
 
                                     Spacer(modifier = Modifier.height(6.dp))
 
+                                    val formattedText = remember(msg.text) {
+                                        formatAiMessageAnnotatedString(msg.text)
+                                    }
                                     Text(
-                                        text = msg.text,
+                                        text = formattedText,
                                         fontSize = 14.sp,
                                         color = Color(0xFF111827),
-                                        lineHeight = 20.sp
+                                        lineHeight = 21.sp
                                     )
                                 }
                             }
@@ -552,10 +595,12 @@ fun AiChatScreen(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "VitalSync AI provides general answers and wellness insights. Not a substitute for clinical emergency diagnosis.",
+                    text = "General wellness guidance only · Not a medical diagnosis.",
                     fontSize = 10.sp,
                     color = Color(0xFF9CA3AF),
                     textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -774,7 +819,9 @@ private fun ChatSessionsDrawerContent(
                                     Text(
                                         text = metaText,
                                         fontSize = 10.sp,
-                                        color = Color(0xFF9CA3AF)
+                                        color = Color(0xFF9CA3AF),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
@@ -1099,42 +1146,52 @@ private fun SendArrowIcon(
     }
 }
 
-@Composable
-private fun SuggestedPromptChip(
-    text: String,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = text,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF374151),
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "→",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF9CA3AF)
-            )
+/**
+ * Formats markdown-style AI output (**bold**, *italic*, headings, and bullets) cleanly for Compose Text.
+ */
+private fun formatAiMessageAnnotatedString(rawText: String): AnnotatedString {
+    val normalized = rawText
+        .replace("\r\n", "\n")
+        .replace('\r', '\n')
+        .replace(Regex("\n{3,}"), "\n\n")
+        .trim()
+
+    val lines = normalized.split("\n").map { line ->
+        val trimmedEnd = line.trimEnd()
+        when {
+            trimmedEnd.matches(Regex("^#{1,6}\\s+.*")) ->
+                "**${trimmedEnd.replaceFirst(Regex("^#{1,6}\\s+"), "")}**"
+            trimmedEnd.matches(Regex("^\\s*[-*•]\\s+.*")) ->
+                "• ${trimmedEnd.replaceFirst(Regex("^\\s*[-*•]\\s+"), "")}"
+            else -> trimmedEnd
+        }
+    }
+    val cleaned = lines.joinToString("\n")
+
+    return buildAnnotatedString {
+        var idx = 0
+        while (idx < cleaned.length) {
+            if (cleaned.startsWith("**", idx)) {
+                val endIdx = cleaned.indexOf("**", idx + 2)
+                if (endIdx > idx + 2) {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append(cleaned.substring(idx + 2, endIdx))
+                    }
+                    idx = endIdx + 2
+                    continue
+                }
+            } else if (cleaned[idx] == '*') {
+                val endIdx = cleaned.indexOf('*', idx + 1)
+                if (endIdx > idx + 1 && !cleaned.substring(idx + 1, endIdx).contains('\n')) {
+                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                        append(cleaned.substring(idx + 1, endIdx))
+                    }
+                    idx = endIdx + 1
+                    continue
+                }
+            }
+            append(cleaned[idx])
+            idx++
         }
     }
 }

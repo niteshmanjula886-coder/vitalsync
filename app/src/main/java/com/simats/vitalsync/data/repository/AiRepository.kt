@@ -29,15 +29,16 @@ class AiRepository(
         return if (user != null && user.id > 0) user.id else null
     }
 
-    private fun getCurrentUserEmail(): String? {
-        return sessionManager?.getUser()?.email
+    fun getCurrentUserEmail(): String? {
+        return sessionManager?.getUser()?.email ?: sessionManager?.getUserEmail()
     }
 
-    suspend fun getSessions(userId: Int? = null): Resource<List<AiChatSessionDto>> =
+    suspend fun getSessions(userId: Int? = null, email: String? = null): Resource<List<AiChatSessionDto>> =
         withContext(Dispatchers.IO) {
             try {
                 val resolvedUserId = userId ?: getCurrentUserId()
-                val response = apiService.getSessions(resolvedUserId)
+                val resolvedEmail = email ?: getCurrentUserEmail()
+                val response = apiService.getSessions(resolvedUserId, resolvedEmail)
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null && body.success) {
@@ -74,11 +75,12 @@ class AiRepository(
             }
         }
 
-    suspend fun deleteSession(sessionId: Int, userId: Int? = null): Resource<Boolean> =
+    suspend fun deleteSession(sessionId: Int, userId: Int? = null, email: String? = null): Resource<Boolean> =
         withContext(Dispatchers.IO) {
             try {
                 val resolvedUserId = userId ?: getCurrentUserId()
-                val response = apiService.deleteSession(sessionId, resolvedUserId)
+                val resolvedEmail = email ?: getCurrentUserEmail()
+                val response = apiService.deleteSession(sessionId, resolvedUserId, resolvedEmail)
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null && body.success) {
@@ -115,10 +117,23 @@ class AiRepository(
             }
         }
 
-    suspend fun sendAiChatMessage(userId: Int, message: String): Resource<AiChatResponse> =
+    suspend fun sendAiChatMessage(
+        userId: Int,
+        message: String,
+        sessionId: Int? = null,
+        email: String? = null
+    ): Resource<AiChatResponse> =
         withContext(Dispatchers.IO) {
             try {
-                val request = AiChatRequest(user_id = userId, message = message)
+                val resolvedUserId = if (userId > 0) userId else getCurrentUserId()
+                val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: getCurrentUserEmail()
+                val request = AiChatRequest(
+                    userId = resolvedUserId,
+                    sessionId = sessionId,
+                    email = resolvedEmail,
+                    messageText = message,
+                    message = message
+                )
                 val response = apiService.sendAiChatMessage(request)
                 if (response.isSuccessful) {
                     val body = response.body()
@@ -135,11 +150,16 @@ class AiRepository(
             }
         }
 
-    suspend fun getChatHistory(userId: Int? = null): Resource<List<com.simats.vitalsync.data.model.ai.ChatHistoryMessage>> =
+    suspend fun getChatHistory(
+        userId: Int? = null,
+        email: String? = null,
+        sessionId: Int? = null
+    ): Resource<List<com.simats.vitalsync.data.model.ai.ChatHistoryMessage>> =
         withContext(Dispatchers.IO) {
             try {
-                val resolvedUserId = userId ?: getCurrentUserId() ?: 1
-                val response = apiService.getChatHistory(resolvedUserId)
+                val resolvedUserId = userId ?: getCurrentUserId() ?: 0
+                val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: getCurrentUserEmail()
+                val response = apiService.getChatHistory(resolvedUserId, resolvedEmail, sessionId)
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null && body.success) {
@@ -157,8 +177,8 @@ class AiRepository(
 
     suspend fun sendChatMessage(message: String, sessionId: Int? = null, userId: Int? = null, email: String? = null): Resource<AiChatResponse> =
         withContext(Dispatchers.IO) {
-            val resolvedUserId = userId ?: getCurrentUserId() ?: 1
-            sendAiChatMessage(resolvedUserId, message)
+            val resolvedUserId = userId ?: getCurrentUserId() ?: 0
+            sendAiChatMessage(userId = resolvedUserId, message = message, sessionId = sessionId, email = email)
         }
 
     suspend fun getDailyInsight(userId: Int? = null, refresh: Boolean = false): Resource<AiDailyInsightDto> =
@@ -244,11 +264,12 @@ class AiRepository(
             }
         }
 
-    suspend fun clearChatHistory(sessionId: Int? = null, userId: Int? = null): Resource<Boolean> =
+    suspend fun clearChatHistory(sessionId: Int? = null, userId: Int? = null, email: String? = null): Resource<Boolean> =
         withContext(Dispatchers.IO) {
             try {
                 val resolvedUserId = userId ?: getCurrentUserId()
-                val response = apiService.clearChatHistory(resolvedUserId, sessionId)
+                val resolvedEmail = email ?: getCurrentUserEmail()
+                val response = apiService.clearChatHistory(resolvedUserId, sessionId, resolvedEmail)
                 if (response.isSuccessful && response.body()?.success == true) {
                     Resource.Success(true)
                 } else {

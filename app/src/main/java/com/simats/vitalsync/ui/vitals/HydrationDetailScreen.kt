@@ -658,14 +658,20 @@ fun HydrationDetailScreen(
                                     text = "Day: ${dayItem.day} (${dayItem.date})",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF334155)
+                                    color = Color(0xFF334155),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f).padding(end = 8.dp)
                                 )
 
                                 Text(
                                     text = if ((dayItem.consumedMl ?: 0) > 0) "${String.format(Locale.US, "%,d", dayItem.consumedMl)} ml logged" else "0 ml",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if ((dayItem.consumedMl ?: 0) > 0) Color(0xFF0F9F7A) else Color(0xFF94A3B8)
+                                    color = if ((dayItem.consumedMl ?: 0) > 0) Color(0xFF0F9F7A) else Color(0xFF94A3B8),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    textAlign = TextAlign.End
                                 )
                             }
                         }
@@ -859,18 +865,26 @@ fun HydrationDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                        ) {
                             Text(
                                 text = "Historical Weekly Volume",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                color = Color(0xFF111827),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             state.weeklySummary?.let { sum ->
                                 Text(
                                     text = "8-Wk Avg: ${String.format(Locale.US, "%,d", sum.overallAvgDailyMl)} ml/day • Trend: ${sum.trendDirection}",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF6B7280)
+                                    color = Color(0xFF6B7280),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -886,7 +900,9 @@ fun HydrationDetailScreen(
                                     text = if (sum.trendPercentage >= 0) "+${sum.trendPercentage}%" else "${sum.trendPercentage}%",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (sum.trendDirection == "increasing") Color(0xFF15803D) else Color(0xFF475569)
+                                    color = if (sum.trendDirection == "increasing") Color(0xFF15803D) else Color(0xFF475569),
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -895,18 +911,29 @@ fun HydrationDetailScreen(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     state.weeklyAggregations.forEach { weekItem ->
+                        val formattedWeekLabel = weekItem.weekLabel
+                            .removePrefix("Last 7 Days (")
+                            .removeSuffix(")")
                         Column(modifier = Modifier.padding(vertical = 6.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 8.dp)
+                                ) {
                                     Text(
-                                        text = weekItem.weekLabel,
+                                        text = formattedWeekLabel,
                                         fontSize = 13.sp,
                                         fontWeight = if (weekItem.isCurrentWeek) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (weekItem.isCurrentWeek) Color(0xFF0F9F7A) else Color(0xFF1F2937)
+                                        color = if (weekItem.isCurrentWeek) Color(0xFF0F9F7A) else Color(0xFF1F2937),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
                                     )
                                     if (weekItem.isCurrentWeek) {
                                         Spacer(modifier = Modifier.width(6.dp))
@@ -914,13 +941,15 @@ fun HydrationDetailScreen(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(4.dp))
                                                 .background(Color(0xFFE8F6F0))
-                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
                                         ) {
                                             Text(
                                                 text = "Current",
                                                 fontSize = 9.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F9F7A)
+                                                color = Color(0xFF0F9F7A),
+                                                maxLines = 1,
+                                                softWrap = false
                                             )
                                         }
                                     }
@@ -930,7 +959,10 @@ fun HydrationDetailScreen(
                                     text = "${String.format(Locale.US, "%,d", weekItem.totalVolumeMl)} ml (${weekItem.completionRatePercent.toInt()}%)",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (weekItem.completionRatePercent >= 75) Color(0xFF0F9F7A) else Color(0xFF6B7280)
+                                    color = if (weekItem.completionRatePercent >= 75) Color(0xFF0F9F7A) else Color(0xFF6B7280),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    textAlign = TextAlign.End
                                 )
                             }
 

@@ -287,6 +287,12 @@ data class ChatHistoryResponse(
     @SerializedName("success")
     val success: Boolean = false,
 
+    @SerializedName("session_id", alternate = ["sessionId"])
+    val sessionId: Int? = null,
+
+    @SerializedName("session_title", alternate = ["sessionTitle"])
+    val sessionTitle: String? = null,
+
     @SerializedName("messages")
     val messages: List<ChatHistoryMessage> = emptyList(),
 

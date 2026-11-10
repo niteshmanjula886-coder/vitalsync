@@ -48,7 +48,7 @@ object ApiConstants {
 
     // Fast-fail network timeout settings so offline/unreachable servers never hang startup
     const val CONNECT_TIMEOUT_SECONDS = 5L
-    const val READ_TIMEOUT_SECONDS = 10L
+    const val READ_TIMEOUT_SECONDS = 15L
     const val WRITE_TIMEOUT_SECONDS = 10L
 
     fun resolveNetworkErrorMessage(

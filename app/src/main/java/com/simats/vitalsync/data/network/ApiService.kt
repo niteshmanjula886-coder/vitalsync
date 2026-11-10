@@ -1,4 +1,4 @@
-﻿package com.simats.vitalsync.data.network
+package com.simats.vitalsync.data.network
 
 import com.simats.vitalsync.data.model.ai.AiChatRequest
 import com.simats.vitalsync.data.model.ai.AiChatResponse
@@ -18,6 +18,8 @@ interface ApiService {
 
     @GET("get_chat_history.php")
     suspend fun getChatHistory(
-        @Query("user_id") userId: Int
+        @Query("user_id") userId: Int,
+        @Query("email") email: String? = null,
+        @Query("session_id") sessionId: Int? = null
     ): Response<ChatHistoryResponse>
 }
