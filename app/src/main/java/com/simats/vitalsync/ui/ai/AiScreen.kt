@@ -3,7 +3,6 @@ package com.simats.vitalsync.ui.ai
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,22 +43,64 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
-import com.simats.vitalsync.ui.common.AiInsightCard
+import com.simats.vitalsync.data.model.profile.WeeklyReportDto
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import java.util.Locale
 
 @Composable
 fun AiScreen(
     modifier: Modifier = Modifier,
-    wellnessScore: Int = 82,
+    wellnessScore: Int = 0,
     aiInsightTitle: String? = null,
     aiInsightSummary: String? = null,
     aiInsight: AiInsightResponse? = null,
     isInsightLoading: Boolean = false,
     isBtConnected: Boolean = false,
+    weeklyReport: WeeklyReportDto? = null,
     onPairWatchClick: () -> Unit = {},
     onAskAiClick: () -> Unit = {}
 ) {
+    val metrics = weeklyReport?.metrics
+    val totalSteps = metrics?.totalSteps ?: 0
+    val workoutCount = metrics?.workoutCount ?: 0
+    val activityTrendValue = String.format(Locale.US, "%,d steps", totalSteps)
+    val activityTrendSub = "$workoutCount workout${if (workoutCount == 1) "" else "s"} (7d)"
+
+    val avgSleepMinutes = weeklyReport?.resolvedAvgSleepMinutes() ?: 0
+    val sleepTrendValue = if (avgSleepMinutes > 0) {
+        String.format(Locale.US, "%.1f hrs", avgSleepMinutes / 60f)
+    } else {
+        "--"
+    }
+    val sleepTrendSub = weeklyReport?.resolvedSleepTrendTier() ?: "No logs yet"
+    val sleepTrendColor = when (sleepTrendSub) {
+        "Optimal" -> MaterialTheme.colorScheme.primary
+        "Fair" -> Color(0xFFD97706)
+        "Needs Attention" -> Color(0xFFDC2626)
+        else -> Color(0xFF6B7280)
+    }
+
+    val totalWaterMl = metrics?.totalHydrationMl ?: 0
+    val hydrationTrendValue = when {
+        totalWaterMl >= 1000 -> String.format(Locale.US, "%.1f L", totalWaterMl / 1000f)
+        else -> "$totalWaterMl ml"
+    }
+    val hydrationTrendSub = "Rolling 7d total"
+
+    val avgHr = metrics?.avgHrBpm ?: 0
+    val hrTrendValue = when {
+        avgHr > 0 -> "$avgHr BPM"
+        !isBtConnected -> "No Device"
+        !metrics?.heartRateAvg.isNullOrBlank() && metrics?.heartRateAvg != "-- BPM" -> metrics!!.heartRateAvg
+        else -> "--"
+    }
+    val hrTrendSub = when {
+        avgHr > 0 -> "7d average"
+        !isBtConnected -> "Pair wearable"
+        else -> "No readings"
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -97,83 +138,7 @@ fun AiScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Dynamic Real-time AI Health Insight
-            AiInsightCard(
-                insight = aiInsight,
-                isLoading = isInsightLoading,
-                isBtConnected = isBtConnected,
-                onPairWatchClick = onPairWatchClick,
-                onClick = onAskAiClick
-            )
-
             Spacer(modifier = Modifier.height(20.dp))
-
-            // Hero Wellness Card (Soft Lavender)
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onAskAiClick() },
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(Color.White),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            BrainAiIcon(modifier = Modifier.size(26.dp))
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column {
-                            Text(
-                                text = "YOUR WELLNESS SCORE",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF7C3AED),
-                                letterSpacing = 0.8.sp
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "${if (wellnessScore > 0) wellnessScore else 82} / 100",
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = aiInsightSummary ?: "Your overall wellness has improved this week.",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827),
-                        lineHeight = 24.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = "Insights based on your last 7 days of data.",
-                        fontSize = 13.sp,
-                        color = Color(0xFF6B7280)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
 
             // Your weekly trends
             Text(
@@ -192,7 +157,8 @@ fun AiScreen(
             ) {
                 TrendCard(
                     title = "Activity",
-                    value = "↑ 12%",
+                    value = activityTrendValue,
+                    subtitle = activityTrendSub,
                     color = MaterialTheme.colorScheme.primary,
                     iconType = TrendIcon.STEPS,
                     modifier = Modifier.weight(1f)
@@ -200,8 +166,9 @@ fun AiScreen(
 
                 TrendCard(
                     title = "Sleep",
-                    value = "↑ 6%",
-                    color = MaterialTheme.colorScheme.primary,
+                    value = sleepTrendValue,
+                    subtitle = sleepTrendSub,
+                    color = sleepTrendColor,
                     iconType = TrendIcon.SLEEP,
                     modifier = Modifier.weight(1f)
                 )
@@ -215,16 +182,18 @@ fun AiScreen(
             ) {
                 TrendCard(
                     title = "Hydration",
-                    value = "↓ 4%",
-                    color = Color(0xFFD97706),
+                    value = hydrationTrendValue,
+                    subtitle = hydrationTrendSub,
+                    color = if (totalWaterMl > 0) MaterialTheme.colorScheme.primary else Color(0xFFD97706),
                     iconType = TrendIcon.WATER,
                     modifier = Modifier.weight(1f)
                 )
 
                 TrendCard(
                     title = "Heart Rate",
-                    value = "Stable",
-                    color = MaterialTheme.colorScheme.primary,
+                    value = hrTrendValue,
+                    subtitle = hrTrendSub,
+                    color = if (avgHr > 0) MaterialTheme.colorScheme.primary else Color(0xFF6B7280),
                     iconType = TrendIcon.HEART,
                     modifier = Modifier.weight(1f)
                 )
@@ -309,6 +278,7 @@ enum class TrendIcon {
 private fun TrendCard(
     title: String,
     value: String,
+    subtitle: String? = null,
     color: Color,
     iconType: TrendIcon,
     modifier: Modifier = Modifier
@@ -344,10 +314,21 @@ private fun TrendCard(
 
             Text(
                 text = value,
-                fontSize = 22.sp,
+                fontSize = 19.sp,
                 fontWeight = FontWeight.Bold,
-                color = color
+                color = color,
+                maxLines = 1
             )
+
+            if (!subtitle.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
         }
     }
 }
@@ -379,24 +360,6 @@ private fun StepActionRow(
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onBackground
         )
-    }
-}
-
-@Composable
-private fun BrainAiIcon(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        val path = Path().apply {
-            moveTo(w * 0.5f, h * 0.2f)
-            cubicTo(w * 0.2f, h * 0.2f, w * 0.1f, h * 0.5f, w * 0.2f, h * 0.8f)
-            cubicTo(w * 0.5f, h * 0.9f, w * 0.8f, h * 0.9f, w * 0.8f, h * 0.8f)
-            cubicTo(w * 0.9f, h * 0.5f, w * 0.8f, h * 0.2f, w * 0.5f, h * 0.2f)
-            close()
-        }
-
-        drawPath(path = path, color = Color(0xFF7C3AED), style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 

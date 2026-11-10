@@ -29,6 +29,7 @@ import com.simats.vitalsync.data.model.ai.AiInsightResponse
 fun AiInsightCard(
     modifier: Modifier = Modifier,
     insight: AiInsightResponse? = null,
+    fallbackScore: Int? = null,
     isLoading: Boolean = false,
     isBtConnected: Boolean = false,
     onPairWatchClick: () -> Unit = {},
@@ -77,10 +78,10 @@ fun AiInsightCard(
                         )
                     }
                 } else {
-                    val score = insight?.score ?: if (isBtConnected) 85 else 68
+                    val score = insight?.score ?: fallbackScore ?: 0
                     val (scoreBg, scoreColor) = when {
                         score >= 80 -> Pair(Color(0xFFE8F6F0), Color(0xFF0F9F7A))
-                        score >= 60 -> Pair(Color(0xFFE0F2FE), Color(0xFF0284C7))
+                        score >= 55 -> Pair(Color(0xFFE0F2FE), Color(0xFF0284C7))
                         else -> Pair(Color(0xFFFEF3C7), Color(0xFFD97706))
                     }
                     Box(
@@ -103,7 +104,7 @@ fun AiInsightCard(
 
             // Subtitle
             val titleText = insight?.statusTitle?.ifBlank { null }
-                ?: if (isBtConnected) "Vitals & Telemetry Synchronized" else "Logged Metrics Active • Sensor Offline"
+                ?: if (isBtConnected) "Daily Health Summary" else "Activity & Recovery Summary"
             Text(
                 text = titleText,
                 fontSize = 14.sp,
@@ -116,9 +117,9 @@ fun AiInsightCard(
             // Summary description
             val summaryText = insight?.summary?.ifBlank { null }
                 ?: if (isBtConnected) {
-                    "Your connected smartwatch shows synchronized heart rate, SpO2, and BP telemetry alongside your logged hydration and sleep."
+                    "Reviewing today's steps, sleep, hydration, and any active wearable telemetry."
                 } else {
-                    "Your logged hydration and sleep are being evaluated. Real-time heart rate, SpO2, and blood pressure sensors are currently offline."
+                    "Tracking today's steps, sleep, and hydration. Pair a wearable device to monitor resting heart rate and recovery metrics in real time."
                 }
             Text(
                 text = summaryText,
@@ -145,7 +146,7 @@ fun AiInsightCard(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = insight?.actionTip?.ifBlank { null }
-                                    ?: "Connect your Bluetooth smartwatch or tracker in Settings > Connected Devices to track live heart rate, SpO2, and blood pressure.",
+                                    ?: "Pair a wearable device in Settings > Connected Devices to monitor resting heart rate and recovery metrics in real time.",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF92400E),
@@ -174,7 +175,7 @@ fun AiInsightCard(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = insight?.actionTip?.ifBlank { null }
-                                ?: "Hydration is progressing well. Keep up your active momentum and stay properly hydrated throughout the day!",
+                                ?: "Keep building consistent movement, sleep, and hydration habits today.",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF166534),

@@ -36,6 +36,7 @@ class SessionManager(context: Context) {
 
         private const val KEY_ONBOARDING_COMPLETED = "key_onboarding_completed"
         private const val KEY_DARK_MODE_ENABLED = "key_dark_mode_enabled"
+        private const val KEY_DAILY_STEP_GOAL = "key_daily_step_goal"
 
         @Volatile
         private var INSTANCE: SessionManager? = null
@@ -59,7 +60,7 @@ class SessionManager(context: Context) {
      */
     fun saveUserSession(user: User) {
         val now = System.currentTimeMillis()
-        prefs.edit()
+        val editor = prefs.edit()
             .putBoolean(KEY_IS_LOGGED_IN, true)
             .putString(KEY_USER_JSON, gson.toJson(user))
             .putString(KEY_USER_EMAIL, user.email)
@@ -67,7 +68,10 @@ class SessionManager(context: Context) {
             .putLong(KEY_LOGIN_TIMESTAMP, now)
             .putLong(KEY_LAST_ACTIVE_TIMESTAMP, now)
             .remove(KEY_SESSION_EXPIRED_MESSAGE)
-            .apply()
+        if (user.stepGoal != null && user.stepGoal >= 1000) {
+            editor.putInt(KEY_DAILY_STEP_GOAL, user.stepGoal)
+        }
+        editor.apply()
     }
 
     /**
@@ -208,7 +212,25 @@ class SessionManager(context: Context) {
             .remove(KEY_LOGIN_TIMESTAMP)
             .remove(KEY_LAST_ACTIVE_TIMESTAMP)
             .remove(KEY_SESSION_EXPIRED_MESSAGE)
+            .remove(KEY_DAILY_STEP_GOAL)
             .apply()
+    }
+
+    fun saveStepGoal(stepGoal: Int) {
+        if (stepGoal >= 1000) {
+            prefs.edit().putInt(KEY_DAILY_STEP_GOAL, stepGoal).apply()
+            getUser()?.let { existing ->
+                val updatedUser = existing.copy(stepGoal = stepGoal)
+                prefs.edit().putString(KEY_USER_JSON, gson.toJson(updatedUser)).apply()
+            }
+        }
+    }
+
+    fun getSavedStepGoal(): Int? {
+        val saved = prefs.getInt(KEY_DAILY_STEP_GOAL, -1)
+        if (saved >= 1000) return saved
+        val userGoal = getUser()?.stepGoal
+        return if (userGoal != null && userGoal >= 1000) userGoal else null
     }
 
     fun setCustomBaseUrl(url: String) {

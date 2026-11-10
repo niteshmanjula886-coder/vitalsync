@@ -7,6 +7,7 @@ import com.simats.vitalsync.data.model.gym.SaveWorkoutSessionRequest
 import com.simats.vitalsync.data.model.gym.SaveWorkoutSessionResponse
 import com.simats.vitalsync.data.model.gym.WorkoutSessionDto
 import com.simats.vitalsync.data.model.gym.WorkoutSplitDto
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.GymApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -33,7 +34,7 @@ class GymRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error occurred"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -52,7 +53,7 @@ class GymRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error occurred"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -71,7 +72,7 @@ class GymRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error occurred"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -90,7 +91,7 @@ class GymRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error occurred"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -109,7 +110,7 @@ class GymRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error occurred"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -128,7 +129,7 @@ class GymRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error occurred"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 

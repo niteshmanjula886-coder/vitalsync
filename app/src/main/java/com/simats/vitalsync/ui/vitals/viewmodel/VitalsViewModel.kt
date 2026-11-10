@@ -4,20 +4,25 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
 import com.simats.vitalsync.data.model.vitals.AddVitalReadingRequest
-import com.simats.vitalsync.data.network.RetrofitClient
 import com.simats.vitalsync.data.model.vitals.BloodPressureResponse
 import com.simats.vitalsync.data.model.vitals.BmiDetailData
 import com.simats.vitalsync.data.model.vitals.HeartRateDetailData
 import com.simats.vitalsync.data.model.vitals.Spo2Response
 import com.simats.vitalsync.data.model.vitals.VitalReadingItem
 import com.simats.vitalsync.data.model.vitals.VitalsSummaryResponse
+import com.simats.vitalsync.data.network.ApiConstants
+import com.simats.vitalsync.data.network.RetrofitClient
 import com.simats.vitalsync.data.repository.Resource
 import com.simats.vitalsync.data.repository.VitalsRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 
 data class VitalsSummaryUiState(
     val isLoading: Boolean = false,
@@ -99,25 +104,29 @@ class VitalsViewModel(
         sleepText: String? = null,
         sleepScore: Int? = null,
         steps: Int? = null,
+        stepGoal: Int? = null,
         targetWaterMl: Int? = null
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _isAiInsightLoading.value = true
             try {
-                val response = RetrofitClient.aiApiService.getAiInsight(
-                    userId = userId,
-                    isBtConnected = isBtConnected,
-                    hydrationMl = hydrationMl,
-                    sleepText = sleepText,
-                    sleepScore = sleepScore,
-                    steps = steps,
-                    targetWaterMl = targetWaterMl
-                )
+                val response = withTimeout(12_000L) {
+                    RetrofitClient.aiApiService.getAiInsight(
+                        userId = userId,
+                        isBtConnected = isBtConnected,
+                        hydrationMl = hydrationMl,
+                        sleepText = sleepText,
+                        sleepScore = sleepScore,
+                        steps = steps,
+                        stepGoal = stepGoal,
+                        targetWaterMl = targetWaterMl
+                    )
+                }
                 if (response.isSuccessful && response.body() != null) {
                     _aiInsightState.value = response.body()
                 }
-            } catch (e: Exception) {
-                // Silently fallback or keep previous
+            } catch (_: Exception) {
+                // Non-critical background insight: silently retain cached state on timeout/network failure
             } finally {
                 _isAiInsightLoading.value = false
             }
@@ -126,24 +135,36 @@ class VitalsViewModel(
 
     fun fetchSummary(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            vitalsRepository.getSummary(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _summaryState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _summaryState.update {
-                            it.copy(isLoading = false, summary = resource.data, errorMessage = null)
+            try {
+                vitalsRepository.getSummary(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _summaryState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _summaryState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _summaryState.update {
+                                it.copy(isLoading = false, summary = resource.data, errorMessage = null)
+                            }
+                        }
+                        is Resource.Error -> {
+                            _summaryState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: SocketTimeoutException) {
+                _summaryState.update { it.copy(isLoading = false, errorMessage = ApiConstants.SERVER_UNREACHABLE_MESSAGE) }
+            } catch (e: ConnectException) {
+                _summaryState.update { it.copy(isLoading = false, errorMessage = ApiConstants.SERVER_UNREACHABLE_MESSAGE) }
+            } catch (e: Exception) {
+                _summaryState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
             }
         }
+    }
+
+    fun clearSummaryError() {
+        _summaryState.update { it.copy(errorMessage = null) }
     }
 
     fun fetchHeartRate(userId: Int? = null, email: String? = null) {

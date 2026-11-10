@@ -8,6 +8,7 @@ import com.simats.vitalsync.data.model.vitals.HeartRateDetailData
 import com.simats.vitalsync.data.model.vitals.Spo2Response
 import com.simats.vitalsync.data.model.vitals.VitalReadingItem
 import com.simats.vitalsync.data.model.vitals.VitalsSummaryResponse
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.RetrofitClient
 import com.simats.vitalsync.data.network.VitalsApiService
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +39,7 @@ class VitalsRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error fetching vitals summary"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e, "Network error fetching vitals summary"), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -59,7 +60,7 @@ class VitalsRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error fetching heart rate"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -80,7 +81,7 @@ class VitalsRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error fetching blood pressure"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -101,7 +102,7 @@ class VitalsRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error fetching SpO2"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -122,7 +123,7 @@ class VitalsRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error fetching BMI"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -143,7 +144,7 @@ class VitalsRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error fetching readings"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -165,7 +166,7 @@ class VitalsRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error recording reading"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -186,7 +187,7 @@ class VitalsRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error deleting reading"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 

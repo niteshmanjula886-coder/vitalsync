@@ -7,6 +7,7 @@ import com.simats.vitalsync.data.model.hydration.ResetHydrationResponse
 import com.simats.vitalsync.data.model.hydration.UpdateHydrationSettingsRequest
 import com.simats.vitalsync.data.model.hydration.UpdateHydrationSettingsResponse
 import com.simats.vitalsync.data.model.hydration.WeeklyHydrationHistoryDataDto
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.HydrationApiService
 import com.simats.vitalsync.data.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +38,7 @@ class HydrationRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error loading hydration details"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -61,7 +62,7 @@ class HydrationRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error logging water consumption"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -89,7 +90,7 @@ class HydrationRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error updating hydration settings"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -111,7 +112,7 @@ class HydrationRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error resetting hydration"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -133,7 +134,7 @@ class HydrationRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error deleting log entry"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -155,7 +156,7 @@ class HydrationRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error loading weekly hydration history"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 

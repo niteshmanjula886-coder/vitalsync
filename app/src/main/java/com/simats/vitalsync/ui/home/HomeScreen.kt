@@ -45,7 +45,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -75,6 +80,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
+import com.simats.vitalsync.data.model.profile.WeeklyReportDto
 import com.simats.vitalsync.ui.ai.AiScreen
 import com.simats.vitalsync.ui.common.AiInsightCard
 import com.simats.vitalsync.ui.gym.GymModeScreen
@@ -148,15 +154,42 @@ fun HomeScreen(
     aiInsightSummary: String? = null,
     aiInsight: AiInsightResponse? = null,
     isInsightLoading: Boolean = false,
+    weeklyReport: WeeklyReportDto? = null,
+    onAiTabSelected: () -> Unit = {},
+    networkErrorMessage: String? = null,
+    onRetryNetwork: () -> Unit = {},
+    onDismissNetworkError: () -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
     var selectedBottomTab by remember(initialTab) { mutableIntStateOf(initialTab) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(selectedBottomTab) {
+        if (selectedBottomTab == 2) {
+            onAiTabSelected()
+        }
+    }
+
+    LaunchedEffect(networkErrorMessage) {
+        if (!networkErrorMessage.isNullOrBlank()) {
+            val res = snackbarHostState.showSnackbar(
+                message = networkErrorMessage,
+                actionLabel = "Retry",
+                withDismissAction = true,
+                duration = SnackbarDuration.Long
+            )
+            if (res == SnackbarResult.ActionPerformed) {
+                onRetryNetwork()
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding(),
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
             HomeBottomNavigationBar(
                 selectedTab = selectedBottomTab,
@@ -234,6 +267,9 @@ fun HomeScreen(
                         aiInsightSummary = aiInsightSummary,
                         aiInsight = aiInsight,
                         isInsightLoading = isInsightLoading,
+                        networkErrorMessage = networkErrorMessage,
+                        onRetryNetwork = onRetryNetwork,
+                        onDismissNetworkError = onDismissNetworkError,
                         onAskAiClick = onAskAiClick
                     )
                     2 -> AiScreen(
@@ -243,6 +279,7 @@ fun HomeScreen(
                         aiInsight = aiInsight,
                         isInsightLoading = isInsightLoading,
                         isBtConnected = isDeviceConnected,
+                        weeklyReport = weeklyReport,
                         onPairWatchClick = onPairWatchClick,
                         onAskAiClick = onAskAiClick
                     )
@@ -315,6 +352,10 @@ private fun HomeDashboardContent(
     aiInsightSummary: String? = null,
     aiInsight: AiInsightResponse? = null,
     isInsightLoading: Boolean = false,
+    weeklyReport: WeeklyReportDto? = null,
+    networkErrorMessage: String? = null,
+    onRetryNetwork: () -> Unit = {},
+    onDismissNetworkError: () -> Unit = {},
     onAskAiClick: () -> Unit = {}
 ) {
     var targetAngle by remember(wellnessScore) {
@@ -393,7 +434,44 @@ private fun HomeDashboardContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (!networkErrorMessage.isNullOrBlank()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
+                border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = networkErrorMessage,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF991B1B),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = onRetryNetwork) {
+                            Text("Retry", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFB91C1C))
+                        }
+                        TextButton(onClick = onDismissNetworkError) {
+                            Text("Dismiss", fontSize = 12.sp, color = Color(0xFF7F1D1D))
+                        }
+                    }
+                }
+            }
+        }
 
         // Wellness Score Hero Card (Clicking opens Weekly Health Performance Report Screen)
         Card(
@@ -481,7 +559,7 @@ private fun HomeDashboardContent(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "+6% from last week →",
+                        text = if (wellnessScore > 0) "Daily score: $wellnessScore/100 • Report →" else "View weekly report →",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF7C3AED)
@@ -743,6 +821,7 @@ private fun HomeDashboardContent(
         if (showAiInsights) {
             AiInsightCard(
                 insight = aiInsight,
+                fallbackScore = wellnessScore,
                 isLoading = isInsightLoading,
                 isBtConnected = isDeviceConnected,
                 onPairWatchClick = onPairWatchClick,

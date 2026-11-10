@@ -91,7 +91,7 @@ fun HydrationDetailScreen(
     modifier: Modifier = Modifier,
     viewModel: HydrationViewModel? = null,
     userEmail: String = "alex.morgan@email.com",
-    dateString: String = "2026-10-30",
+    dateString: String = "",
     onBackClick: () -> Unit = {}
 ) {
     val rawDate = remember(dateString) {
@@ -171,71 +171,77 @@ fun HydrationDetailScreen(
     val glassEquivalent = animatedConsumedMl / 250f
     val progressPercentage = (fillProgressRatio * 100).toInt()
 
-    // Dynamic 7-day Monday–Sunday calendar mapping based on live system timestamps
+    // Rolling 7-day mapping relative to CURDATE() (preceding 6 days through today)
     val weeklyDaysList = remember(state.weeklyHistory, consumedWaterMl, dailyTargetMl) {
         val todayCal = java.util.Calendar.getInstance()
-        val todayIso = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(todayCal.time)
-
-        val cal = java.util.Calendar.getInstance()
-        val dayOfWeek = cal.get(java.util.Calendar.DAY_OF_WEEK)
-        val daysFromMonday = if (dayOfWeek == java.util.Calendar.SUNDAY) 6 else dayOfWeek - java.util.Calendar.MONDAY
-        cal.add(java.util.Calendar.DAY_OF_YEAR, -daysFromMonday)
-
-        val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
-        val displayDateFormat = SimpleDateFormat("MMM d", Locale.US)
         val isoFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val displayDateFormat = SimpleDateFormat("MMM d", Locale.US)
+        val displayDatePaddedFormat = SimpleDateFormat("MMM dd", Locale.US)
+        val todayIso = isoFormat.format(todayCal.time)
 
-        (0..6).map { i ->
-            val dayCal = cal.clone() as java.util.Calendar
-            dayCal.add(java.util.Calendar.DAY_OF_YEAR, i)
+        (-6..0).map { offset ->
+            val dayCal = java.util.Calendar.getInstance().apply {
+                add(java.util.Calendar.DAY_OF_YEAR, offset)
+            }
             val dIso = isoFormat.format(dayCal.time)
             val dDisplay = displayDateFormat.format(dayCal.time)
+            val dDisplayPadded = displayDatePaddedFormat.format(dayCal.time)
             val isToday = (dIso == todayIso)
+            val dayLabel = when (dayCal.get(java.util.Calendar.DAY_OF_WEEK)) {
+                java.util.Calendar.MONDAY -> "M"
+                java.util.Calendar.TUESDAY -> "T"
+                java.util.Calendar.WEDNESDAY -> "W"
+                java.util.Calendar.THURSDAY -> "T"
+                java.util.Calendar.FRIDAY -> "F"
+                java.util.Calendar.SATURDAY -> "S"
+                else -> "S"
+            }
 
             // 1. Match from remote backend weekly history if available
-            val remoteDay = state.weeklyHistory.firstOrNull { it.date == dIso || it.date == dDisplay }
+            val remoteDay = state.weeklyHistory.firstOrNull {
+                it.date == dIso || it.date == dDisplay || it.date == dDisplayPadded
+            }
 
-            if (remoteDay != null && remoteDay.consumedMl != null && remoteDay.consumedMl > 0) {
-                val ratio = if (remoteDay.targetMl > 0) {
-                    (remoteDay.consumedMl.toFloat() / remoteDay.targetMl.toFloat()).coerceIn(0f, 1f)
-                } else null
-                WeeklyHydrationDayDto(
-                    day = dayLabels[i],
-                    date = dDisplay,
-                    consumedMl = remoteDay.consumedMl,
-                    targetMl = remoteDay.targetMl,
-                    ratio = ratio,
-                    isToday = isToday
-                )
-            } else if (isToday && consumedWaterMl > 0) {
-                // Today's live reactive water intake
+            if (isToday && consumedWaterMl > 0) {
                 val ratio = if (dailyTargetMl > 0) {
                     (consumedWaterMl.toFloat() / dailyTargetMl.toFloat()).coerceIn(0f, 1f)
                 } else null
                 WeeklyHydrationDayDto(
-                    day = dayLabels[i],
+                    day = dayLabel,
                     date = dDisplay,
                     consumedMl = consumedWaterMl,
                     targetMl = dailyTargetMl,
                     ratio = ratio,
                     isToday = true
                 )
-            } else {
-                // Strict log-driven rule: Unlogged calendar days are NULL
+            } else if (remoteDay != null && remoteDay.consumedMl != null && remoteDay.consumedMl > 0 && !isToday) {
+                val ratio = if (remoteDay.targetMl > 0) {
+                    (remoteDay.consumedMl.toFloat() / remoteDay.targetMl.toFloat()).coerceIn(0f, 1f)
+                } else null
                 WeeklyHydrationDayDto(
-                    day = dayLabels[i],
+                    day = dayLabel,
                     date = dDisplay,
-                    consumedMl = null,
+                    consumedMl = remoteDay.consumedMl,
+                    targetMl = remoteDay.targetMl,
+                    ratio = ratio,
+                    isToday = false
+                )
+            } else {
+                // Days with zero intake return 0 ml instead of null/missing entries
+                WeeklyHydrationDayDto(
+                    day = dayLabel,
+                    date = dDisplay,
+                    consumedMl = 0,
                     targetMl = dailyTargetMl,
-                    ratio = null,
+                    ratio = 0f,
                     isToday = isToday
                 )
             }
         }
     }
 
-    // Calculate Weekly Average strictly from days with actual logs (excluding null unlogged days)
-    val loggedDays = remember(weeklyDaysList) { weeklyDaysList.filter { it.consumedMl != null } }
+    // Calculate Weekly Average strictly from days with actual logged volume (> 0 ml)
+    val loggedDays = remember(weeklyDaysList) { weeklyDaysList.filter { (it.consumedMl ?: 0) > 0 } }
     val weeklyAverageFormatted = remember(loggedDays) {
         if (loggedDays.isNotEmpty()) {
             val totalMl = loggedDays.sumOf { it.consumedMl ?: 0 }
@@ -656,10 +662,10 @@ fun HydrationDetailScreen(
                                 )
 
                                 Text(
-                                    text = if (dayItem.consumedMl != null) "${String.format(Locale.US, "%,d", dayItem.consumedMl)} ml logged" else "No log",
+                                    text = if ((dayItem.consumedMl ?: 0) > 0) "${String.format(Locale.US, "%,d", dayItem.consumedMl)} ml logged" else "0 ml",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (dayItem.consumedMl != null) Color(0xFF0F9F7A) else Color(0xFF94A3B8)
+                                    color = if ((dayItem.consumedMl ?: 0) > 0) Color(0xFF0F9F7A) else Color(0xFF94A3B8)
                                 )
                             }
                         }
@@ -717,97 +723,124 @@ fun HydrationDetailScreen(
         }
 
         // Active AI Hydration Insight Card
-        state.aiInsight?.let { insight ->
-            Spacer(modifier = Modifier.height(16.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+        // Dynamic Live AI Hydration Summary Card with Physiological Consequences
+        val liveHydrationPctRaw = if (dailyTargetMl > 0) (consumedWaterMl.toFloat() / dailyTargetMl) * 100f else 0f
+        val liveHydrationPct = liveHydrationPctRaw.toInt()
+        val remainingHydMl = maxOf(0, dailyTargetMl - consumedWaterMl)
+        val loggedMlFmt = String.format(Locale.US, "%,d", consumedWaterMl)
+        val targetMlFmt = String.format(Locale.US, "%,d", dailyTargetMl)
+        val remainingMlFmt = String.format(Locale.US, "%,d", remainingHydMl)
+        val liveHydTitle = when {
+            liveHydrationPctRaw < 40f -> "Critically Low Hydration"
+            liveHydrationPctRaw < 75f -> "Hydration Lagging"
+            liveHydrationPctRaw < 100f -> "Near Hydration Target"
+            else -> "Daily Goal Achieved"
+        }
+        val liveHydSummary = when {
+            liveHydrationPctRaw < 40f ->
+                "Water intake is critically low ($loggedMlFmt / $targetMlFmt ml, $remainingMlFmt ml remaining). Dehydration can lead to acute mental fatigue, headaches, decreased muscle recovery, and sluggish metabolism. Drink 1\u20132 glasses immediately to restore fluid balance."
+            liveHydrationPctRaw < 75f ->
+                "Intake is lagging behind your daily goal ($loggedMlFmt / $targetMlFmt ml, $remainingMlFmt ml remaining). Insufficient hydration can trigger false hunger cues, reduce physical endurance, and elevate resting heart rate. Try keeping a water bottle nearby to sip consistently."
+            liveHydrationPctRaw < 100f ->
+                "You're close to your hydration target ($loggedMlFmt / $targetMlFmt ml)! Just $remainingMlFmt ml remaining to ensure optimal electrolyte balance and physical performance."
+            else ->
+                "Daily hydration goal achieved ($loggedMlFmt / $targetMlFmt ml)! Optimal fluid balance supports muscle recovery and cognitive clarity. Maintain steady intake if working out."
+        }
+        val liveHydAdvice = when {
+            liveHydrationPctRaw < 40f -> "Drink 1\u20132 glasses immediately; $remainingMlFmt ml left to reach $targetMlFmt ml."
+            liveHydrationPctRaw < 75f -> "Keep a water bottle nearby\u2014$remainingMlFmt ml left for your $targetMlFmt ml goal."
+            liveHydrationPctRaw < 100f -> "Just $remainingMlFmt ml remaining to ensure optimal electrolyte balance!"
+            else -> "Optimal fluid balance achieved ($loggedMlFmt ml). Maintain steady sips if working out."
+        }
+        val liveHydScore = liveHydrationPct.coerceIn(0, 100)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "✨", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "AI Hydration Insight",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF111827)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFE0F2FE))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "✨", fontSize = 16.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "AI Hydration Insight",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFE0F2FE))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = "Score: ${insight.hydrationScore}/100",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0369A1)
-                            )
-                        }
+                        Text(
+                            text = "Score: $liveHydScore/100",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0369A1)
+                        )
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = insight.title,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F9F7A)
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = insight.summary,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        color = Color(0xFF374151)
-                    )
-
-                    if (insight.actionableAdvice.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF0FDF4))
-                                .padding(horizontal = 12.dp, vertical = 10.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = "💡", fontSize = 13.sp)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = insight.actionableAdvice,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF166534),
-                                    lineHeight = 16.sp,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Powered by ${insight.modelUsed}",
-                        fontSize = 10.sp,
-                        color = Color(0xFF9CA3AF)
-                    )
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = liveHydTitle,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0F9F7A)
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = liveHydSummary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    color = Color(0xFF374151)
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFF0FDF4))
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "💡", fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = liveHydAdvice,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF166534),
+                            lineHeight = 16.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Powered by ${state.aiInsight?.modelUsed ?: "vitalsync:clinical-engine"}",
+                    fontSize = 10.sp,
+                    color = Color(0xFF9CA3AF)
+                )
             }
         }
 

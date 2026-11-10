@@ -2,6 +2,7 @@ package com.simats.vitalsync.data.model.profile
 
 import com.google.gson.annotations.SerializedName
 import com.simats.vitalsync.data.model.auth.User
+import kotlin.math.roundToInt
 
 data class ProfileResponse(
     @SerializedName("success")
@@ -36,7 +37,9 @@ data class UpdateProfileRequest(
     @SerializedName("activity_level")
     val activityLevel: String? = null,
     @SerializedName("primary_goal")
-    val primaryGoal: String? = null
+    val primaryGoal: String? = null,
+    @SerializedName("step_goal")
+    val stepGoal: Int? = null
 )
 
 data class UploadProfileResponse(
@@ -63,6 +66,19 @@ data class HealthGoalItem(
     val iconType: String = "FITNESS"
 )
 
+data class HealthGoalsDetailDto(
+    @SerializedName("target_steps", alternate = ["step_goal", "daily_step_goal"])
+    val targetSteps: Int? = null,
+    @SerializedName("target_sleep_hours")
+    val targetSleepHours: Double? = null,
+    @SerializedName("target_water_ml")
+    val targetWaterMl: Int? = null,
+    @SerializedName("target_weight_kg")
+    val targetWeightKg: Double? = null,
+    @SerializedName("target_calories")
+    val targetCalories: Int? = null
+)
+
 data class HealthGoalsResponse(
     @SerializedName("success")
     val success: Boolean = false,
@@ -72,6 +88,10 @@ data class HealthGoalsResponse(
     val selectedGoal: String? = null,
     @SerializedName("primary_goal")
     val primaryGoal: String? = null,
+    @SerializedName("step_goal", alternate = ["target_steps", "daily_step_goal"])
+    val stepGoal: Int? = null,
+    @SerializedName("goals")
+    val goals: HealthGoalsDetailDto? = null,
     @SerializedName("available_goals")
     val availableGoals: List<HealthGoalItem> = emptyList()
 )
@@ -86,7 +106,11 @@ data class SaveHealthGoalRequest(
     @SerializedName("goal_title")
     val goalTitle: String? = null,
     @SerializedName("primary_goal")
-    val primaryGoal: String? = null
+    val primaryGoal: String? = null,
+    @SerializedName("step_goal")
+    val stepGoal: Int? = null,
+    @SerializedName("target_steps")
+    val targetSteps: Int? = null
 )
 
 data class ReminderItem(
@@ -426,6 +450,30 @@ data class BaseProfileResponse(
     val message: String? = null
 )
 
+data class WeeklySleepDayDto(
+    @SerializedName("date")
+    val date: String = "",
+    @SerializedName("day_label")
+    val dayLabel: String = "",
+    @SerializedName("duration_minutes", alternate = ["duration"])
+    val durationMinutes: Int = 0,
+    @SerializedName("quality_score", alternate = ["sleep_score"])
+    val qualityScore: Int = 0,
+    @SerializedName("quality_label", alternate = ["quality"])
+    val qualityLabel: String = "No Log"
+)
+
+data class WeeklyReportScoresDto(
+    @SerializedName("heart_rate")
+    val heartRate: Int = 0,
+    @SerializedName("sleep")
+    val sleep: Int = 0,
+    @SerializedName("hydration")
+    val hydration: Int = 0,
+    @SerializedName("activity")
+    val activity: Int = 0
+)
+
 data class WeeklyReportDto(
     @SerializedName("week_start_date")
     val weekStartDate: String = "",
@@ -437,17 +485,130 @@ data class WeeklyReportDto(
     val performanceCategory: String = "low",
     @SerializedName("category_label")
     val categoryLabel: String = "Low",
+    @SerializedName("average_duration_minutes")
+    val averageDurationMinutes: Int = 0,
+    @SerializedName("average_sleep_quality", alternate = ["average_sleep_score"])
+    val averageSleepQuality: Int = 0,
+    @SerializedName("logged_sleep_days")
+    val loggedSleepDays: Int = 0,
+    @SerializedName("scores")
+    val scores: WeeklyReportScoresDto? = null,
     @SerializedName("summary_text")
     val summaryText: String = "",
+    @SerializedName("sleep_days")
+    val sleepDays: List<WeeklySleepDayDto> = emptyList(),
     @SerializedName("metrics")
     val metrics: WeeklyReportMetricsDto? = null
-)
+) {
+    /**
+     * Resolve average nightly sleep minutes across explicit backend fields and logged sleep_days entries.
+     */
+    fun resolvedAvgSleepMinutes(): Int {
+        if (averageDurationMinutes > 0) return averageDurationMinutes
+        val metricDur = metrics?.averageDurationMinutes ?: 0
+        if (metricDur > 0) return metricDur
+        val metricAvg = metrics?.avgSleepMinutes ?: 0
+        if (metricAvg > 0) return metricAvg
+        val logged = sleepDays.filter { it.durationMinutes > 0 }
+        return if (logged.isNotEmpty()) logged.map { it.durationMinutes }.average().roundToInt() else 0
+    }
+
+    /**
+     * Resolve average sleep quality percentage/score across backend aggregates or derived per-day scores.
+     */
+    fun resolvedAvgSleepQuality(): Int {
+        val avgMins = resolvedAvgSleepMinutes()
+        if (avgMins <= 0) return 0
+        if (averageSleepQuality > 0) return averageSleepQuality
+        val metricQual = metrics?.averageSleepQuality ?: 0
+        if (metricQual > 0) return metricQual
+        val scoreQual = scores?.sleep ?: 0
+        if (scoreQual > 0) return scoreQual
+        val logged = sleepDays.filter { it.durationMinutes > 0 }
+        if (logged.isNotEmpty()) {
+            val avg = logged.map { day ->
+                if (day.qualityScore > 0) day.qualityScore else deriveSleepQualityScore(day.durationMinutes)
+            }.average().roundToInt()
+            if (avg > 0) return avg
+        }
+        return deriveSleepQualityScore(avgMins)
+    }
+
+    fun resolvedSleepQualityTier(): String {
+        val avgMins = resolvedAvgSleepMinutes()
+        if (avgMins <= 0) return "No Logs Recorded"
+        val backendStatus = metrics?.sleepStatus?.trim().orEmpty()
+        return when {
+            backendStatus.equals("Restorative", ignoreCase = true) ||
+                backendStatus.equals("Deep / Restorative", ignoreCase = true) -> "Excellent"
+            backendStatus.isNotEmpty() &&
+                !backendStatus.equals("No Data", ignoreCase = true) &&
+                !backendStatus.equals("No Log", ignoreCase = true) -> backendStatus
+            else -> deriveSleepQualityTier(avgMins)
+        }
+    }
+
+    /**
+     * Formatted sleep quality string for the Weekly Health Report Vital Performance Breakdown card.
+     */
+    fun resolvedBreakdownSleepValue(): String {
+        val avgMins = resolvedAvgSleepMinutes()
+        val avgQuality = resolvedAvgSleepQuality()
+        if (avgMins <= 0 || avgQuality <= 0) return "--"
+        return "$avgQuality% - ${resolvedSleepQualityTier()}"
+    }
+
+    fun resolvedBreakdownSleepStatus(): String {
+        val avgMins = resolvedAvgSleepMinutes()
+        if (avgMins <= 0) return "No Logs Recorded"
+        return "${avgMins / 60}h ${avgMins % 60}m avg"
+    }
+
+    /**
+     * Quality tier label for the AI Screen "Your weekly trends" Sleep card.
+     */
+    fun resolvedSleepTrendTier(): String {
+        val avgMins = resolvedAvgSleepMinutes()
+        if (avgMins <= 0) return "No logs yet"
+        val avgQuality = resolvedAvgSleepQuality()
+        val tier = resolvedSleepQualityTier()
+        return when {
+            tier.equals("Excellent", ignoreCase = true) ||
+                tier.equals("Optimal", ignoreCase = true) ||
+                tier.equals("Restorative", ignoreCase = true) ||
+                tier.equals("Deep / Restorative", ignoreCase = true) ||
+                avgQuality >= 75 -> "Optimal"
+            tier.equals("Fair", ignoreCase = true) || avgQuality >= 60 -> "Fair"
+            else -> "Needs Attention"
+        }
+    }
+
+    companion object {
+        fun deriveSleepQualityScore(durationMinutes: Int): Int = when {
+            durationMinutes <= 0 -> 0
+            durationMinutes < 360 -> 50
+            durationMinutes < 420 -> 68
+            durationMinutes <= 510 -> 88
+            else -> 92
+        }
+
+        fun deriveSleepQualityTier(durationMinutes: Int): String = when {
+            durationMinutes <= 0 -> "No Log"
+            durationMinutes < 360 -> "Poor"
+            durationMinutes < 420 -> "Fair"
+            durationMinutes <= 510 -> "Optimal"
+            else -> "Excellent"
+        }
+    }
+}
 
 data class WeeklyReportMetricsDto(
     @SerializedName("heart_rate_avg")
     val heartRateAvg: String = "-- BPM",
     @SerializedName("heart_rate_status")
     val heartRateStatus: String = "No Data",
+    @SerializedName("avg_hr_bpm")
+    val avgHrBpm: Int? = null,
     @SerializedName("bp_avg")
     val bpAvg: String = "--/--",
     @SerializedName("bp_status")
@@ -460,14 +621,26 @@ data class WeeklyReportMetricsDto(
     val sleepQuality: String = "--",
     @SerializedName("sleep_status")
     val sleepStatus: String = "No Data",
+    @SerializedName("avg_sleep_minutes")
+    val avgSleepMinutes: Int = 0,
+    @SerializedName("average_duration_minutes")
+    val averageDurationMinutes: Int? = null,
+    @SerializedName("average_sleep_quality", alternate = ["sleep_score"])
+    val averageSleepQuality: Int? = null,
     @SerializedName("hydration_total")
-    val hydrationTotal: String = "-- ml",
+    val hydrationTotal: String = "0 ml",
     @SerializedName("hydration_status")
     val hydrationStatus: String = "No Data",
+    @SerializedName("total_hydration_ml")
+    val totalHydrationMl: Int = 0,
     @SerializedName("activity_steps")
-    val activitySteps: String = "-- steps",
+    val activitySteps: String = "0 steps",
     @SerializedName("activity_status")
-    val activityStatus: String = "No Data"
+    val activityStatus: String = "No Data",
+    @SerializedName("total_steps")
+    val totalSteps: Int = 0,
+    @SerializedName("workout_count")
+    val workoutCount: Int = 0
 )
 
 data class WeeklyReportResponse(

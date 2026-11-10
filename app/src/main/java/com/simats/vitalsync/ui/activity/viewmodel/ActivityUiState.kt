@@ -15,6 +15,7 @@ data class StepGoalUiState(
     val dailyStepGoal: Int = 8000,
     val estimatedDistanceKm: Float = 6.0f,
     val estimatedCaloriesKcal: Int = 320,
+    val isGoalLoaded: Boolean = false,
     val isSavedSuccess: Boolean = false,
     val errorMessage: String? = null
 )

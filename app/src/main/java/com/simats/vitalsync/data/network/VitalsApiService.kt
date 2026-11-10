@@ -79,5 +79,17 @@ interface VitalsApiService {
     suspend fun syncVitals(
         @Body body: com.simats.vitalsync.data.model.vitals.SyncVitalsRequest
     ): Response<com.simats.vitalsync.data.model.vitals.SyncVitalsResponse>
+
+    @GET("sleep/sleep.php")
+    suspend fun getSleepDetail(
+        @Query("user_id") userId: Int? = null,
+        @Query("email") email: String? = null,
+        @Query("date") date: String? = null
+    ): Response<com.simats.vitalsync.data.model.vitals.SleepDetailResponse>
+
+    @POST("sleep/sleep.php")
+    suspend fun logSleep(
+        @Body body: com.simats.vitalsync.data.model.vitals.LogSleepRequest
+    ): Response<com.simats.vitalsync.data.model.vitals.LogSleepResponse>
 }
 

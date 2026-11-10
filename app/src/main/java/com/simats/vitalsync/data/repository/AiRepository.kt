@@ -1,4 +1,4 @@
-﻿package com.simats.vitalsync.data.repository
+package com.simats.vitalsync.data.repository
 
 import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.ai.AiChatListResponse
@@ -12,6 +12,8 @@ import com.simats.vitalsync.data.model.ai.AiDailyInsightDto
 import com.simats.vitalsync.data.model.ai.AiDailyInsightsResponse
 import com.simats.vitalsync.data.model.ai.AiHistoryClearResponse
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
+import com.simats.vitalsync.data.model.profile.WeeklyReportDto
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.AiApiService
 import com.simats.vitalsync.data.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +49,7 @@ class AiRepository(
                     Resource.Error("HTTP Error: ${response.code()}", response.code())
                 }
             } catch (e: Exception) {
-                Resource.Error(e.localizedMessage ?: "Failed to load chat sessions", throwable = e)
+                Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e)
             }
         }
 
@@ -68,7 +70,7 @@ class AiRepository(
                     Resource.Error("HTTP Error: ${response.code()}", response.code())
                 }
             } catch (e: Exception) {
-                Resource.Error(e.localizedMessage ?: "Failed to create chat session", throwable = e)
+                Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e)
             }
         }
 
@@ -88,7 +90,7 @@ class AiRepository(
                     Resource.Error("HTTP Error: ${response.code()}", response.code())
                 }
             } catch (e: Exception) {
-                Resource.Error(e.localizedMessage ?: "Failed to delete chat session", throwable = e)
+                Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e)
             }
         }
 
@@ -109,7 +111,7 @@ class AiRepository(
                     Resource.Error("HTTP Error: ${response.code()} ${response.message()}", response.code())
                 }
             } catch (e: Exception) {
-                Resource.Error(e.localizedMessage ?: "Network error while loading chat", throwable = e)
+                Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e)
             }
         }
 
@@ -129,7 +131,7 @@ class AiRepository(
                     Resource.Error("HTTP Error: ${response.code()} ${response.message()}", response.code())
                 }
             } catch (e: Exception) {
-                Resource.Error(e.localizedMessage ?: "Failed to connect to local AI engine", throwable = e)
+                Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e)
             }
         }
 
@@ -149,7 +151,7 @@ class AiRepository(
                     Resource.Error("HTTP Error: ${response.code()}", response.code())
                 }
             } catch (e: Exception) {
-                Resource.Error(e.localizedMessage ?: "Failed to load chat history", throwable = e)
+                Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e)
             }
         }
 
@@ -176,7 +178,7 @@ class AiRepository(
                     Resource.Error("HTTP Error: ${response.code()}", response.code())
                 }
             } catch (e: Exception) {
-                Resource.Error(e.localizedMessage ?: "Failed to load daily insight", throwable = e)
+                Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e)
             }
         }
 
@@ -187,6 +189,7 @@ class AiRepository(
         sleepText: String? = null,
         sleepScore: Int? = null,
         steps: Int? = null,
+        stepGoal: Int? = null,
         targetWaterMl: Int? = null
     ): Resource<AiInsightResponse> =
         withContext(Dispatchers.IO) {
@@ -199,6 +202,7 @@ class AiRepository(
                     sleepText = sleepText,
                     sleepScore = sleepScore,
                     steps = steps,
+                    stepGoal = stepGoal,
                     targetWaterMl = targetWaterMl
                 )
                 if (response.isSuccessful) {
@@ -212,7 +216,31 @@ class AiRepository(
                     Resource.Error("HTTP Error: ${response.code()}", response.code())
                 }
             } catch (e: Exception) {
-                Resource.Error(e.localizedMessage ?: "Failed to generate AI health insight", throwable = e)
+                Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e)
+            }
+        }
+
+    suspend fun getWeeklyReport(userId: Int? = null, email: String? = null): Resource<WeeklyReportDto> =
+        withContext(Dispatchers.IO) {
+            try {
+                val resolvedUserId = userId ?: getCurrentUserId()
+                val resolvedEmail = email ?: getCurrentUserEmail()
+                val response = RetrofitClient.profileApiService.getWeeklyHealthReport(
+                    userId = resolvedUserId,
+                    email = resolvedEmail
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null && body.success && body.data != null) {
+                        Resource.Success(body.data)
+                    } else {
+                        Resource.Error(body?.message?.ifBlank { null } ?: "Failed to load weekly trends")
+                    }
+                } else {
+                    Resource.Error("HTTP Error: ${response.code()}", response.code())
+                }
+            } catch (e: Exception) {
+                Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e)
             }
         }
 
@@ -227,7 +255,7 @@ class AiRepository(
                     Resource.Error(response.body()?.message ?: "Failed to clear history")
                 }
             } catch (e: Exception) {
-                Resource.Error(e.localizedMessage ?: "Error clearing chat history", throwable = e)
+                Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e)
             }
         }
 }

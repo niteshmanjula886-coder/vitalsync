@@ -8,6 +8,7 @@ import com.simats.vitalsync.data.model.auth.LoginRequest
 import com.simats.vitalsync.data.model.auth.ResetPasswordRequest
 import com.simats.vitalsync.data.model.auth.SignUpRequest
 import com.simats.vitalsync.data.model.auth.User
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.AuthApiService
 import com.simats.vitalsync.data.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
@@ -45,9 +46,9 @@ class AuthRepository(
                 emit(Resource.Error(errorMsg, response.code()))
             }
         } catch (e: IOException) {
-            emit(Resource.Error("Network error. Please check your connection and ensure XAMPP Apache is running.", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "An unexpected error occurred", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -72,9 +73,9 @@ class AuthRepository(
                 emit(Resource.Error(errorMsg, response.code()))
             }
         } catch (e: IOException) {
-            emit(Resource.Error("Network error. Please check your connection and ensure XAMPP Apache is running.", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "An unexpected error occurred", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -98,9 +99,9 @@ class AuthRepository(
                 emit(Resource.Error(errorMsg, response.code()))
             }
         } catch (e: IOException) {
-            emit(Resource.Error("Network error. Please verify backend server connectivity.", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "An unexpected error occurred", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -124,9 +125,9 @@ class AuthRepository(
                 emit(Resource.Error(errorMsg, response.code()))
             }
         } catch (e: IOException) {
-            emit(Resource.Error("Network error connecting to backend.", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Unexpected error", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 

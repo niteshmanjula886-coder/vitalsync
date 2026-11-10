@@ -82,7 +82,7 @@ fun WeeklyHealthReportScreen(
     spo2Avg: String = "--%",
     spo2Status: String = "No Data",
     sleepQuality: String = "--",
-    sleepStatus: String = "No Data",
+    sleepStatus: String = "No Logs Recorded",
     hydrationTotal: String = "-- ml",
     hydrationStatus: String = "No Data",
     activitySteps: String = "-- steps",
@@ -93,7 +93,8 @@ fun WeeklyHealthReportScreen(
     onDownloadPdfClick: () -> Unit = {},
     onShareSummaryClick: () -> Unit = {}
 ) {
-    val isDataAvailable = wellnessScore > 0 || heartRateAvg != "-- BPM"
+    val hasSleepData = sleepQuality != "--" && !sleepQuality.equals("No Logs Recorded", ignoreCase = true)
+    val isDataAvailable = wellnessScore > 0 || heartRateAvg != "-- BPM" || hasSleepData
 
     Column(
         modifier = modifier
@@ -401,7 +402,18 @@ fun WeeklyHealthReportScreen(
                     title = "Sleep Quality",
                     value = sleepQuality,
                     statusText = sleepStatus,
-                    statusType = if (sleepQuality != "--") MetricStatusType.NORMAL else MetricStatusType.LOW,
+                    statusType = when {
+                        sleepQuality == "--" ||
+                            sleepQuality.equals("No Logs Recorded", ignoreCase = true) ||
+                            sleepStatus.equals("No Logs Recorded", ignoreCase = true) ||
+                            sleepStatus.equals("No Data", ignoreCase = true) -> MetricStatusType.LOW
+                        sleepQuality.contains("Poor", ignoreCase = true) ||
+                            sleepStatus.contains("Poor", ignoreCase = true) -> MetricStatusType.LOW
+                        sleepQuality.contains("Fair", ignoreCase = true) ||
+                            sleepStatus.contains("Fair", ignoreCase = true) ||
+                            sleepStatus.contains("Mid", ignoreCase = true) -> MetricStatusType.MID
+                        else -> MetricStatusType.NORMAL
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }

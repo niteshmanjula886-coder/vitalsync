@@ -42,7 +42,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
-import com.simats.vitalsync.ui.common.AiInsightCard
 import com.simats.vitalsync.ui.theme.VitalCardBg
 import com.simats.vitalsync.ui.theme.VitalMainBackground
 import com.simats.vitalsync.ui.theme.VitalNavSelectedBg
@@ -137,17 +136,6 @@ fun VitalSignsScreen(
                     CalendarIcon(modifier = Modifier.size(18.dp))
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Dynamic Real-time AI Health Insight
-            AiInsightCard(
-                insight = aiInsight,
-                isLoading = isInsightLoading,
-                isBtConnected = isBtConnected,
-                onPairWatchClick = onPairWatchClick,
-                onClick = onAskAiClick
-            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -278,6 +266,8 @@ private fun VitalTileCard(
 ) {
     // Dynamic Classification Color Mapping based on Status / Trend
     val (statusColor, statusBgColor) = when {
+        status.contains("No ", ignoreCase = true) || status.contains("Connect", ignoreCase = true) || status.contains("Not ", ignoreCase = true) ->
+            Pair(Color(0xFF6B7280), Color(0xFFF1F5F9)) // Neutral Slate when disconnected/no data
         status.contains("Low", ignoreCase = true) || status.contains("High", ignoreCase = true) || status.contains("Critical", ignoreCase = true) ->
             Pair(Color(0xFFDC2626), Color(0xFFFEE2E2)) // Red
         status.contains("Warning", ignoreCase = true) || status.contains("Elevated", ignoreCase = true) || status.contains("Hypertension", ignoreCase = true) ->

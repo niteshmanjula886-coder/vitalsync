@@ -1,4 +1,4 @@
-﻿package com.simats.vitalsync.data
+package com.simats.vitalsync.data
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -30,7 +30,8 @@ data class SleepRecord(
     val bedtime: String,
     val wakeTime: String,
     val durationMinutes: Int,
-    val sleepScore: Int = 85,
+    val sleepScore: Int = 0,
+    val qualityLabel: String = "",
     val dateString: String = "2025-10-15"
 )
 
@@ -62,16 +63,59 @@ class FitnessRepository private constructor(context: Context) {
         }
     }
 
+    // STEP GOAL LOCAL PERSISTENCE
+    fun saveStepGoal(stepGoal: Int) {
+        if (stepGoal >= 1000) {
+            prefs.edit().putInt("key_saved_step_goal", stepGoal).apply()
+        }
+    }
+
+    fun getSavedStepGoal(): Int? {
+        val saved = prefs.getInt("key_saved_step_goal", -1)
+        return if (saved >= 1000) saved else null
+    }
+
+    fun evaluateSleepQuality(durationMinutes: Int, explicitScore: Int? = null): Pair<String, Int> {
+        if (durationMinutes <= 0) return "No Log" to 0
+        val hrs = durationMinutes / 60.0
+        val (tierLabel, derivedScore) = when {
+            hrs < 6.0 -> "Poor" to (40 + ((hrs / 6.0) * 15)).toInt().coerceIn(40, 55)
+            hrs < 7.0 -> "Fair" to (60 + ((hrs - 6.0) * 14)).toInt().coerceIn(60, 74)
+            hrs <= 8.5 -> "Optimal" to (75 + (((hrs - 7.0) / 1.5) * 15)).toInt().coerceIn(75, 90)
+            else -> "Excellent" to (90 + (minOf(1.0, (hrs - 8.5) / 1.5) * 10)).toInt().coerceIn(90, 100)
+        }
+        val finalScore = if (explicitScore != null && explicitScore > 0) explicitScore else derivedScore
+        return tierLabel to finalScore
+    }
+
+    private fun normalizeSleepLabel(rawLabel: String?, durationMinutes: Int): String {
+        val trimmed = rawLabel?.trim().orEmpty()
+        return if (trimmed.equals("Excellent", ignoreCase = true) ||
+            trimmed.equals("Optimal", ignoreCase = true) ||
+            trimmed.equals("Fair", ignoreCase = true) ||
+            trimmed.equals("Poor", ignoreCase = true)
+        ) {
+            trimmed.replaceFirstChar { it.uppercaseChar() }
+        } else {
+            evaluateSleepQuality(durationMinutes).first
+        }
+    }
+
     // SLEEP RECORD PERSISTENCE
     fun getSleepRecord(dateStr: String): SleepRecord? {
-        val jsonStr = prefs.getString("key_sleep_record_$dateStr", null) ?: prefs.getString("key_sleep_record_2025-10-15", null) ?: return null
+        val jsonStr = prefs.getString("key_sleep_record_$dateStr", null) ?: return null
         return try {
             val obj = JSONObject(jsonStr)
+            val dur = obj.getInt("durationMinutes")
+            val rawScore = obj.optInt("sleepScore", 0)
+            val rawLabel = obj.optString("qualityLabel", "")
+            val (_, derivedScore) = evaluateSleepQuality(dur, if (rawScore > 0) rawScore else null)
             SleepRecord(
                 bedtime = obj.getString("bedtime"),
                 wakeTime = obj.getString("wakeTime"),
-                durationMinutes = obj.getInt("durationMinutes"),
-                sleepScore = obj.optInt("sleepScore", 85),
+                durationMinutes = dur,
+                sleepScore = derivedScore,
+                qualityLabel = normalizeSleepLabel(rawLabel, dur),
                 dateString = obj.optString("dateString", dateStr)
             )
         } catch (_: Exception) {
@@ -79,12 +123,30 @@ class FitnessRepository private constructor(context: Context) {
         }
     }
 
+    fun getRecentSleepRecords(limit: Int = 7): List<SleepRecord> {
+        return prefs.all.entries
+            .filter { it.key.startsWith("key_sleep_record_") }
+            .mapNotNull { entry ->
+                val dateKey = entry.key.removePrefix("key_sleep_record_")
+                getSleepRecord(dateKey)
+            }
+            .filter { it.durationMinutes > 0 }
+            .sortedByDescending { it.dateString }
+            .take(limit)
+    }
+
     fun saveSleepRecord(record: SleepRecord) {
+        val (_, derivedScore) = evaluateSleepQuality(
+            record.durationMinutes,
+            if (record.sleepScore > 0) record.sleepScore else null
+        )
+        val normalizedLabel = normalizeSleepLabel(record.qualityLabel, record.durationMinutes)
         val obj = JSONObject().apply {
             put("bedtime", record.bedtime)
             put("wakeTime", record.wakeTime)
             put("durationMinutes", record.durationMinutes)
-            put("sleepScore", record.sleepScore)
+            put("sleepScore", derivedScore)
+            put("qualityLabel", normalizedLabel)
             put("dateString", record.dateString)
         }
         prefs.edit().putString("key_sleep_record_${record.dateString}", obj.toString()).apply()

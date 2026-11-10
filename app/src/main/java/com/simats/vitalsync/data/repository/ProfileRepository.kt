@@ -20,6 +20,7 @@ import com.simats.vitalsync.data.model.profile.UpdateHealthPermissionsRequest
 import com.simats.vitalsync.data.model.profile.UpdateProfileRequest
 import com.simats.vitalsync.data.model.profile.UpdateReminderRequest
 import com.simats.vitalsync.data.model.profile.UploadProfileResponse
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.ProfileApiService
 import com.simats.vitalsync.data.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
@@ -48,6 +49,10 @@ class ProfileRepository(
                 val body = response.body()!!
                 if (body.success && body.profile != null) {
                     sessionManager?.saveUserSession(body.profile)
+                    val goalVal = body.profile.stepGoal
+                    if (goalVal != null && goalVal >= 1000) {
+                        sessionManager?.saveStepGoal(goalVal)
+                    }
                     emit(Resource.Success(body.profile))
                 } else {
                     emit(Resource.Error(body.message ?: "Failed to fetch profile"))
@@ -56,7 +61,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error fetching profile"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e, "Network error fetching profile"), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -68,6 +73,10 @@ class ProfileRepository(
                 val body = response.body()!!
                 if (body.success && body.profile != null) {
                     sessionManager?.saveUserSession(body.profile)
+                    val goalVal = body.profile.stepGoal ?: request.stepGoal
+                    if (goalVal != null && goalVal >= 1000) {
+                        sessionManager?.saveStepGoal(goalVal)
+                    }
                     emit(Resource.Success(body.profile))
                 } else {
                     emit(Resource.Error(body.message ?: "Failed to update profile"))
@@ -76,7 +85,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error updating profile"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -113,7 +122,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error uploading profile image"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -126,6 +135,10 @@ class ProfileRepository(
             if (response.isSuccessful && response.body() != null) {
                 val body = response.body()!!
                 if (body.success) {
+                    val fetchedStepGoal = body.stepGoal ?: body.goals?.targetSteps
+                    if (fetchedStepGoal != null && fetchedStepGoal >= 1000) {
+                        sessionManager?.saveStepGoal(fetchedStepGoal)
+                    }
                     emit(Resource.Success(body))
                 } else {
                     emit(Resource.Error(body.message ?: "Failed to load health goals"))
@@ -134,7 +147,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error loading health goals"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -146,9 +159,18 @@ class ProfileRepository(
                 val body = response.body()!!
                 if (body.success) {
                     val updatedGoal = body.selectedGoal ?: body.primaryGoal ?: request.goalTitle
+                    val updatedSteps = body.stepGoal ?: body.goals?.targetSteps ?: request.stepGoal ?: request.targetSteps
+                    if (updatedSteps != null && updatedSteps >= 1000) {
+                        sessionManager?.saveStepGoal(updatedSteps)
+                    }
                     if (!updatedGoal.isNullOrBlank()) {
                         sessionManager?.getUser()?.let { user ->
-                            sessionManager?.saveUserSession(user.copy(primaryGoal = updatedGoal))
+                            sessionManager?.saveUserSession(
+                                user.copy(
+                                    primaryGoal = updatedGoal,
+                                    stepGoal = updatedSteps ?: user.stepGoal
+                                )
+                            )
                         }
                     }
                     emit(Resource.Success(body))
@@ -159,7 +181,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error saving health goal"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -180,7 +202,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error loading reminders"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -199,7 +221,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error adding reminder"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -218,7 +240,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error updating reminder"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -237,7 +259,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error deleting reminder"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -261,7 +283,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error loading app settings"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -280,7 +302,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error updating app settings"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -301,7 +323,7 @@ class ProfileRepository(
                 emit(Resource.Error("Weekly report server error: ${response.code()}"))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error loading weekly report"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -325,7 +347,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error loading health permissions"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -344,7 +366,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error updating health permissions"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -368,7 +390,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error loading login sessions"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -390,7 +412,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error terminating login sessions"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -414,7 +436,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error loading notifications"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -436,7 +458,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error marking notifications read"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -458,7 +480,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error fetching version"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -482,7 +504,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error fetching support details"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -504,7 +526,7 @@ class ProfileRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error submitting inquiry"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 

@@ -1,8 +1,9 @@
-﻿package com.simats.vitalsync.ui.activity.viewmodel
+package com.simats.vitalsync.ui.activity.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.simats.vitalsync.data.model.activity.RecordSessionRequest
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.repository.ActivityRepository
 import com.simats.vitalsync.data.repository.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,6 +11,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 
 /**
  * ViewModel managing Activity Summaries, Step Goals, Activity Tracking Sessions & History.
@@ -22,7 +25,13 @@ class ActivityViewModel(
     private val _summaryState = MutableStateFlow(ActivitySummaryUiState())
     val summaryState: StateFlow<ActivitySummaryUiState> = _summaryState.asStateFlow()
 
-    private val _stepGoalState = MutableStateFlow(StepGoalUiState())
+    private val initialCachedGoal = repository.getCachedStepGoal()
+    private val _stepGoalState = MutableStateFlow(
+        StepGoalUiState(
+            dailyStepGoal = initialCachedGoal ?: 8000,
+            isGoalLoaded = initialCachedGoal != null
+        )
+    )
     val stepGoalState: StateFlow<StepGoalUiState> = _stepGoalState.asStateFlow()
 
     private val _sessionsState = MutableStateFlow(ActivitySessionsUiState())
@@ -36,14 +45,26 @@ class ActivityViewModel(
 
     fun loadSummary(email: String) {
         viewModelScope.launch {
-            repository.getActivitySummary(email).collect { res ->
-                when (res) {
-                    is Resource.Loading -> _summaryState.update { it.copy(isLoading = true, errorMessage = null) }
-                    is Resource.Success -> _summaryState.update { it.copy(isLoading = false, summary = res.data, errorMessage = null) }
-                    is Resource.Error -> _summaryState.update { it.copy(isLoading = false, errorMessage = res.message) }
+            try {
+                repository.getActivitySummary(email).collect { res ->
+                    when (res) {
+                        is Resource.Loading -> _summaryState.update { it.copy(isLoading = true, errorMessage = null) }
+                        is Resource.Success -> _summaryState.update { it.copy(isLoading = false, summary = res.data, errorMessage = null) }
+                        is Resource.Error -> _summaryState.update { it.copy(isLoading = false, errorMessage = res.message) }
+                    }
                 }
+            } catch (_: SocketTimeoutException) {
+                _summaryState.update { it.copy(isLoading = false, errorMessage = ApiConstants.SERVER_UNREACHABLE_MESSAGE) }
+            } catch (_: ConnectException) {
+                _summaryState.update { it.copy(isLoading = false, errorMessage = ApiConstants.SERVER_UNREACHABLE_MESSAGE) }
+            } catch (e: Exception) {
+                _summaryState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
             }
         }
+    }
+
+    fun clearSummaryError() {
+        _summaryState.update { it.copy(errorMessage = null) }
     }
 
     fun loadStepGoal(email: String) {
@@ -54,6 +75,7 @@ class ActivityViewModel(
                     is Resource.Success -> _stepGoalState.update {
                         it.copy(
                             isLoading = false,
+                            isGoalLoaded = true,
                             dailyStepGoal = res.data.dailyStepGoal,
                             estimatedDistanceKm = res.data.estimatedDistanceKm,
                             estimatedCaloriesKcal = res.data.estimatedCaloriesKcal,
@@ -67,16 +89,26 @@ class ActivityViewModel(
     }
 
     fun updateStepGoal(email: String, newGoal: Int) {
+        repository.saveStepGoalLocally(newGoal)
+        _stepGoalState.update {
+            it.copy(
+                dailyStepGoal = newGoal,
+                isGoalLoaded = true
+            )
+        }
         viewModelScope.launch {
             repository.updateStepGoal(email, newGoal).collect { res ->
                 when (res) {
                     is Resource.Loading -> _stepGoalState.update { it.copy(isLoading = true, errorMessage = null, isSavedSuccess = false) }
                     is Resource.Success -> {
+                        val savedGoal = res.data.dailyStepGoal.takeIf { it >= 1000 } ?: newGoal
+                        repository.saveStepGoalLocally(savedGoal)
                         _stepGoalState.update {
                             it.copy(
                                 isLoading = false,
+                                isGoalLoaded = true,
                                 isSavedSuccess = true,
-                                dailyStepGoal = res.data.dailyStepGoal,
+                                dailyStepGoal = savedGoal,
                                 estimatedDistanceKm = res.data.estimatedDistanceKm,
                                 estimatedCaloriesKcal = res.data.estimatedCaloriesKcal,
                                 errorMessage = null

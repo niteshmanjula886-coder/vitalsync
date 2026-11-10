@@ -6,12 +6,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.simats.vitalsync.data.device.HealthDeviceManager
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.RetrofitClient
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -85,7 +89,7 @@ class HeartRateViewModel(
     fun fetchAnalytics(email: String, userId: Int? = null) {
         if (email.isBlank() && (userId == null || userId <= 0)) return
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
                 val api = RetrofitClient.vitalsApiService
@@ -124,9 +128,15 @@ class HeartRateViewModel(
                 } else {
                     _uiState.update { it.copy(isLoading = false) }
                 }
+            } catch (e: SocketTimeoutException) {
+                Log.w("HeartRateViewModel", "Timeout fetching vital analytics: ${e.message}")
+                _uiState.update { it.copy(isLoading = false, errorMessage = ApiConstants.SERVER_UNREACHABLE_MESSAGE) }
+            } catch (e: ConnectException) {
+                Log.w("HeartRateViewModel", "Connect error fetching vital analytics: ${e.message}")
+                _uiState.update { it.copy(isLoading = false, errorMessage = ApiConstants.SERVER_UNREACHABLE_MESSAGE) }
             } catch (e: Exception) {
                 Log.w("HeartRateViewModel", "Failed to fetch vital analytics: ${e.message}")
-                _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
+                _uiState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
             }
         }
     }

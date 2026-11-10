@@ -9,6 +9,8 @@ import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.ai.AiChatSessionDto
 import com.simats.vitalsync.data.model.ai.AiDailyInsightDto
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
+import com.simats.vitalsync.data.model.profile.WeeklyReportDto
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.repository.AiRepository
 import com.simats.vitalsync.data.repository.Resource
 import com.simats.vitalsync.ui.ai.ChatMessage
@@ -18,6 +20,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -35,6 +40,8 @@ data class AiUiState(
     val dailyInsight: AiDailyInsightDto? = null,
     val aiInsight: AiInsightResponse? = null,
     val isInsightLoading: Boolean = false,
+    val weeklyReport: WeeklyReportDto? = null,
+    val isWeeklyTrendsLoading: Boolean = false,
     val errorMessage: String? = null,
     val activeModelLabel: String = "Qwen2.5 (1.5B) • Active"
 )
@@ -51,9 +58,9 @@ class AiViewModel(
     val isAiThinking: StateFlow<Boolean> = _isAiThinking.asStateFlow()
 
     init {
+        // Launch optional AI daily insight & weekly trends asynchronously without blocking initial UI render
         loadDailyInsight()
-        loadChatHistory()
-        loadSessions()
+        loadWeeklyTrends()
     }
 
     private fun getCurrentTimeText(): String {
@@ -61,32 +68,46 @@ class AiViewModel(
     }
 
     fun loadChatHistory(userId: Int? = null) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isLoadingMessages = true, errorMessage = null) }
-            val resolvedUserId = userId ?: repository.getCurrentUserId() ?: 1
-            when (val result = repository.getChatHistory(resolvedUserId)) {
-                is Resource.Success -> {
-                    val historyMessages = result.data.map { dto ->
-                        val timeStr = formatTimestampToTime(dto.createdAt)
-                        ChatMessage(
-                            id = dto.id.toString(),
-                            sender = if (dto.sender.equals("user", ignoreCase = true)) "USER" else "AI",
-                            text = dto.message,
-                            timeText = timeStr
-                        )
+            try {
+                val resolvedUserId = userId ?: repository.getCurrentUserId() ?: 1
+                when (val result = withTimeout(12_000L) { repository.getChatHistory(resolvedUserId) }) {
+                    is Resource.Success -> {
+                        val historyMessages = result.data.map { dto ->
+                            val timeStr = formatTimestampToTime(dto.createdAt)
+                            ChatMessage(
+                                id = dto.id.toString(),
+                                sender = if (dto.sender.equals("user", ignoreCase = true)) "USER" else "AI",
+                                text = dto.message,
+                                timeText = timeStr
+                            )
+                        }
+                        _uiState.update {
+                            it.copy(
+                                messages = historyMessages,
+                                isLoadingMessages = false
+                            )
+                        }
                     }
-                    _uiState.update {
-                        it.copy(
-                            messages = historyMessages,
-                            isLoadingMessages = false
-                        )
+                    is Resource.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoadingMessages = false,
+                                errorMessage = result.message
+                            )
+                        }
                     }
+                    is Resource.Loading -> {}
                 }
-                is Resource.Error -> {
-                    _uiState.update { it.copy(isLoadingMessages = false) }
-                    loadSessionsAndInitialChat()
-                }
-                is Resource.Loading -> {}
+            } catch (_: SocketTimeoutException) {
+                _uiState.update { it.copy(isLoadingMessages = false, errorMessage = ApiConstants.SERVER_UNREACHABLE_MESSAGE) }
+            } catch (_: ConnectException) {
+                _uiState.update { it.copy(isLoadingMessages = false, errorMessage = ApiConstants.SERVER_UNREACHABLE_MESSAGE) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoadingMessages = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _uiState.update { it.copy(isLoadingMessages = false) }
             }
         }
     }
@@ -107,21 +128,27 @@ class AiViewModel(
     }
 
     fun loadSessions() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isLoadingSessions = true) }
-            when (val result = repository.getSessions()) {
-                is Resource.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            sessions = result.data,
-                            isLoadingSessions = false
-                        )
+            try {
+                when (val result = withTimeout(12_000L) { repository.getSessions() }) {
+                    is Resource.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                sessions = result.data,
+                                isLoadingSessions = false
+                            )
+                        }
                     }
+                    is Resource.Error -> {
+                        _uiState.update { it.copy(isLoadingSessions = false) }
+                    }
+                    is Resource.Loading -> {}
                 }
-                is Resource.Error -> {
-                    _uiState.update { it.copy(isLoadingSessions = false) }
-                }
-                is Resource.Loading -> {}
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isLoadingSessions = false) }
+            } finally {
+                _uiState.update { it.copy(isLoadingSessions = false) }
             }
         }
     }
@@ -326,21 +353,52 @@ class AiViewModel(
     }
 
     fun loadDailyInsight(forceRefresh: Boolean = false) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isInsightLoading = true) }
-            when (val result = repository.getDailyInsight(refresh = forceRefresh)) {
-                is Resource.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            dailyInsight = result.data,
-                            isInsightLoading = false
-                        )
+            try {
+                when (val result = withTimeout(12_000L) { repository.getDailyInsight(refresh = forceRefresh) }) {
+                    is Resource.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                dailyInsight = result.data,
+                                isInsightLoading = false
+                            )
+                        }
                     }
+                    is Resource.Error -> {
+                        _uiState.update { it.copy(isInsightLoading = false) }
+                    }
+                    is Resource.Loading -> {}
                 }
-                is Resource.Error -> {
-                    _uiState.update { it.copy(isInsightLoading = false) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isInsightLoading = false) }
+            }
+        }
+    }
+
+    /**
+     * Fetch aggregated 7-day telemetry for "Your weekly trends" on the AI screen.
+     */
+    fun loadWeeklyTrends(userId: Int? = null, email: String? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(isWeeklyTrendsLoading = true) }
+            try {
+                when (val result = withTimeout(12_000L) { repository.getWeeklyReport(userId = userId, email = email) }) {
+                    is Resource.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                weeklyReport = result.data,
+                                isWeeklyTrendsLoading = false
+                            )
+                        }
+                    }
+                    is Resource.Error -> {
+                        _uiState.update { it.copy(isWeeklyTrendsLoading = false) }
+                    }
+                    is Resource.Loading -> {}
                 }
-                is Resource.Loading -> {}
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isWeeklyTrendsLoading = false) }
             }
         }
     }
@@ -352,32 +410,40 @@ class AiViewModel(
         sleepText: String? = null,
         sleepScore: Int? = null,
         steps: Int? = null,
+        stepGoal: Int? = null,
         targetWaterMl: Int? = null
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isInsightLoading = true) }
-            when (val result = repository.getAiInsight(
-                userId = userId,
-                isBtConnected = isBtConnected,
-                hydrationMl = hydrationMl,
-                sleepText = sleepText,
-                sleepScore = sleepScore,
-                steps = steps,
-                targetWaterMl = targetWaterMl
-            )) {
-                is Resource.Success -> {
-                    val insightResp = result.data
-                    _uiState.update {
-                        it.copy(
-                            aiInsight = insightResp,
-                            isInsightLoading = false
-                        )
+            try {
+                when (val result = withTimeout(12_000L) {
+                    repository.getAiInsight(
+                        userId = userId,
+                        isBtConnected = isBtConnected,
+                        hydrationMl = hydrationMl,
+                        sleepText = sleepText,
+                        sleepScore = sleepScore,
+                        steps = steps,
+                        stepGoal = stepGoal,
+                        targetWaterMl = targetWaterMl
+                    )
+                }) {
+                    is Resource.Success -> {
+                        val insightResp = result.data
+                        _uiState.update {
+                            it.copy(
+                                aiInsight = insightResp,
+                                isInsightLoading = false
+                            )
+                        }
                     }
+                    is Resource.Error -> {
+                        _uiState.update { it.copy(isInsightLoading = false) }
+                    }
+                    is Resource.Loading -> {}
                 }
-                is Resource.Error -> {
-                    _uiState.update { it.copy(isInsightLoading = false) }
-                }
-                is Resource.Loading -> {}
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isInsightLoading = false) }
             }
         }
     }

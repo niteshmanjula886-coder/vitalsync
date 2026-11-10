@@ -7,6 +7,7 @@ import com.simats.vitalsync.data.model.nutrition.MealEntryDto
 import com.simats.vitalsync.data.model.nutrition.MealsResponse
 import com.simats.vitalsync.data.model.nutrition.NutritionGoalDto
 import com.simats.vitalsync.data.model.nutrition.SaveNutritionGoalRequest
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.NutritionApiService
 import com.simats.vitalsync.data.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +39,7 @@ class NutritionRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error loading food items"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -59,7 +60,7 @@ class NutritionRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error creating custom food"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -80,7 +81,7 @@ class NutritionRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error loading nutrition goals"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -101,7 +102,7 @@ class NutritionRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error saving nutrition goals"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -123,7 +124,7 @@ class NutritionRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error loading meal entries"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -144,7 +145,7 @@ class NutritionRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error logging meal entry"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -166,7 +167,7 @@ class NutritionRepository(
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
             }
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Network error deleting meal entry"))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 

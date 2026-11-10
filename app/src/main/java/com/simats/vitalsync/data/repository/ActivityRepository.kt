@@ -1,6 +1,7 @@
-﻿package com.simats.vitalsync.data.repository
+package com.simats.vitalsync.data.repository
 
 import com.google.gson.Gson
+import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.activity.ActivityHistoryItem
 import com.simats.vitalsync.data.model.activity.ActivitySession
 import com.simats.vitalsync.data.model.activity.ActivitySummary
@@ -8,6 +9,7 @@ import com.simats.vitalsync.data.model.activity.RecordSessionRequest
 import com.simats.vitalsync.data.model.activity.StepGoalResponse
 import com.simats.vitalsync.data.model.activity.UpdateStepGoalRequest
 import com.simats.vitalsync.data.model.auth.BaseResponse
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.ActivityApiService
 import com.simats.vitalsync.data.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
@@ -18,8 +20,15 @@ import okhttp3.ResponseBody
 import java.io.IOException
 
 class ActivityRepository(
-    private val apiService: ActivityApiService = RetrofitClient.activityApiService
+    private val apiService: ActivityApiService = RetrofitClient.activityApiService,
+    private val sessionManager: SessionManager? = null
 ) {
+
+    fun getCachedStepGoal(): Int? = sessionManager?.getSavedStepGoal()
+
+    fun saveStepGoalLocally(stepGoal: Int) {
+        sessionManager?.saveStepGoal(stepGoal)
+    }
 
     private val gson = Gson()
 
@@ -42,9 +51,9 @@ class ActivityRepository(
                 emit(Resource.Error(errorMsg, response.code()))
             }
         } catch (e: IOException) {
-            emit(Resource.Error("Network error. Please verify backend server connectivity.", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Unexpected error occurred", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -58,6 +67,9 @@ class ActivityRepository(
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null && body.success) {
+                    if (body.dailyStepGoal >= 1000) {
+                        sessionManager?.saveStepGoal(body.dailyStepGoal)
+                    }
                     emit(Resource.Success(body))
                 } else {
                     emit(Resource.Error(body?.message ?: "Failed to fetch step goal", response.code()))
@@ -67,9 +79,9 @@ class ActivityRepository(
                 emit(Resource.Error(errorMsg, response.code()))
             }
         } catch (e: IOException) {
-            emit(Resource.Error("Network error connecting to backend.", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Unexpected error", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -78,6 +90,7 @@ class ActivityRepository(
      */
     fun updateStepGoal(email: String, newGoal: Int): Flow<Resource<StepGoalResponse>> = flow {
         emit(Resource.Loading)
+        sessionManager?.saveStepGoal(newGoal)
         try {
             val request = UpdateStepGoalRequest(
                 email = email,
@@ -88,6 +101,9 @@ class ActivityRepository(
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null && body.success) {
+                    if (body.dailyStepGoal >= 1000) {
+                        sessionManager?.saveStepGoal(body.dailyStepGoal)
+                    }
                     emit(Resource.Success(body))
                 } else {
                     emit(Resource.Error(body?.message ?: "Failed to update step goal", response.code()))
@@ -97,9 +113,9 @@ class ActivityRepository(
                 emit(Resource.Error(errorMsg, response.code()))
             }
         } catch (e: IOException) {
-            emit(Resource.Error("Network error connecting to backend.", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Unexpected error", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -122,9 +138,9 @@ class ActivityRepository(
                 emit(Resource.Error(errorMsg, response.code()))
             }
         } catch (e: IOException) {
-            emit(Resource.Error("Network error connecting to backend.", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Unexpected error", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -147,9 +163,9 @@ class ActivityRepository(
                 emit(Resource.Error(errorMsg, response.code()))
             }
         } catch (e: IOException) {
-            emit(Resource.Error("Network error connecting to backend.", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Unexpected error", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -172,9 +188,9 @@ class ActivityRepository(
                 emit(Resource.Error(errorMsg, response.code()))
             }
         } catch (e: IOException) {
-            emit(Resource.Error("Network error connecting to backend.", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Unexpected error", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -197,9 +213,9 @@ class ActivityRepository(
                 emit(Resource.Error(errorMsg, response.code()))
             }
         } catch (e: IOException) {
-            emit(Resource.Error("Network error connecting to backend.", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Unexpected error", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -232,9 +248,9 @@ class ActivityRepository(
                 emit(Resource.Error(errorMsg, response.code()))
             }
         } catch (e: IOException) {
-            emit(Resource.Error("Network error connecting to backend.", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Unexpected error", throwable = e))
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 

@@ -140,7 +140,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import com.simats.vitalsync.data.sensor.StepSensorManager
+import com.simats.vitalsync.data.local.SessionManager
+import com.simats.vitalsync.data.model.ai.AiInsightResponse
+import com.simats.vitalsync.ui.theme.SleepColorStandards
 import java.util.Locale
+import kotlin.math.roundToInt
 
 enum class ScreenState {
     SPLASH,
@@ -220,6 +224,7 @@ class MainActivity : ComponentActivity() {
         insetsController.show(WindowInsetsCompat.Type.systemBars())
 
         val repository = FitnessRepository.getInstance(applicationContext)
+        val sessionManager = SessionManager.getInstance(applicationContext)
 
         setContent {
             var isDarkModeEnabled by remember { mutableStateOf(false) }
@@ -256,7 +261,7 @@ class MainActivity : ComponentActivity() {
                     factory = HeartRateViewModelFactory(applicationContext)
                 )
                 val activityViewModel: ActivityViewModel = viewModel(
-                    factory = ActivityViewModelFactory()
+                    factory = ActivityViewModelFactory(applicationContext)
                 )
                 val aiViewModel: AiViewModel = viewModel(
                     factory = AiViewModelFactory(application)
@@ -297,6 +302,7 @@ class MainActivity : ComponentActivity() {
                 }
                 val hrUiState by heartRateViewModel.uiState.collectAsState()
                 val activitySummaryState by activityViewModel.summaryState.collectAsState()
+                val activityStepGoalState by activityViewModel.stepGoalState.collectAsState()
                 val activitySessionsState by activityViewModel.sessionsState.collectAsState()
                 var showBlePairingSheet by remember { mutableStateOf(false) }
 
@@ -319,22 +325,32 @@ class MainActivity : ComponentActivity() {
                 val isVitalsAiLoading by vitalsViewModel.isAiInsightLoading.collectAsState()
                 val isBtConnected = (deviceConnStatus == DeviceConnectionStatus.CONNECTED)
 
-                LaunchedEffect(currentEmail, isBtConnected) {
+                LaunchedEffect(currentEmail) {
                     if (currentEmail.isNotBlank()) {
-                        val uid = currentUser?.id ?: 1
                         deviceManager.userEmail = currentEmail
+                        // Launch critical startup telemetry asynchronously without blocking UI render
                         profileViewModel.fetchProfile(email = currentEmail)
                         vitalsViewModel.fetchSummary(email = currentEmail)
-                        profileViewModel.fetchHealthGoals(email = currentEmail)
-                        profileViewModel.fetchAppSettings(email = currentEmail)
-                        heartRateViewModel.fetchAnalytics(currentEmail)
                         activityViewModel.loadSummary(email = currentEmail)
-                        activityViewModel.loadSessions(email = currentEmail)
-                        aiViewModel.fetchDynamicAiInsight(userId = uid, isBtConnected = isBtConnected)
-                        vitalsViewModel.fetchAiInsight(userId = uid, isBtConnected = isBtConnected)
-                        hydrationViewModel.fetchAiInsight(userId = uid, isBtConnected = isBtConnected)
+                        activityViewModel.loadStepGoal(email = currentEmail)
+
+                        // Launch secondary optional telemetry in background
+                        launch {
+                            profileViewModel.fetchHealthGoals(email = currentEmail)
+                            profileViewModel.fetchAppSettings(email = currentEmail)
+                            profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
+                            aiViewModel.loadWeeklyTrends(email = currentEmail)
+                            heartRateViewModel.fetchAnalytics(currentEmail)
+                            activityViewModel.loadSessions(email = currentEmail)
+                        }
                     }
                 }
+
+                val startupNetworkError = listOfNotNull(
+                    vitalsSummaryState.errorMessage,
+                    activitySummaryState.errorMessage,
+                    profileState.errorMessage
+                ).firstOrNull { it.isNotBlank() }
 
                 var currentScreen by remember { mutableStateOf(ScreenState.SPLASH) }
                 var isNewUser by remember { mutableStateOf(false) }
@@ -371,7 +387,13 @@ class MainActivity : ComponentActivity() {
                             ScreenState.AI_CHAT -> {
                                 aiViewModel.loadChatHistory()
                             }
-                            ScreenState.MAIN, ScreenState.VITAL_SIGNS, ScreenState.START_ACTIVITY -> {
+                            ScreenState.MAIN -> {
+                                vitalsViewModel.fetchSummary(email = currentEmail)
+                                activityViewModel.loadSummary(email = currentEmail)
+                                profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
+                                aiViewModel.loadWeeklyTrends(email = currentEmail)
+                            }
+                            ScreenState.VITAL_SIGNS, ScreenState.START_ACTIVITY -> {
                                 vitalsViewModel.fetchSummary(email = currentEmail)
                                 activityViewModel.loadSummary(email = currentEmail)
                             }
@@ -379,6 +401,7 @@ class MainActivity : ComponentActivity() {
                                 vitalsViewModel.fetchSummary(email = currentEmail)
                                 activityViewModel.loadSummary(email = currentEmail)
                                 profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
+                                aiViewModel.loadWeeklyTrends(email = currentEmail)
                             }
                             ScreenState.VIEW_HISTORY -> {
                                 activityViewModel.loadSessions(email = currentEmail)
@@ -462,40 +485,50 @@ class MainActivity : ComponentActivity() {
                 val sleepSummary = summaryData?.sleep
                 val hydrationSummary = summaryData?.hydration
 
+                val todayPrefix = remember(currentScreen, nutritionRefreshTrigger) { repository.getTodayDateString() }
+
                 val isLiveHr = liveMetrics.heartRate != null && liveMetrics.heartRate!! > 0
-                val heartRateFormatted = when {
-                    isLiveHr -> "${liveMetrics.heartRate} BPM"
-                    hrSummary != null && hrSummary.bpm > 0 -> "${hrSummary.bpm} BPM"
-                    else -> "-- BPM"
+                val hasTodayHrSummary = hrSummary != null && hrSummary.bpm > 0 && hrSummary.recordedAt.startsWith(todayPrefix)
+                val effectiveHrBpm: Int? = when {
+                    isLiveHr -> liveMetrics.heartRate
+                    hasTodayHrSummary -> hrSummary!!.bpm
+                    else -> null
                 }
+                val heartRateFormatted = effectiveHrBpm?.let { "$it BPM" } ?: "--"
                 val heartRateStatusFormatted = when {
                     isLiveHr -> "Live"
-                    hrSummary != null && hrSummary.bpm > 0 -> hrSummary.status
-                    else -> "No data"
+                    hasTodayHrSummary -> hrSummary!!.status
+                    !isBtConnected -> "No Device Connected"
+                    else -> "Connect Sensor to Track"
                 }
 
                 val isLiveSpo2 = liveMetrics.spo2 != null && liveMetrics.spo2!! > 0
-                val spo2Formatted = when {
-                    isLiveSpo2 -> "${liveMetrics.spo2}%"
-                    spo2Summary != null && spo2Summary.percentage > 0 -> "${spo2Summary.percentage}%"
-                    else -> "--%"
+                val hasTodaySpo2Summary = spo2Summary != null && spo2Summary.percentage > 0 && spo2Summary.recordedAt.startsWith(todayPrefix)
+                val effectiveSpo2Pct: Int? = when {
+                    isLiveSpo2 -> liveMetrics.spo2
+                    hasTodaySpo2Summary -> spo2Summary!!.percentage
+                    else -> null
                 }
+                val spo2Formatted = effectiveSpo2Pct?.let { "$it%" } ?: "--"
                 val spo2StatusFormatted = when {
                     isLiveSpo2 -> "Live"
-                    spo2Summary != null && spo2Summary.percentage > 0 -> spo2Summary.status
-                    else -> "No data"
+                    hasTodaySpo2Summary -> spo2Summary!!.status
+                    !isBtConnected -> "No Device Connected"
+                    else -> "Connect Sensor to Track"
                 }
 
                 val isLiveBp = liveMetrics.bloodPressure != null && liveMetrics.bloodPressure!!.first > 0 && liveMetrics.bloodPressure!!.second > 0
+                val hasTodayBpSummary = bpSummary != null && bpSummary.systolic > 0 && bpSummary.diastolic > 0 && bpSummary.recordedAt.startsWith(todayPrefix)
                 val bpFormatted = when {
                     isLiveBp -> "${liveMetrics.bloodPressure!!.first}/${liveMetrics.bloodPressure!!.second}"
-                    bpSummary != null && bpSummary.systolic > 0 && bpSummary.diastolic > 0 -> "${bpSummary.systolic}/${bpSummary.diastolic}"
+                    hasTodayBpSummary -> "${bpSummary!!.systolic}/${bpSummary.diastolic}"
                     else -> "--/--"
                 }
                 val bpStatusFormatted = when {
                     isLiveBp -> "Live"
-                    bpSummary != null && bpSummary.systolic > 0 -> bpSummary.status
-                    else -> "No data"
+                    hasTodayBpSummary -> bpSummary!!.status
+                    !isBtConnected -> "No Device Connected"
+                    else -> "Connect Sensor to Track"
                 }
 
                 val todayRecords = remember(currentScreen, nutritionRefreshTrigger) {
@@ -515,14 +548,44 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                var persistedStepGoal by remember(currentEmail) {
+                    mutableIntStateOf(sessionManager.getSavedStepGoal() ?: repository.getSavedStepGoal() ?: 0)
+                }
+
+                LaunchedEffect(activityStepGoalState.isGoalLoaded, activityStepGoalState.dailyStepGoal) {
+                    if (activityStepGoalState.isGoalLoaded && activityStepGoalState.dailyStepGoal >= 1000) {
+                        persistedStepGoal = activityStepGoalState.dailyStepGoal
+                        sessionManager.saveStepGoal(activityStepGoalState.dailyStepGoal)
+                        repository.saveStepGoal(activityStepGoalState.dailyStepGoal)
+                    }
+                }
+
+                LaunchedEffect(profileState.targetSteps) {
+                    val pGoal = profileState.targetSteps
+                    if (pGoal != null && pGoal >= 1000 && persistedStepGoal < 1000) {
+                        persistedStepGoal = pGoal
+                        sessionManager.saveStepGoal(pGoal)
+                        repository.saveStepGoal(pGoal)
+                    }
+                }
+
+                val effectiveGoal = when {
+                    persistedStepGoal >= 1000 -> persistedStepGoal
+                    activityStepGoalState.isGoalLoaded && activityStepGoalState.dailyStepGoal >= 1000 -> activityStepGoalState.dailyStepGoal
+                    profileState.targetSteps != null && profileState.targetSteps!! >= 1000 -> profileState.targetSteps!!
+                    stepsSummary != null && stepsSummary.goal > 0 -> stepsSummary.goal
+                    (activitySummaryState.summary?.steps?.goal ?: 0) > 0 -> activitySummaryState.summary!!.steps.goal
+                    else -> 8000
+                }
+
                 // Auto-sync step milestones with backend
-                LaunchedEffect(currentEmail) {
+                LaunchedEffect(currentEmail, effectiveGoal) {
                     if (currentEmail.isNotBlank()) {
                         stepSensorManager.onStepThresholdReached = { steps, dist, cal ->
                             activityViewModel.syncDailySteps(
                                 email = currentEmail,
                                 stepCount = steps,
-                                targetSteps = stepsSummary?.goal ?: 8000,
+                                targetSteps = effectiveGoal,
                                 distanceKm = dist,
                                 caloriesKcal = cal,
                                 activeMinutes = steps / 100
@@ -541,12 +604,6 @@ class MainActivity : ComponentActivity() {
                     stepsSummary?.current ?: 0,
                     localTodaySteps
                 )
-
-                val effectiveGoal = if (stepsSummary != null && stepsSummary.goal > 0) {
-                    stepsSummary.goal
-                } else {
-                    activitySummaryState.summary?.steps?.goal ?: 8000
-                }
 
                 val effectiveProgressPercent = if (effectiveGoal > 0) {
                     minOf(100, ((currentEffectiveSteps.toFloat() / effectiveGoal) * 100).toInt())
@@ -584,9 +641,6 @@ class MainActivity : ComponentActivity() {
                     else -> "No data"
                 }
 
-                val wellnessScoreVal = vitalsSummaryState.summary?.wellnessScore ?: 0
-                val wellnessStatusVal = vitalsSummaryState.summary?.wellnessStatus ?: "No data recorded"
-
                 val totalDisplaySteps = currentEffectiveSteps
                 val totalDisplayDistance = effectiveDistance
                 val totalDisplayCalories = effectiveCalories
@@ -602,15 +656,51 @@ class MainActivity : ComponentActivity() {
                     repository.getSleepRecord(repository.getTodayDateString())
                 }
 
+                val todaySleepMinutes = when {
+                    sleepSummary != null && sleepSummary.durationMinutes > 0 -> sleepSummary.durationMinutes
+                    localSleepRecord != null && localSleepRecord.durationMinutes > 0 -> localSleepRecord.durationMinutes
+                    else -> 0
+                }
+
                 val sleepDurationFormatted = when {
-                    sleepSummary != null && sleepSummary.durationMinutes > 0 -> sleepSummary.durationFormatted
-                    localSleepRecord != null -> "${localSleepRecord.durationMinutes / 60}h ${localSleepRecord.durationMinutes % 60}m"
+                    todaySleepMinutes > 0 -> "${todaySleepMinutes / 60}h ${todaySleepMinutes % 60}m"
                     else -> "--"
                 }
 
+                val (evaluatedSleepLabel, evaluatedSleepScore) = remember(todaySleepMinutes, sleepSummary, localSleepRecord) {
+                    if (todaySleepMinutes <= 0) {
+                        "No sleep logged" to 0
+                    } else {
+                        val explicitScore = when {
+                            sleepSummary != null && sleepSummary.sleepScore > 0 -> sleepSummary.sleepScore
+                            localSleepRecord != null && localSleepRecord.sleepScore > 0 -> localSleepRecord.sleepScore
+                            else -> 0
+                        }
+                        val derivedScore = SleepColorStandards.deriveSleepScore(todaySleepMinutes)
+                        val pres = SleepColorStandards.getPresentation(todaySleepMinutes, explicitScore)
+                        val explicitLabel = when {
+                            sleepSummary != null && sleepSummary.quality.isNotBlank() &&
+                                (sleepSummary.quality.equals("Excellent", ignoreCase = true) ||
+                                    sleepSummary.quality.equals("Optimal", ignoreCase = true) ||
+                                    sleepSummary.quality.equals("Fair", ignoreCase = true) ||
+                                    sleepSummary.quality.equals("Poor", ignoreCase = true)) -> sleepSummary.quality
+                            localSleepRecord != null && localSleepRecord.qualityLabel.isNotBlank() &&
+                                (localSleepRecord.qualityLabel.equals("Excellent", ignoreCase = true) ||
+                                    localSleepRecord.qualityLabel.equals("Optimal", ignoreCase = true) ||
+                                    localSleepRecord.qualityLabel.equals("Fair", ignoreCase = true) ||
+                                    localSleepRecord.qualityLabel.equals("Poor", ignoreCase = true)) -> localSleepRecord.qualityLabel
+                            else -> pres.qualityLabel
+                        }
+                        explicitLabel to (if (explicitScore > 0) explicitScore else derivedScore)
+                    }
+                }
+
+                val sleepCategoryLabel = evaluatedSleepLabel
+
                 val sleepScoreFormatted = when {
-                    sleepSummary != null && sleepSummary.durationMinutes > 0 -> "${sleepSummary.quality} (${sleepSummary.sleepScore} score)"
-                    localSleepRecord != null -> "Logged (${localSleepRecord.sleepScore} score)"
+                    todaySleepMinutes > 0 && evaluatedSleepScore > 0 ->
+                        "$sleepCategoryLabel ($evaluatedSleepScore score)"
+                    todaySleepMinutes > 0 -> sleepCategoryLabel
                     else -> "No sleep logged"
                 }
 
@@ -624,6 +714,19 @@ class MainActivity : ComponentActivity() {
                     hydrationSummary.targetMl
                 } else {
                     hydState.dailyTargetMl
+                }
+
+                val wellnessScoreVal = (
+                    minOf(35f, if (effectiveGoal > 0) (currentEffectiveSteps.toFloat() / effectiveGoal) * 35f else 0f) +
+                    minOf(35f, if (targetWaterMl > 0) (consumedWaterMl.toFloat() / targetWaterMl) * 35f else 0f) +
+                    minOf(30f, (todaySleepMinutes.toFloat() / 480f) * 30f)
+                ).roundToInt().coerceIn(0, 100)
+
+                val wellnessStatusVal = when {
+                    currentEffectiveSteps == 0 && consumedWaterMl == 0 && todaySleepMinutes == 0 -> "No data recorded"
+                    wellnessScoreVal >= 80 -> "Optimal State"
+                    wellnessScoreVal >= 55 -> "Good Progress"
+                    else -> "Needs Attention"
                 }
 
                 val hydGlasses = consumedWaterMl / 250f
@@ -641,11 +744,119 @@ class MainActivity : ComponentActivity() {
                     "0 ml / ${String.format(Locale.US, "%,d", targetWaterMl)} ml"
                 }
 
-                val liveSleepScore = sleepSummary?.sleepScore ?: localSleepRecord?.sleepScore ?: 85
+                val liveSleepScore = evaluatedSleepScore
 
-                // Synchronize live telemetry (Hydration, Sleep, Steps) with AI insight on screen changes or metric updates
-                LaunchedEffect(currentScreen, consumedWaterMl, sleepDurationFormatted, isBtConnected) {
-                    if (currentEmail.isNotBlank()) {
+                val localSynthesizedInsight = remember(
+                    isBtConnected,
+                    effectiveHrBpm,
+                    effectiveSpo2Pct,
+                    currentEffectiveSteps,
+                    effectiveGoal,
+                    todaySleepMinutes,
+                    consumedWaterMl,
+                    targetWaterMl,
+                    wellnessScoreVal
+                ) {
+                    val clauses = mutableListOf<String>()
+                    if (effectiveHrBpm != null) {
+                        clauses += when {
+                            effectiveHrBpm < 60 -> "Resting heart rate is low/athletic at $effectiveHrBpm BPM."
+                            effectiveHrBpm <= 100 -> "Resting heart rate of $effectiveHrBpm BPM is in a normal recovery range."
+                            else -> "Heart rate is elevated at $effectiveHrBpm BPM, which may indicate strain or fatigue."
+                        }
+                    }
+                    if (effectiveSpo2Pct != null) {
+                        clauses += if (effectiveSpo2Pct >= 95) {
+                            "SpO2 is healthy at $effectiveSpo2Pct%."
+                        } else {
+                            "SpO2 is sub-optimal at $effectiveSpo2Pct%."
+                        }
+                    }
+                    val stepsPctRaw = if (effectiveGoal > 0) (currentEffectiveSteps.toFloat() / effectiveGoal) * 100f else 0f
+                    val stepsFmt = String.format(Locale.US, "%,d", currentEffectiveSteps)
+                    val stepGoalFmt = String.format(Locale.US, "%,d", effectiveGoal)
+                    val stepClause = when {
+                        stepsPctRaw < 50f ->
+                            "You have completed $stepsFmt of your $stepGoalFmt daily step goal. A 20-minute brisk walk will help you close the gap."
+                        stepsPctRaw < 100f -> {
+                            val remStepsFmt = String.format(Locale.US, "%,d", maxOf(0, effectiveGoal - currentEffectiveSteps))
+                            "Good progress! You're only $remStepsFmt steps away from hitting your personalized $stepGoalFmt-step target."
+                        }
+                        else -> {
+                            val excessFmt = String.format(Locale.US, "%,d", maxOf(0, currentEffectiveSteps - effectiveGoal))
+                            "Target unlocked! You exceeded your $stepGoalFmt-step goal by $excessFmt steps today."
+                        }
+                    }
+                    val sleepHoursVal = todaySleepMinutes / 60.0
+                    val sleepClause = when {
+                        todaySleepMinutes <= 0 -> "No sleep has been logged yet today."
+                        sleepHoursVal < 6.0 -> "Sleep quality is Poor at $sleepDurationFormatted (Score $evaluatedSleepScore)."
+                        sleepHoursVal < 7.0 -> "Sleep quality is Fair at $sleepDurationFormatted (Score $evaluatedSleepScore)."
+                        sleepHoursVal <= 8.5 -> "Sleep quality is Optimal at $sleepDurationFormatted (Score $evaluatedSleepScore)."
+                        else -> "Sleep quality is Excellent at $sleepDurationFormatted (Score $evaluatedSleepScore)."
+                    }
+                    clauses += "$stepClause $sleepClause"
+
+                    val hydPctRaw = if (targetWaterMl > 0) (consumedWaterMl.toFloat() / targetWaterMl) * 100f else 0f
+                    val remMl = maxOf(0, targetWaterMl - consumedWaterMl)
+                    val waterFmt = String.format(Locale.US, "%,d", consumedWaterMl)
+                    val targetWaterFmt = String.format(Locale.US, "%,d", targetWaterMl)
+                    val remWaterFmt = String.format(Locale.US, "%,d", remMl)
+                    val hydClause = when {
+                        hydPctRaw < 40f ->
+                            "Water intake is critically low ($waterFmt / $targetWaterFmt ml, $remWaterFmt ml remaining). Dehydration can lead to acute mental fatigue, headaches, decreased muscle recovery, and sluggish metabolism. Drink 1\u20132 glasses immediately to restore fluid balance."
+                        hydPctRaw < 75f ->
+                            "Intake is lagging behind your daily goal ($waterFmt / $targetWaterFmt ml, $remWaterFmt ml remaining). Insufficient hydration can trigger false hunger cues, reduce physical endurance, and elevate resting heart rate. Try keeping a water bottle nearby to sip consistently."
+                        hydPctRaw < 100f ->
+                            "You're close to your hydration target ($waterFmt / $targetWaterFmt ml)! Just $remWaterFmt ml remaining to ensure optimal electrolyte balance and physical performance."
+                        else ->
+                            "Daily hydration goal achieved ($waterFmt / $targetWaterFmt ml)! Optimal fluid balance supports muscle recovery and cognitive clarity. Maintain steady intake if working out."
+                    }
+                    clauses += if (effectiveHrBpm == null && effectiveSpo2Pct == null && !isBtConnected) {
+                        "$hydClause Pair a wearable device to monitor resting heart rate and recovery metrics in real time."
+                    } else {
+                        hydClause
+                    }
+
+                    val tip = when {
+                        !isBtConnected && effectiveHrBpm == null ->
+                            "Pair a wearable device to monitor resting heart rate and recovery metrics in real time."
+                        hydPctRaw < 40f ->
+                            "Drink 1\u20132 glasses of water immediately ($remWaterFmt ml left) to avoid fatigue and headaches."
+                        hydPctRaw < 75f ->
+                            "Keep a water bottle nearby\u2014$remWaterFmt ml remaining to hit your $targetWaterFmt ml goal."
+                        currentEffectiveSteps < effectiveGoal ->
+                            "Take a 20-minute brisk walk to close the remaining ${String.format(Locale.US, "%,d", effectiveGoal - currentEffectiveSteps)} steps toward your $stepGoalFmt-step target."
+                        else ->
+                            "Target unlocked! Maintain steady hydration and restorative sleep tonight."
+                    }
+
+                    AiInsightResponse(
+                        success = true,
+                        score = wellnessScoreVal,
+                        statusTitle = if (wellnessScoreVal >= 80) "Strong Daily Wellness" else if (wellnessScoreVal >= 55) "Steady Daily Progress" else "Daily Telemetry Overview",
+                        summary = clauses.joinToString(" "),
+                        actionTip = tip,
+                        isBtConnected = isBtConnected,
+                        modelUsed = "vitalsync:local-summary"
+                    )
+                }
+
+                val rawRemoteInsight = aiUiState.aiInsight ?: vitalsAiInsight
+                val hasMeasuredBiometricsToday = (effectiveHrBpm != null || effectiveSpo2Pct != null || hasTodayBpSummary || isLiveBp)
+                val effectiveHomeAiInsight = if (rawRemoteInsight != null &&
+                    rawRemoteInsight.summary.isNotBlank() &&
+                    !rawRemoteInsight.summary.contains("adequate", ignoreCase = true) &&
+                    (hasMeasuredBiometricsToday || (!rawRemoteInsight.summary.contains("72 bpm", ignoreCase = true) && !rawRemoteInsight.summary.contains("98%", ignoreCase = true) && !rawRemoteInsight.summary.contains("120/80")))
+                ) {
+                    rawRemoteInsight.copy(score = wellnessScoreVal)
+                } else {
+                    localSynthesizedInsight
+                }
+
+                // Synchronize live telemetry with AI insight asynchronously in the background without blocking startup
+                LaunchedEffect(currentEmail, isBtConnected, consumedWaterMl, sleepDurationFormatted, totalDisplaySteps, effectiveGoal) {
+                    if (currentEmail.isNotBlank() && currentScreen != ScreenState.SPLASH) {
                         val uid = currentUser?.id ?: 1
                         aiViewModel.fetchDynamicAiInsight(
                             userId = uid,
@@ -654,24 +865,7 @@ class MainActivity : ComponentActivity() {
                             sleepText = sleepDurationFormatted,
                             sleepScore = liveSleepScore,
                             steps = totalDisplaySteps,
-                            targetWaterMl = targetWaterMl
-                        )
-                        vitalsViewModel.fetchAiInsight(
-                            userId = uid,
-                            isBtConnected = isBtConnected,
-                            hydrationMl = consumedWaterMl,
-                            sleepText = sleepDurationFormatted,
-                            sleepScore = liveSleepScore,
-                            steps = totalDisplaySteps,
-                            targetWaterMl = targetWaterMl
-                        )
-                        hydrationViewModel.fetchAiInsight(
-                            userId = uid,
-                            isBtConnected = isBtConnected,
-                            hydrationMl = consumedWaterMl,
-                            sleepText = sleepDurationFormatted,
-                            sleepScore = liveSleepScore,
-                            steps = totalDisplaySteps,
+                            stepGoal = effectiveGoal,
                             targetWaterMl = targetWaterMl
                         )
                     }
@@ -995,10 +1189,36 @@ class MainActivity : ComponentActivity() {
                                     onPrivacySecurityClick = { currentScreen = ScreenState.PRIVACY_SECURITY },
                                     onSettingsClick = { currentScreen = ScreenState.SETTINGS },
                                     onHelpSupportClick = { currentScreen = ScreenState.HELP_SUPPORT },
-                                    aiInsightTitle = aiUiState.dailyInsight?.title,
-                                    aiInsightSummary = aiUiState.dailyInsight?.summary,
-                                    aiInsight = aiUiState.aiInsight ?: vitalsAiInsight,
+                                    aiInsightTitle = effectiveHomeAiInsight.statusTitle,
+                                    aiInsightSummary = effectiveHomeAiInsight.summary,
+                                    aiInsight = effectiveHomeAiInsight,
                                     isInsightLoading = aiUiState.isInsightLoading || isVitalsAiLoading,
+                                    weeklyReport = weeklyReportState.report ?: aiUiState.weeklyReport,
+                                    onAiTabSelected = {
+                                        if (currentEmail.isNotBlank()) {
+                                            profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
+                                            aiViewModel.loadWeeklyTrends(
+                                                userId = profileState.userId.takeIf { it > 0 },
+                                                email = currentEmail
+                                            )
+                                        }
+                                    },
+                                    networkErrorMessage = startupNetworkError,
+                                    onRetryNetwork = {
+                                        if (currentEmail.isNotBlank()) {
+                                            vitalsViewModel.clearSummaryError()
+                                            activityViewModel.clearSummaryError()
+                                            profileViewModel.clearProfileError()
+                                            profileViewModel.fetchProfile(email = currentEmail)
+                                            vitalsViewModel.fetchSummary(email = currentEmail)
+                                            activityViewModel.loadSummary(email = currentEmail)
+                                        }
+                                    },
+                                    onDismissNetworkError = {
+                                        vitalsViewModel.clearSummaryError()
+                                        activityViewModel.clearSummaryError()
+                                        profileViewModel.clearProfileError()
+                                    },
                                     onAskAiClick = { currentScreen = ScreenState.AI_CHAT },
                                     onStartWorkoutSplitClick = { currentScreen = ScreenState.GYM_SPLIT_SELECT },
                                     onOpenNutritionTrackerClick = { currentScreen = ScreenState.NUTRITION_DASHBOARD },
@@ -1206,7 +1426,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             ScreenState.WEEKLY_REPORT -> {
-                                val report = weeklyReportState.report
+                                val report = weeklyReportState.report ?: aiUiState.weeklyReport
                                 val reportScore = report?.wellnessScore ?: wellnessScoreVal
                                 val reportStatus = report?.categoryLabel ?: wellnessStatusVal
                                 val reportHrAvg = report?.metrics?.heartRateAvg ?: heartRateFormatted
@@ -1215,8 +1435,8 @@ class MainActivity : ComponentActivity() {
                                 val reportBpStatus = report?.metrics?.bpStatus ?: bpStatusFormatted
                                 val reportSpo2Avg = report?.metrics?.spo2Avg ?: spo2Formatted
                                 val reportSpo2Status = report?.metrics?.spo2Status ?: spo2StatusFormatted
-                                val reportSleepQuality = report?.metrics?.sleepQuality ?: sleepDurationFormatted
-                                val reportSleepStatus = report?.metrics?.sleepStatus ?: (if (sleepSummary != null && sleepSummary.durationMinutes > 0) sleepSummary.quality else "No Data")
+                                val reportSleepQuality = report?.resolvedBreakdownSleepValue() ?: "--"
+                                val reportSleepStatus = report?.resolvedBreakdownSleepStatus() ?: "No Logs Recorded"
                                 val reportHydrationTotal = report?.metrics?.hydrationTotal ?: (if (hydrationSummary != null && hydrationSummary.consumedMl > 0) "${hydrationSummary.consumedMl} ml" else "-- ml")
                                 val reportHydrationStatus = report?.metrics?.hydrationStatus ?: (if (hydrationSummary != null && hydrationSummary.consumedMl > 0) "${hydrationSummary.progressPercent}% of goal" else "No Data")
                                 val reportActivitySteps = report?.metrics?.activitySteps ?: activityStepsFormatted
@@ -1589,18 +1809,28 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.VITAL_SIGNS -> {
                                 VitalSignsScreen(
-                                    aiInsight = aiUiState.aiInsight ?: vitalsAiInsight,
-                                    isInsightLoading = aiUiState.isInsightLoading || isVitalsAiLoading,
                                     isBtConnected = isBtConnected,
-                                    heartRateValue = if (hrSummary != null && hrSummary.bpm > 0) "${hrSummary.bpm} bpm" else "--",
-                                    heartRateStatus = if (hrSummary != null && hrSummary.bpm > 0) hrSummary.status else "No data available",
-                                    heartRateUpdated = if (hrSummary != null && hrSummary.recordedAt.isNotBlank()) hrSummary.recordedAt else "No readings",
-                                    bpValue = if (bpSummary != null && bpSummary.systolic > 0 && bpSummary.diastolic > 0) "${bpSummary.systolic}/${bpSummary.diastolic} mmHg" else "--/--",
-                                    bpStatus = if (bpSummary != null && bpSummary.systolic > 0) bpSummary.status else "No data available",
-                                    bpUpdated = if (bpSummary != null && bpSummary.recordedAt.isNotBlank()) bpSummary.recordedAt else "No readings",
-                                    spo2Value = if (spo2Summary != null && spo2Summary.percentage > 0) "${spo2Summary.percentage}%" else "--",
-                                    spo2Status = if (spo2Summary != null && spo2Summary.percentage > 0) spo2Summary.status else "No data available",
-                                    spo2Updated = if (spo2Summary != null && spo2Summary.recordedAt.isNotBlank()) spo2Summary.recordedAt else "No readings",
+                                    heartRateValue = if (effectiveHrBpm != null) "$effectiveHrBpm bpm" else "--",
+                                    heartRateStatus = heartRateStatusFormatted,
+                                    heartRateUpdated = when {
+                                        isLiveHr -> "Live BLE Sensor"
+                                        hasTodayHrSummary -> hrSummary!!.recordedAt
+                                        else -> "No readings today"
+                                    },
+                                    bpValue = bpFormatted,
+                                    bpStatus = bpStatusFormatted,
+                                    bpUpdated = when {
+                                        isLiveBp -> "Live BLE Sensor"
+                                        hasTodayBpSummary -> bpSummary!!.recordedAt
+                                        else -> "No readings today"
+                                    },
+                                    spo2Value = spo2Formatted,
+                                    spo2Status = spo2StatusFormatted,
+                                    spo2Updated = when {
+                                        isLiveSpo2 -> "Live BLE Sensor"
+                                        hasTodaySpo2Summary -> spo2Summary!!.recordedAt
+                                        else -> "No readings today"
+                                    },
                                     weightValue = if (userWeightKg.isNotBlank()) "$userWeightKg kg" else "--",
                                     bmiValue = calculatedBmiValue,
                                     bmiStatus = calculatedBmiCategory,
@@ -1955,7 +2185,19 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.SLEEP_DETAIL -> {
                                 SleepDetailScreen(
+                                    userId = profileState.userId.takeIf { it > 0 },
+                                    userEmail = currentEmail,
                                     showAiInsights = appSettingsState.aiInsights,
+                                    onSleepLogged = {
+                                        if (currentEmail.isNotBlank()) {
+                                            vitalsViewModel.fetchSummary(email = currentEmail)
+                                            profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
+                                            aiViewModel.loadWeeklyTrends(
+                                                userId = profileState.userId.takeIf { it > 0 },
+                                                email = currentEmail
+                                            )
+                                        }
+                                    },
                                     onBackClick = {
                                         homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN
@@ -2020,7 +2262,25 @@ class MainActivity : ComponentActivity() {
                                     viewModel = activityViewModel,
                                     userEmail = currentEmail,
                                     onBackClick = { currentScreen = ScreenState.STEP_COUNT_DETAIL },
-                                    onSaveGoalSuccess = {
+                                    onSaveGoalSuccess = { savedGoal ->
+                                        persistedStepGoal = savedGoal
+                                        sessionManager.saveStepGoal(savedGoal)
+                                        repository.saveStepGoal(savedGoal)
+                                        if (currentEmail.isNotBlank()) {
+                                            vitalsViewModel.fetchSummary(email = currentEmail)
+                                            activityViewModel.loadSummary(email = currentEmail)
+                                            val uid = currentUser?.id ?: 1
+                                            aiViewModel.fetchDynamicAiInsight(
+                                                userId = uid,
+                                                isBtConnected = isBtConnected,
+                                                hydrationMl = consumedWaterMl,
+                                                sleepText = sleepDurationFormatted,
+                                                sleepScore = liveSleepScore,
+                                                steps = totalDisplaySteps,
+                                                stepGoal = savedGoal,
+                                                targetWaterMl = targetWaterMl
+                                            )
+                                        }
                                         currentScreen = ScreenState.STEP_COUNT_DETAIL
                                     }
                                 )

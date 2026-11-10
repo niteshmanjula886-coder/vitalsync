@@ -42,6 +42,9 @@ data class User(
     @SerializedName("primary_goal")
     val primaryGoal: String? = "Fitness",
 
+    @SerializedName("step_goal", alternate = ["target_steps", "daily_step_goal"])
+    val stepGoal: Int? = null,
+
     @SerializedName("profile_image")
     val profileImage: String? = null,
 

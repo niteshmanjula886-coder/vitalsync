@@ -402,3 +402,78 @@ data class SyncVitalsResponse(
     val syncedCount: Int = 0
 )
 
+data class SleepLogEntryDto(
+    @SerializedName("date")
+    val date: String = "",
+    @SerializedName("duration_minutes")
+    val durationMinutes: Int = 0,
+    @SerializedName("sleep_score")
+    val sleepScore: Int = 0,
+    @SerializedName("quality", alternate = ["quality_label"])
+    val quality: String = "No Log"
+)
+
+data class SleepPayloadDto(
+    @SerializedName("date")
+    val date: String = "",
+    @SerializedName("duration_minutes")
+    val durationMinutes: Int = 0,
+    @SerializedName("duration_formatted")
+    val durationFormatted: String = "--",
+    @SerializedName("sleep_score")
+    val sleepScore: Int = 0,
+    @SerializedName("quality", alternate = ["quality_label"])
+    val quality: String = "No record",
+    @SerializedName("bedtime")
+    val bedtime: String = "",
+    @SerializedName("wake_time")
+    val wakeTime: String = "",
+    @SerializedName("recent_history")
+    val recentHistory: List<SleepLogEntryDto> = emptyList()
+)
+
+data class SleepDetailResponse(
+    @SerializedName("success")
+    val success: Boolean = false,
+    @SerializedName("message")
+    val message: String? = null,
+    @SerializedName("sleep")
+    val sleep: SleepPayloadDto? = null
+)
+
+data class LogSleepRequest(
+    @SerializedName("user_id")
+    val userId: Int? = null,
+    @SerializedName("email")
+    val email: String? = null,
+    @SerializedName("date_string")
+    val dateString: String,
+    @SerializedName("bedtime")
+    val bedtime: String,
+    @SerializedName("wake_time")
+    val wakeTime: String,
+    @SerializedName("duration_minutes")
+    val durationMinutes: Int,
+    @SerializedName("sleep_score")
+    val sleepScore: Int,
+    @SerializedName("quality_label")
+    val qualityLabel: String
+)
+
+data class LogSleepResponse(
+    @SerializedName("success")
+    val success: Boolean = false,
+    @SerializedName("message")
+    val message: String? = null,
+    @SerializedName("date")
+    val date: String? = null,
+    @SerializedName("duration_minutes")
+    val durationMinutes: Int = 0,
+    @SerializedName("sleep_score")
+    val sleepScore: Int = 0,
+    @SerializedName("quality")
+    val quality: String? = null,
+    @SerializedName("quality_label")
+    val qualityLabel: String? = null
+)
+

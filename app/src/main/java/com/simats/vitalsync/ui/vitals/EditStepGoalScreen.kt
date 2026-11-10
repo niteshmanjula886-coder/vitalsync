@@ -70,16 +70,18 @@ fun EditStepGoalScreen(
     onBackClick: () -> Unit = {},
     onSaveGoalSuccess: (Int) -> Unit = {}
 ) {
-    var stepGoal by remember { mutableIntStateOf(initialStepGoal) }
+    var stepGoal by remember(initialStepGoal) { mutableIntStateOf(initialStepGoal) }
 
     val stepGoalState by (viewModel?.stepGoalState?.collectAsState() ?: remember { mutableStateOf(StepGoalUiState()) })
 
     LaunchedEffect(userEmail) {
-        viewModel?.loadStepGoal(userEmail)
+        if (userEmail.isNotBlank()) {
+            viewModel?.loadStepGoal(userEmail)
+        }
     }
 
-    LaunchedEffect(stepGoalState.dailyStepGoal) {
-        if (stepGoalState.dailyStepGoal > 0) {
+    LaunchedEffect(stepGoalState.isGoalLoaded, stepGoalState.dailyStepGoal) {
+        if (stepGoalState.isGoalLoaded && stepGoalState.dailyStepGoal >= 1000) {
             stepGoal = stepGoalState.dailyStepGoal
         }
     }

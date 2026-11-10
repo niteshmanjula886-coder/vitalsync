@@ -61,6 +61,7 @@ interface AiApiService : ApiService {
         @Query("sleep_text") sleepText: String? = null,
         @Query("sleep_score") sleepScore: Int? = null,
         @Query("steps") steps: Int? = null,
+        @Query("step_goal") stepGoal: Int? = null,
         @Query("target_water_ml") targetWaterMl: Int? = null
     ): Response<AiInsightResponse>
 

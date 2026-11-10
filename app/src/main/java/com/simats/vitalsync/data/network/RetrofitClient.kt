@@ -42,6 +42,9 @@ object RetrofitClient {
     @Volatile
     var authHeaderProvider: (() -> String?)? = null
 
+    @Volatile
+    private var verifiedBaseUrlPrefix: String? = null
+
     private val okHttpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor { message ->
             android.util.Log.d("API_DEBUG", message)
@@ -53,7 +56,17 @@ object RetrofitClient {
             // Always set Connection: close, bypass dev-tunnel anti-abuse page, and inject Authorization header from active session
             .addInterceptor { chain ->
                 val originalRequest = chain.request()
+                val originalUrl = originalRequest.url.toString()
+
+                val activeOverride = verifiedBaseUrlPrefix
+                val effectiveUrl = if (!activeOverride.isNullOrBlank() && !originalUrl.startsWith(activeOverride)) {
+                    replaceBasePrefix(originalUrl, activeOverride)
+                } else {
+                    originalUrl
+                }
+
                 val requestBuilder = originalRequest.newBuilder()
+                    .url(effectiveUrl)
                     .header("Connection", "close")
                     .header("X-Tunnel-Skip-Anti-Abuse", "true")
 
@@ -63,7 +76,6 @@ object RetrofitClient {
                 }
 
                 val requestWithHeaders = requestBuilder.build()
-                val originalUrl = originalRequest.url.toString()
 
                 var response: okhttp3.Response? = null
                 var attemptException: Exception? = null
@@ -71,34 +83,26 @@ object RetrofitClient {
                 try {
                     response = chain.proceed(requestWithHeaders)
                 } catch (e: Exception) {
-                    android.util.Log.e("API_DEBUG", "Request to $originalUrl failed: ${e.message}", e)
+                    android.util.Log.e("API_DEBUG", "Request to $effectiveUrl failed: ${e.message}", e)
                     attemptException = e
                     response = null
                 }
 
-                // If primary request was successful or a client error (e.g. 400/401/404), return it immediately
-                if (response != null && response.code < 500) {
+                // If any HTTP response was received (success, 4xx, or 5xx backend error), return it immediately without hanging
+                if (response != null) {
                     return@addInterceptor response
                 }
 
-                // If primary failed (server error 500+ or network exception), attempt fallbacks
-                response?.close()
-
+                // Only attempt fallback URL on actual network failure (timeout / unreachable host)
                 val candidateUrls = if (ApiConstants.isRunningOnEmulator) {
-                    listOf(ApiConstants.EMULATOR_BASE_URL, ApiConstants.LAN_BASE_URL, ApiConstants.REMOTE_DEVTUNNEL_URL)
+                    listOf(ApiConstants.EMULATOR_BASE_URL, ApiConstants.LAN_BASE_URL)
                 } else {
-                    listOf(ApiConstants.LAN_BASE_URL, ApiConstants.REMOTE_DEVTUNNEL_URL, ApiConstants.EMULATOR_BASE_URL)
+                    listOf(ApiConstants.LAN_BASE_URL, ApiConstants.REMOTE_DEVTUNNEL_URL)
                 }
 
                 for (fallbackBase in candidateUrls) {
-                    if (!originalUrl.startsWith(fallbackBase)) {
-                        val currentBasePrefix = when {
-                            originalUrl.startsWith(ApiConstants.EMULATOR_BASE_URL) -> ApiConstants.EMULATOR_BASE_URL
-                            originalUrl.startsWith(ApiConstants.LAN_BASE_URL) -> ApiConstants.LAN_BASE_URL
-                            originalUrl.startsWith(ApiConstants.REMOTE_DEVTUNNEL_URL) -> ApiConstants.REMOTE_DEVTUNNEL_URL
-                            else -> currentBaseUrl
-                        }
-                        val altUrl = originalUrl.replace(currentBasePrefix, fallbackBase)
+                    if (!effectiveUrl.startsWith(fallbackBase)) {
+                        val altUrl = replaceBasePrefix(effectiveUrl, fallbackBase)
                         val altRequest = requestWithHeaders.newBuilder()
                             .url(altUrl)
                             .header("Connection", "close")
@@ -106,29 +110,37 @@ object RetrofitClient {
                             .build()
                         try {
                             val altResponse = chain.proceed(altRequest)
-                            if (altResponse.isSuccessful || altResponse.code < 500) {
-                                return@addInterceptor altResponse
-                            }
-                            altResponse.close()
+                            verifiedBaseUrlPrefix = fallbackBase
+                            return@addInterceptor altResponse
                         } catch (e: Exception) {
                             android.util.Log.w("API_DEBUG", "Fallback request to $altUrl failed: ${e.message}")
                         }
                     }
                 }
 
-                // If all fallbacks failed, throw original exception or proceed with original request
-                if (attemptException != null) {
-                    throw attemptException
-                }
-                chain.proceed(requestWithHeaders)
+                throw (attemptException ?: java.io.IOException(ApiConstants.SERVER_UNREACHABLE_MESSAGE))
             }
             .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
             .addInterceptor(logging)
-            .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
+            .connectTimeout(ApiConstants.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(ApiConstants.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(ApiConstants.WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(false)
             .build()
+    }
+
+    private fun replaceBasePrefix(url: String, targetBase: String): String {
+        val currentBasePrefix = when {
+            url.startsWith(ApiConstants.EMULATOR_BASE_URL) -> ApiConstants.EMULATOR_BASE_URL
+            url.startsWith(ApiConstants.LAN_BASE_URL) -> ApiConstants.LAN_BASE_URL
+            url.startsWith(ApiConstants.REMOTE_DEVTUNNEL_URL) -> ApiConstants.REMOTE_DEVTUNNEL_URL
+            else -> currentBaseUrl
+        }
+        return if (url.startsWith(currentBasePrefix)) {
+            url.replace(currentBasePrefix, targetBase)
+        } else {
+            url
+        }
     }
 
     fun getBaseUrl(): String = currentBaseUrl
@@ -137,6 +149,7 @@ object RetrofitClient {
         val formattedUrl = if (newBaseUrl.endsWith("/")) newBaseUrl else "$newBaseUrl/"
         if (formattedUrl != currentBaseUrl) {
             currentBaseUrl = formattedUrl
+            verifiedBaseUrlPrefix = null
             synchronized(this) {
                 retrofitInstance = null
                 authApiServiceInstance = null

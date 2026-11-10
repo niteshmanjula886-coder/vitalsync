@@ -17,6 +17,7 @@ import com.simats.vitalsync.data.model.profile.UpdateAppSettingsRequest
 import com.simats.vitalsync.data.model.profile.UpdateHealthPermissionsRequest
 import com.simats.vitalsync.data.model.profile.UpdateProfileRequest
 import com.simats.vitalsync.data.model.profile.UpdateReminderRequest
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.repository.ProfileRepository
 import com.simats.vitalsync.data.repository.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 
 data class ProfileUiState(
     val userId: Int = 0,
@@ -183,56 +186,66 @@ class ProfileViewModel(
 
     fun fetchProfile(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            profileRepository.getProfile(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _profileState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        val user = resource.data
-                        val name = user.name ?: ""
-                        val initialsStr = if (name.isNotBlank()) {
-                            val parts = name.trim().split(" ")
-                            if (parts.size >= 2) {
-                                (parts[0].take(1) + parts[1].take(1)).uppercase()
-                            } else {
-                                parts.firstOrNull()?.take(2)?.uppercase() ?: "--"
-                            }
-                        } else "--"
-
-                        _profileState.update {
-                            it.copy(
-                                isLoading = false,
-                                userId = user.id,
-                                fullName = name,
-                                initials = initialsStr,
-                                email = user.email ?: it.email,
-                                age = user.age ?: it.age,
-                                heightCm = user.height?.toDouble() ?: it.heightCm,
-                                weightKg = user.weight?.toDouble() ?: it.weightKg,
-                                phone = user.phone ?: it.phone,
-                                dob = user.dob ?: it.dob,
-                                gender = user.gender ?: it.gender,
-                                primaryGoal = user.primaryGoal ?: it.primaryGoal,
-                                user = user,
-                                errorMessage = null
-                            )
+            try {
+                profileRepository.getProfile(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _profileState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
+                        is Resource.Success -> {
+                            val user = resource.data
+                            val name = user.name ?: ""
+                            val initialsStr = if (name.isNotBlank()) {
+                                val parts = name.trim().split(" ")
+                                if (parts.size >= 2) {
+                                    (parts[0].take(1) + parts[1].take(1)).uppercase()
+                                } else {
+                                    parts.firstOrNull()?.take(2)?.uppercase() ?: "--"
+                                }
+                            } else "--"
 
-                        fetchAppSettings(user.id, user.email)
-                        fetchHealthPermissions(user.id, user.email)
-                        fetchReminders(user.id, user.email)
-                        fetchNotifications(user.id, user.email)
-                        fetchLoginSessions(user.id, user.email)
-                    }
-                    is Resource.Error -> {
-                        _profileState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                            _profileState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    userId = user.id,
+                                    fullName = name,
+                                    initials = initialsStr,
+                                    email = user.email ?: it.email,
+                                    age = user.age ?: it.age,
+                                    heightCm = user.height?.toDouble() ?: it.heightCm,
+                                    weightKg = user.weight?.toDouble() ?: it.weightKg,
+                                    phone = user.phone ?: it.phone,
+                                    dob = user.dob ?: it.dob,
+                                    gender = user.gender ?: it.gender,
+                                    primaryGoal = user.primaryGoal ?: it.primaryGoal,
+                                    targetSteps = user.stepGoal ?: it.targetSteps,
+                                    user = user,
+                                    errorMessage = null
+                                )
+                            }
+
+                            // Non-critical settings fetched asynchronously without flooding startup
+                            fetchAppSettings(user.id, user.email)
+                        }
+                        is Resource.Error -> {
+                            _profileState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: SocketTimeoutException) {
+                _profileState.update { it.copy(isLoading = false, errorMessage = ApiConstants.SERVER_UNREACHABLE_MESSAGE) }
+            } catch (e: ConnectException) {
+                _profileState.update { it.copy(isLoading = false, errorMessage = ApiConstants.SERVER_UNREACHABLE_MESSAGE) }
+            } catch (e: Exception) {
+                _profileState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
             }
         }
+    }
+
+    fun clearProfileError() {
+        _profileState.update { it.copy(errorMessage = null) }
     }
 
     fun updatePersonalInformation(
@@ -344,6 +357,7 @@ class ProfileViewModel(
                         _healthGoalsState.update { it.copy(isLoading = true, errorMessage = null) }
                     }
                     is Resource.Success -> {
+                        val fetchedSteps = resource.data.stepGoal ?: resource.data.goals?.targetSteps
                         _healthGoalsState.update {
                             it.copy(
                                 isLoading = false,
@@ -351,6 +365,9 @@ class ProfileViewModel(
                                 availableGoals = resource.data.availableGoals,
                                 errorMessage = null
                             )
+                        }
+                        if (fetchedSteps != null && fetchedSteps >= 1000) {
+                            _profileState.update { it.copy(targetSteps = fetchedSteps) }
                         }
                     }
                     is Resource.Error -> {

@@ -59,12 +59,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.rememberCoroutineScope
 import com.simats.vitalsync.data.FitnessRepository
 import com.simats.vitalsync.data.SleepRecord
+import com.simats.vitalsync.data.local.SessionManager
+import com.simats.vitalsync.data.model.vitals.LogSleepRequest
+import com.simats.vitalsync.data.model.vitals.SleepLogEntryDto
+import com.simats.vitalsync.data.network.RetrofitClient
 import com.simats.vitalsync.ui.theme.SleepColorStandards
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -72,13 +80,24 @@ import java.util.Locale
 @Composable
 fun SleepDetailScreen(
     modifier: Modifier = Modifier,
+    userId: Int? = null,
+    userEmail: String = "",
     targetSleepMinutes: Int = 480, // Default 8 Hours Daily Goal
     showAiInsights: Boolean = true,
+    onSleepLogged: () -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val repository = remember { FitnessRepository.getInstance(context) }
+    val sessionManager = remember { SessionManager.getInstance(context) }
+    val coroutineScope = rememberCoroutineScope()
     val todayDate = remember { repository.getTodayDateString() }
+    val resolvedUserId = remember(userId) {
+        userId?.takeIf { it > 0 } ?: sessionManager.getUser()?.id?.takeIf { it > 0 }
+    }
+    val resolvedEmail = remember(userEmail) {
+        userEmail.ifBlank { sessionManager.getUserEmail() ?: "" }
+    }
 
     // Time Pickers State (Default: Bedtime 10:30 PM [22:30], Wake 06:30 AM [06:30])
     var bedHour by remember { mutableIntStateOf(22) }
@@ -88,21 +107,86 @@ fun SleepDetailScreen(
     var wakeMinute by remember { mutableIntStateOf(30) }
 
     var isRecordedSaved by remember { mutableStateOf(false) }
+    var isSavingRemote by remember { mutableStateOf(false) }
     var showSuccessToast by remember { mutableStateOf(false) }
+    var sleepHistory by remember { mutableStateOf<List<SleepLogEntryDto>>(emptyList()) }
 
-    // Pre-fill fields if previous sleep data exists for today
-    LaunchedEffect(todayDate) {
-        val existingRecord = repository.getSleepRecord(todayDate)
-        if (existingRecord != null) {
+    fun buildNormalizedLocalHistory(): List<SleepLogEntryDto> {
+        return repository.getRecentSleepRecords(limit = 7).map { rec ->
+            val pres = SleepColorStandards.getPresentation(rec.durationMinutes)
+            val score = if (rec.sleepScore > 0) rec.sleepScore else SleepColorStandards.deriveSleepScore(rec.durationMinutes)
+            SleepLogEntryDto(
+                date = rec.dateString,
+                durationMinutes = rec.durationMinutes,
+                sleepScore = score,
+                quality = pres.qualityLabel
+            )
+        }
+    }
+
+    // Load live sleep logs from backend (falling back cleanly to local records if offline)
+    LaunchedEffect(todayDate, resolvedUserId, resolvedEmail) {
+        val localToday = repository.getSleepRecord(todayDate)
+        if (localToday != null && localToday.durationMinutes > 0) {
             isRecordedSaved = true
-            parseFormattedTimeToHourMinute(existingRecord.bedtime)?.let { (h, m) ->
+            parseFormattedTimeToHourMinute(localToday.bedtime)?.let { (h, m) ->
                 bedHour = h
                 bedMinute = m
             }
-            parseFormattedTimeToHourMinute(existingRecord.wakeTime)?.let { (h, m) ->
+            parseFormattedTimeToHourMinute(localToday.wakeTime)?.let { (h, m) ->
                 wakeHour = h
                 wakeMinute = m
             }
+        }
+        sleepHistory = buildNormalizedLocalHistory()
+
+        try {
+            val response = withContext(Dispatchers.IO) {
+                RetrofitClient.vitalsApiService.getSleepDetail(
+                    userId = resolvedUserId,
+                    email = resolvedEmail.ifBlank { null },
+                    date = todayDate
+                )
+            }
+            val sleepPayload = if (response.isSuccessful) response.body()?.sleep else null
+            if (sleepPayload != null) {
+                if (sleepPayload.date == todayDate && sleepPayload.durationMinutes > 0) {
+                    isRecordedSaved = true
+                    parseFormattedTimeToHourMinute(sleepPayload.bedtime)?.let { (h, m) ->
+                        bedHour = h
+                        bedMinute = m
+                    }
+                    parseFormattedTimeToHourMinute(sleepPayload.wakeTime)?.let { (h, m) ->
+                        wakeHour = h
+                        wakeMinute = m
+                    }
+                    val pres = SleepColorStandards.getPresentation(sleepPayload.durationMinutes)
+                    repository.saveSleepRecord(
+                        SleepRecord(
+                            bedtime = sleepPayload.bedtime.ifBlank { formatTime12Hour(bedHour, bedMinute) },
+                            wakeTime = sleepPayload.wakeTime.ifBlank { formatTime12Hour(wakeHour, wakeMinute) },
+                            durationMinutes = sleepPayload.durationMinutes,
+                            sleepScore = if (sleepPayload.sleepScore > 0) sleepPayload.sleepScore else SleepColorStandards.deriveSleepScore(sleepPayload.durationMinutes),
+                            qualityLabel = pres.qualityLabel,
+                            dateString = todayDate
+                        )
+                    )
+                }
+                val remoteHistory = sleepPayload.recentHistory
+                    .filter { it.durationMinutes > 0 }
+                    .map { item ->
+                        val pres = SleepColorStandards.getPresentation(item.durationMinutes)
+                        item.copy(
+                            sleepScore = if (item.sleepScore > 0) item.sleepScore else SleepColorStandards.deriveSleepScore(item.durationMinutes),
+                            quality = pres.qualityLabel
+                        )
+                    }
+                if (remoteHistory.isNotEmpty()) {
+                    sleepHistory = remoteHistory
+                }
+            }
+        } catch (_: Exception) {
+            // Keep locally cached history gracefully when offline
         }
     }
 
@@ -433,18 +517,89 @@ fun SleepDetailScreen(
                 // Confirm & Log Sleep Session Button
                 Button(
                     onClick = {
+                        if (totalSleepMinutes <= 0) {
+                            Toast.makeText(context, "Please select a sleep duration greater than 0 minutes.", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        val derivedScore = SleepColorStandards.deriveSleepScore(totalSleepMinutes)
+                        val tierLabel = qualityPresentation.qualityLabel
                         val record = SleepRecord(
                             bedtime = formattedBedtime,
                             wakeTime = formattedWakeTime,
                             durationMinutes = totalSleepMinutes,
-                            sleepScore = 88,
+                            sleepScore = derivedScore,
+                            qualityLabel = tierLabel,
                             dateString = todayDate
                         )
                         repository.saveSleepRecord(record)
                         isRecordedSaved = true
                         showSuccessToast = true
-                        Toast.makeText(context, "🌙 Sleep logged: $formattedDurationStr recorded!", Toast.LENGTH_SHORT).show()
+                        sleepHistory = (listOf(
+                            SleepLogEntryDto(
+                                date = todayDate,
+                                durationMinutes = totalSleepMinutes,
+                                sleepScore = derivedScore,
+                                quality = tierLabel
+                            )
+                        ) + sleepHistory.filterNot { it.date == todayDate }).take(7)
+
+                        isSavingRemote = true
+                        coroutineScope.launch {
+                            var synced = false
+                            try {
+                                val resp = withContext(Dispatchers.IO) {
+                                    RetrofitClient.vitalsApiService.logSleep(
+                                        LogSleepRequest(
+                                            userId = resolvedUserId,
+                                            email = resolvedEmail.ifBlank { null },
+                                            dateString = todayDate,
+                                            bedtime = formattedBedtime,
+                                            wakeTime = formattedWakeTime,
+                                            durationMinutes = totalSleepMinutes,
+                                            sleepScore = derivedScore,
+                                            qualityLabel = tierLabel
+                                        )
+                                    )
+                                }
+                                if (resp.isSuccessful && resp.body()?.success == true) {
+                                    synced = true
+                                    val refreshed = withContext(Dispatchers.IO) {
+                                        RetrofitClient.vitalsApiService.getSleepDetail(
+                                            userId = resolvedUserId,
+                                            email = resolvedEmail.ifBlank { null },
+                                            date = todayDate
+                                        )
+                                    }
+                                    val refreshedHist = if (refreshed.isSuccessful) {
+                                        refreshed.body()?.sleep?.recentHistory
+                                            ?.filter { it.durationMinutes > 0 }
+                                            ?.map { item ->
+                                                val p = SleepColorStandards.getPresentation(item.durationMinutes)
+                                                item.copy(
+                                                    sleepScore = if (item.sleepScore > 0) item.sleepScore else SleepColorStandards.deriveSleepScore(item.durationMinutes),
+                                                    quality = p.qualityLabel
+                                                )
+                                            }
+                                            ?: emptyList()
+                                    } else emptyList()
+                                    if (refreshedHist.isNotEmpty()) {
+                                        sleepHistory = refreshedHist
+                                    }
+                                    onSleepLogged()
+                                }
+                            } catch (_: Exception) {
+                            } finally {
+                                isSavingRemote = false
+                            }
+                            Toast.makeText(
+                                context,
+                                if (synced) "🌙 Sleep logged: $formattedDurationStr ($tierLabel)"
+                                else "🌙 Saved locally ($tierLabel); server sync unavailable",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     },
+                    enabled = !isSavingRemote,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -454,7 +609,92 @@ fun SleepDetailScreen(
                         contentColor = Color.White
                     )
                 ) {
-                    Text(text = "💾 Log Sleep Session", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (isSavingRemote) "Syncing Sleep Log..." else "💾 Log Sleep Session",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Recent Sleep Logs Card with Quality Badges (Excellent / Optimal / Fair / Poor)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Text(
+                    text = "Recent Sleep Logs",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
+                Text(
+                    text = "Your logged nights rated as Excellent, Optimal, Fair, or Poor:",
+                    fontSize = 12.sp,
+                    color = Color(0xFF6B7280),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                if (sleepHistory.isEmpty()) {
+                    Text(
+                        text = "No sleep logs recorded yet. Tap \"Log Sleep Session\" above to save your first log.",
+                        fontSize = 13.sp,
+                        color = Color(0xFF6B7280)
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        sleepHistory.forEach { entry ->
+                            val pres = SleepColorStandards.getPresentation(entry.durationMinutes)
+                            val durH = entry.durationMinutes / 60
+                            val durM = entry.durationMinutes % 60
+                            val scoreVal = if (entry.sleepScore > 0) entry.sleepScore else SleepColorStandards.deriveSleepScore(entry.durationMinutes)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFF8FAFC))
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = entry.date.ifBlank { todayDate },
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF111827)
+                                    )
+                                    Text(
+                                        text = "${durH}h ${durM}m · Score $scoreVal",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(pres.containerColor)
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                ) {
+                                    Text(
+                                        text = pres.qualityLabel,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = pres.badgeTextColor
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -580,32 +820,32 @@ fun SleepDetailScreen(
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     QualityThresholdRow(
-                        title = "Optimal / Restorative",
-                        threshold = "≥ 7.5 hrs • Score ≥ 85",
-                        meaning = "Restorative sleep, robust physical recovery",
+                        title = "Excellent",
+                        threshold = "> 8.5 hrs • Score 90–100",
+                        meaning = "Excellent deep restorative sleep recovery",
+                        color = SleepColorStandards.ExcessivePurple,
+                        bgColor = SleepColorStandards.ExcessivePurpleBg
+                    )
+                    QualityThresholdRow(
+                        title = "Optimal",
+                        threshold = "7.0 – 8.5 hrs • Score 75–90",
+                        meaning = "Optimal recovery, restorative sleep",
                         color = SleepColorStandards.OptimalGreen,
                         bgColor = SleepColorStandards.OptimalGreenBg
                     )
                     QualityThresholdRow(
-                        title = "Moderate / Fair",
-                        threshold = "6.0 – 7.4 hrs • Score 70–84",
+                        title = "Fair",
+                        threshold = "6.0 – 6.9 hrs • Score 60–74",
                         meaning = "Mild deficit, acceptable baseline recovery",
                         color = SleepColorStandards.ModerateAmber,
                         bgColor = SleepColorStandards.ModerateAmberBg
                     )
                     QualityThresholdRow(
-                        title = "Deficit / Poor",
-                        threshold = "< 6.0 hrs • Score < 70",
+                        title = "Poor",
+                        threshold = "< 6.0 hrs • Score 40–55",
                         meaning = "Critical sleep debt, elevated cortisol",
                         color = SleepColorStandards.DeficitRed,
                         bgColor = SleepColorStandards.DeficitRedBg
-                    )
-                    QualityThresholdRow(
-                        title = "Excessive / Extended",
-                        threshold = "> 9.5 hrs",
-                        meaning = "Hypersomnia or rebound sleep compensation",
-                        color = SleepColorStandards.ExcessivePurple,
-                        bgColor = SleepColorStandards.ExcessivePurpleBg
                     )
                 }
             }

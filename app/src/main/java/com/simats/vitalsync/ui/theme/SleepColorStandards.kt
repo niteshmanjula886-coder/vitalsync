@@ -39,27 +39,46 @@ object SleepColorStandards {
         val medicalMeaning: String
     )
 
+    fun deriveSleepScore(durationMinutes: Int): Int {
+        if (durationMinutes <= 0) return 0
+        val hours = durationMinutes / 60.0
+        return when {
+            hours < 6.0 -> (40 + (hours / 6.0) * 15).toInt().coerceIn(40, 55)
+            hours < 7.0 -> (60 + (hours - 6.0) * 14).toInt().coerceIn(60, 74)
+            hours <= 8.5 -> (75 + ((hours - 7.0) / 1.5) * 15).toInt().coerceIn(75, 90)
+            else -> (90 + minOf(1.0, (hours - 8.5) / 1.5) * 10).toInt().coerceIn(90, 100)
+        }
+    }
+
     fun getPresentation(durationMinutes: Int, qualityScore: Int? = null): QualityPresentation {
         val hours = durationMinutes / 60.0
         return when {
-            hours > 9.5 -> QualityPresentation(
-                status = "Excessive",
-                qualityLabel = "Long Sleep",
+            durationMinutes <= 0 -> QualityPresentation(
+                status = "No Log",
+                qualityLabel = "No Log",
+                primaryColor = DeficitRed,
+                containerColor = DeficitRedBg,
+                badgeTextColor = DeficitRedText,
+                medicalMeaning = "No sleep recorded for this date"
+            )
+            hours > 8.5 -> QualityPresentation(
+                status = "Excellent",
+                qualityLabel = "Excellent",
                 primaryColor = ExcessivePurple,
                 containerColor = ExcessivePurpleBg,
                 badgeTextColor = ExcessivePurpleText,
-                medicalMeaning = "Hypersomnia / recovery rebound"
+                medicalMeaning = "Excellent deep restorative sleep recovery"
             )
-            (hours >= 7.5 && hours <= 9.5) || (qualityScore != null && qualityScore >= 85) -> QualityPresentation(
+            hours >= 7.0 -> QualityPresentation(
                 status = "Optimal",
-                qualityLabel = "Restorative",
+                qualityLabel = "Optimal",
                 primaryColor = OptimalGreen,
                 containerColor = OptimalGreenBg,
                 badgeTextColor = OptimalGreenText,
                 medicalMeaning = "Optimal recovery, restorative sleep"
             )
-            (hours >= 6.0 && hours < 7.5) || (qualityScore != null && qualityScore in 70..84) -> QualityPresentation(
-                status = "Moderate",
+            hours >= 6.0 -> QualityPresentation(
+                status = "Fair",
                 qualityLabel = "Fair",
                 primaryColor = ModerateAmber,
                 containerColor = ModerateAmberBg,
@@ -67,8 +86,8 @@ object SleepColorStandards {
                 medicalMeaning = "Mild deficit, acceptable baseline"
             )
             else -> QualityPresentation(
-                status = "Deficit",
-                qualityLabel = "Sleep Debt",
+                status = "Poor",
+                qualityLabel = "Poor",
                 primaryColor = DeficitRed,
                 containerColor = DeficitRedBg,
                 badgeTextColor = DeficitRedText,
