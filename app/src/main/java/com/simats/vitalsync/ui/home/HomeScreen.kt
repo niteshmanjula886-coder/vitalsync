@@ -40,10 +40,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -75,6 +83,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -88,6 +97,7 @@ import com.simats.vitalsync.ui.profile.ProfileScreen
 import com.simats.vitalsync.ui.theme.VitalCardBg
 import com.simats.vitalsync.ui.theme.VitalPrimaryMint
 import com.simats.vitalsync.ui.theme.VitalSoftBorder
+import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTextPrimary
 import com.simats.vitalsync.ui.theme.VitalTextSecondary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -111,7 +121,10 @@ fun HomeScreen(
     onHydrationClick: () -> Unit = {},
     onPersonalInformationClick: () -> Unit = {},
     onHealthGoalsClick: () -> Unit = {},
-    onConnectedDevicesClick: () -> Unit = {},
+    onLogVitalsClick: () -> Unit = {},
+    onLogHeartRateClick: () -> Unit = {},
+    onLogSpo2Click: () -> Unit = {},
+    onLogBloodPressureClick: () -> Unit = {},
     onNotificationsClick: () -> Unit = {},
     onPrivacySecurityClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
@@ -129,11 +142,14 @@ fun HomeScreen(
     userPrimaryGoal: String = "Improve Fitness",
     userPhotoBitmap: ImageBitmap? = null,
     heartRateValue: String = "-- BPM",
-    heartRateStatus: String = "No data",
+    heartRateStatus: String = "Tap to log",
+    heartRateTrend: String? = null,
     spo2Value: String = "--%",
-    spo2Status: String = "No data",
-    bpValue: String = "--/--",
-    bpStatus: String = "No data",
+    spo2Status: String = "Tap to log",
+    spo2Trend: String? = null,
+    bpValue: String = "--/-- mmHg",
+    bpStatus: String = "Tap to log",
+    bpTrend: String? = null,
     stepsValue: String = "--",
     stepsStatus: String = "No data",
     wellnessScore: Int = 0,
@@ -146,9 +162,7 @@ fun HomeScreen(
     sleepScore: String = "--",
     hydrationConsumed: String = "-- ml",
     hydrationSubtext: String = "No data",
-    isDeviceConnected: Boolean = false,
-    connectedDeviceName: String? = null,
-    onPairWatchClick: () -> Unit = {},
+    hasLoggedBiometrics: Boolean = false,
     showAiInsights: Boolean = true,
     aiInsightTitle: String? = null,
     aiInsightSummary: String? = null,
@@ -234,10 +248,13 @@ fun HomeScreen(
                         userName = userName,
                         heartRateValue = heartRateValue,
                         heartRateStatus = heartRateStatus,
+                        heartRateTrend = heartRateTrend,
                         spo2Value = spo2Value,
                         spo2Status = spo2Status,
+                        spo2Trend = spo2Trend,
                         bpValue = bpValue,
                         bpStatus = bpStatus,
+                        bpTrend = bpTrend,
                         stepsValue = stepsValue,
                         stepsStatus = stepsStatus,
                         wellnessScore = wellnessScore,
@@ -250,12 +267,14 @@ fun HomeScreen(
                         sleepScore = sleepScore,
                         hydrationConsumed = hydrationConsumed,
                         hydrationSubtext = hydrationSubtext,
-                        isDeviceConnected = isDeviceConnected,
-                        connectedDeviceName = connectedDeviceName,
-                        onPairWatchClick = onPairWatchClick,
+                        hasLoggedBiometrics = hasLoggedBiometrics,
+                        onLogVitalsClick = onLogVitalsClick,
                         onWellnessScoreClick = onWellnessScoreClick,
                         onVitalsClick = onVitalsClick,
                         onHeartRateClick = onHeartRateClick,
+                        onLogHeartRateClick = onLogHeartRateClick,
+                        onLogSpo2Click = onLogSpo2Click,
+                        onLogBloodPressureClick = onLogBloodPressureClick,
                         onBloodPressureClick = onBloodPressureClick,
                         onSpO2Click = onSpO2Click,
                         onStepsClick = onStepsClick,
@@ -278,9 +297,7 @@ fun HomeScreen(
                         aiInsightSummary = aiInsightSummary,
                         aiInsight = aiInsight,
                         isInsightLoading = isInsightLoading,
-                        isBtConnected = isDeviceConnected,
                         weeklyReport = weeklyReport,
-                        onPairWatchClick = onPairWatchClick,
                         onAskAiClick = onAskAiClick
                     )
                     3 -> ProfileScreen(
@@ -294,7 +311,7 @@ fun HomeScreen(
                         onEditProfileClick = onPersonalInformationClick,
                         onPersonalInformationClick = onPersonalInformationClick,
                         onHealthGoalsClick = onHealthGoalsClick,
-                        onConnectedDevicesClick = onConnectedDevicesClick,
+                        onLogVitalsClick = onLogVitalsClick,
                         onNotificationsClick = onNotificationsClick,
                         onPrivacySecurityClick = onPrivacySecurityClick,
                         onSettingsClick = onSettingsClick,
@@ -318,11 +335,14 @@ fun HomeScreen(
 private fun HomeDashboardContent(
     userName: String,
     heartRateValue: String = "-- BPM",
-    heartRateStatus: String = "No data",
+    heartRateStatus: String = "Tap to log",
+    heartRateTrend: String? = null,
     spo2Value: String = "--%",
-    spo2Status: String = "No data",
-    bpValue: String = "--/--",
-    bpStatus: String = "No data",
+    spo2Status: String = "Tap to log",
+    spo2Trend: String? = null,
+    bpValue: String = "--/-- mmHg",
+    bpStatus: String = "Tap to log",
+    bpTrend: String? = null,
     stepsValue: String = "--",
     stepsStatus: String = "No data",
     wellnessScore: Int = 0,
@@ -335,9 +355,11 @@ private fun HomeDashboardContent(
     sleepScore: String = "--",
     hydrationConsumed: String = "-- ml",
     hydrationSubtext: String = "No data",
-    isDeviceConnected: Boolean = false,
-    connectedDeviceName: String? = null,
-    onPairWatchClick: () -> Unit = {},
+    hasLoggedBiometrics: Boolean = false,
+    onLogVitalsClick: () -> Unit = {},
+    onLogHeartRateClick: () -> Unit = {},
+    onLogSpo2Click: () -> Unit = {},
+    onLogBloodPressureClick: () -> Unit = {},
     onWellnessScoreClick: () -> Unit,
     onVitalsClick: () -> Unit,
     onHeartRateClick: () -> Unit,
@@ -376,7 +398,7 @@ private fun HomeDashboardContent(
             .padding(horizontal = 20.dp)
             .padding(top = 16.dp, bottom = 24.dp)
     ) {
-        // Good Morning Header with Pair Device Button
+        // Good Morning Header with Primary + Log Vitals Action Pill
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -400,36 +422,51 @@ private fun HomeDashboardContent(
                 )
             }
 
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(if (isDeviceConnected) Color(0xFFDCFCE7) else MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable { onPairWatchClick() }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (isDeviceConnected) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF15803D))
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (!connectedDeviceName.isNullOrBlank()) "$connectedDeviceName (Connected)" else "Watch (Connected)",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF15803D)
-                        )
-                    } else {
-                        Text(
-                            text = "Pair Watch",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+            Spacer(modifier = Modifier.width(8.dp))
+
+            var showLogMenu by remember { mutableStateOf(false) }
+            Box {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(VitalTealDark)
+                        .clickable { showLogMenu = true }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "+ Log Vitals ▾",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showLogMenu,
+                    onDismissRequest = { showLogMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("♥  Log Heart Rate", fontWeight = FontWeight.Medium) },
+                        onClick = {
+                            showLogMenu = false
+                            onLogHeartRateClick()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("🫧  Log Blood Oxygen (SpO₂)", fontWeight = FontWeight.Medium) },
+                        onClick = {
+                            showLogMenu = false
+                            onLogSpo2Click()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("🩺  Log Blood Pressure", fontWeight = FontWeight.Medium) },
+                        onClick = {
+                            showLogMenu = false
+                            onLogBloodPressureClick()
+                        }
+                    )
                 }
             }
         }
@@ -610,6 +647,7 @@ private fun HomeDashboardContent(
                 title = "Heart Rate",
                 value = heartRateValue,
                 status = heartRateStatus,
+                trend = heartRateTrend,
                 iconType = VitalIconType.HEART,
                 modifier = Modifier.weight(1f),
                 onClick = onHeartRateClick
@@ -619,6 +657,7 @@ private fun HomeDashboardContent(
                 title = "SpO₂",
                 value = spo2Value,
                 status = spo2Status,
+                trend = spo2Trend,
                 iconType = VitalIconType.SPO2,
                 modifier = Modifier.weight(1f),
                 onClick = onSpO2Click
@@ -635,6 +674,7 @@ private fun HomeDashboardContent(
                 title = "Blood Pressure",
                 value = bpValue,
                 status = bpStatus,
+                trend = bpTrend,
                 iconType = VitalIconType.BLOOD_PRESSURE,
                 modifier = Modifier.weight(1f),
                 onClick = onBloodPressureClick
@@ -817,14 +857,14 @@ private fun HomeDashboardContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // AI Insight Banner Card (Dynamic Real-time Telemetry & BLE Grounded)
+        // AI Insight Banner Card (Synthesized from Logged Vitals & Daily Telemetry)
         if (showAiInsights) {
             AiInsightCard(
                 insight = aiInsight,
                 fallbackScore = wellnessScore,
                 isLoading = isInsightLoading,
-                isBtConnected = isDeviceConnected,
-                onPairWatchClick = onPairWatchClick,
+                hasLoggedBiometrics = hasLoggedBiometrics,
+                onLogVitalsClick = onLogVitalsClick,
                 onClick = onAskAiClick
             )
         }
@@ -843,14 +883,21 @@ private fun VitalCard(
     title: String,
     value: String,
     status: String,
+    trend: String? = null,
     iconType: VitalIconType,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
     val statusColor = when {
-        status.contains("Low", ignoreCase = true) || status.contains("High", ignoreCase = true) || status.contains("Critical", ignoreCase = true) ->
+        status.contains("Tap to log", ignoreCase = true) || status.contains("No data", ignoreCase = true) ->
+            VitalTextSecondary
+        status.contains("Low", ignoreCase = true) || status.contains("Hypotension", ignoreCase = true) ||
+            status.contains("High", ignoreCase = true) || status.contains("Critical", ignoreCase = true) ||
+            status.contains("Crisis", ignoreCase = true) || status.contains("Stage 2", ignoreCase = true) ||
+            status.contains("Hypoxia", ignoreCase = true) ->
             Color(0xFFDC2626)
-        status.contains("Warning", ignoreCase = true) || status.contains("Elevated", ignoreCase = true) ->
+        status.contains("Warning", ignoreCase = true) || status.contains("Elevated", ignoreCase = true) ||
+            status.contains("Stage 1", ignoreCase = true) ->
             Color(0xFFD97706)
         else ->
             VitalPrimaryMint
@@ -889,7 +936,7 @@ private fun VitalCard(
 
             Text(
                 text = value,
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = VitalTextPrimary,
                 maxLines = 1,
@@ -902,10 +949,22 @@ private fun VitalCard(
                 text = status,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = statusColor,
+                color = if (status.equals("Tap to log", ignoreCase = true)) VitalTealDark else statusColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+
+            if (!trend.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = trend,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = VitalTextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

@@ -5,6 +5,8 @@ import com.simats.vitalsync.data.model.vitals.AddVitalReadingRequest
 import com.simats.vitalsync.data.model.vitals.BloodPressureResponse
 import com.simats.vitalsync.data.model.vitals.BmiDetailData
 import com.simats.vitalsync.data.model.vitals.HeartRateDetailData
+import com.simats.vitalsync.data.model.vitals.ManualVitalsLogRequest
+import com.simats.vitalsync.data.model.vitals.ManualVitalsLogResponse
 import com.simats.vitalsync.data.model.vitals.Spo2Response
 import com.simats.vitalsync.data.model.vitals.VitalReadingItem
 import com.simats.vitalsync.data.model.vitals.VitalsSummaryResponse
@@ -188,6 +190,67 @@ class VitalsRepository(
             }
         } catch (e: Exception) {
             emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    fun logManualVitals(request: ManualVitalsLogRequest): Flow<Resource<ManualVitalsLogResponse>> = flow {
+        emit(Resource.Loading)
+        try {
+            val resolvedUid = request.userId ?: sessionManager?.getUser()?.id
+            val resolvedEmail = request.email ?: sessionManager?.getUserEmail()
+            val finalReq = request.copy(userId = resolvedUid, email = resolvedEmail)
+            val response = apiService.logManualVitals(finalReq)
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                if (body.success) {
+                    emit(Resource.Success(body))
+                } else {
+                    emit(Resource.Error(body.message ?: "Failed to save vitals"))
+                }
+            } else {
+                emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    fun getHrDetails(
+        userId: Int? = null,
+        email: String? = null
+    ): Flow<Resource<com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse>> =
+        fetchVitalGuidance("heart rate guidance", userId, email) { uid, mail -> apiService.getHrDetails(uid, mail) }
+
+    fun getSpo2Details(
+        userId: Int? = null,
+        email: String? = null
+    ): Flow<Resource<com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse>> =
+        fetchVitalGuidance("blood oxygen guidance", userId, email) { uid, mail -> apiService.getSpo2Details(uid, mail) }
+
+    fun getBpDetails(
+        userId: Int? = null,
+        email: String? = null
+    ): Flow<Resource<com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse>> =
+        fetchVitalGuidance("blood pressure guidance", userId, email) { uid, mail -> apiService.getBpDetails(uid, mail) }
+
+    private fun fetchVitalGuidance(
+        label: String,
+        userId: Int? = null,
+        email: String? = null,
+        call: suspend (Int?, String?) -> retrofit2.Response<com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse>
+    ): Flow<Resource<com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse>> = flow {
+        emit(Resource.Loading)
+        try {
+            val resolvedUid = userId ?: sessionManager?.getUser()?.id
+            val resolvedEmail = email ?: sessionManager?.getUserEmail()
+            val response = call(resolvedUid, resolvedEmail)
+            if (response.isSuccessful && response.body() != null && response.body()!!.success) {
+                emit(Resource.Success(response.body()!!))
+            } else {
+                emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e, "Network error fetching $label"), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
 

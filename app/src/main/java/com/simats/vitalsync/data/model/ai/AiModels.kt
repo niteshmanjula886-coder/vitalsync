@@ -219,18 +219,41 @@ data class AiHistoryClearResponse(
     val deletedCount: Int? = null
 )
 
+data class MetricEvaluationDto(
+    @SerializedName("metric")
+    val metric: String = "",
+
+    @SerializedName("value")
+    val value: String = "",
+
+    @SerializedName("status")
+    val status: String = "",
+
+    @SerializedName("tier")
+    val tier: String = "",
+
+    @SerializedName("severity")
+    val severity: Int = 0
+)
+
 data class AiInsightData(
     @SerializedName("score")
     val score: Int = 80,
 
-    @SerializedName("status_title", alternate = ["statusTitle", "title"])
+    @SerializedName("status_headline", alternate = ["status_title", "statusTitle", "title"])
     val statusTitle: String = "AI Health Insight",
+
+    @SerializedName("overall_tier", alternate = ["overallTier"])
+    val overallTier: String = "NEEDS_ATTENTION",
 
     @SerializedName("summary")
     val summary: String = "",
 
     @SerializedName("action_tip", alternate = ["actionTip", "actionableAdvice", "actionable_advice"])
     val actionTip: String = "",
+
+    @SerializedName("metric_evaluations", alternate = ["metricEvaluations"])
+    val metricEvaluations: List<MetricEvaluationDto> = emptyList(),
 
     @SerializedName("is_bt_connected", alternate = ["isBtConnected", "bluetoothConnected"])
     val isBtConnected: Boolean = false
@@ -246,14 +269,20 @@ data class AiInsightResponse(
     @SerializedName("score")
     val score: Int = 80,
 
-    @SerializedName("status_title", alternate = ["statusTitle", "title"])
+    @SerializedName("status_headline", alternate = ["status_title", "statusTitle", "title"])
     val statusTitle: String = "AI Health Insight",
+
+    @SerializedName("overall_tier", alternate = ["overallTier"])
+    val overallTier: String = "NEEDS_ATTENTION",
 
     @SerializedName("summary")
     val summary: String = "",
 
     @SerializedName("action_tip", alternate = ["actionTip", "actionableAdvice", "actionable_advice"])
     val actionTip: String = "",
+
+    @SerializedName("metric_evaluations", alternate = ["metricEvaluations"])
+    val metricEvaluations: List<MetricEvaluationDto> = emptyList(),
 
     @SerializedName("is_bt_connected", alternate = ["isBtConnected", "bluetoothConnected"])
     val isBtConnected: Boolean = false,

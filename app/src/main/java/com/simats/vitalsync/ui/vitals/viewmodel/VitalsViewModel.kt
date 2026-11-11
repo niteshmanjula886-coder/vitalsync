@@ -7,7 +7,9 @@ import com.simats.vitalsync.data.model.vitals.AddVitalReadingRequest
 import com.simats.vitalsync.data.model.vitals.BloodPressureResponse
 import com.simats.vitalsync.data.model.vitals.BmiDetailData
 import com.simats.vitalsync.data.model.vitals.HeartRateDetailData
+import com.simats.vitalsync.data.model.vitals.ManualVitalsLogRequest
 import com.simats.vitalsync.data.model.vitals.Spo2Response
+import com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse
 import com.simats.vitalsync.data.model.vitals.VitalReadingItem
 import com.simats.vitalsync.data.model.vitals.VitalsSummaryResponse
 import com.simats.vitalsync.data.network.ApiConstants
@@ -66,6 +68,12 @@ data class AddReadingUiState(
     val errorMessage: String? = null
 )
 
+data class VitalGuidanceUiState(
+    val isLoading: Boolean = false,
+    val data: VitalDetailGuidanceResponse? = null,
+    val errorMessage: String? = null
+)
+
 class VitalsViewModel(
     private val vitalsRepository: VitalsRepository
 ) : ViewModel() {
@@ -91,8 +99,47 @@ class VitalsViewModel(
     private val _addReadingState = MutableStateFlow(AddReadingUiState())
     val addReadingState: StateFlow<AddReadingUiState> = _addReadingState.asStateFlow()
 
+    private val _manualLogState = MutableStateFlow(AddReadingUiState())
+    val manualLogState: StateFlow<AddReadingUiState> = _manualLogState.asStateFlow()
+
     private val _aiInsightState = MutableStateFlow<AiInsightResponse?>(null)
     val aiInsightState: StateFlow<AiInsightResponse?> = _aiInsightState.asStateFlow()
+
+    private val _hrDetailState = MutableStateFlow(VitalGuidanceUiState())
+    val hrDetailState: StateFlow<VitalGuidanceUiState> = _hrDetailState.asStateFlow()
+
+    private val _spo2DetailState = MutableStateFlow(VitalGuidanceUiState())
+    val spo2DetailState: StateFlow<VitalGuidanceUiState> = _spo2DetailState.asStateFlow()
+
+    private val _bpDetailState = MutableStateFlow(VitalGuidanceUiState())
+    val bpDetailState: StateFlow<VitalGuidanceUiState> = _bpDetailState.asStateFlow()
+
+    private fun collectVitalDetail(
+        targetState: MutableStateFlow<VitalGuidanceUiState>,
+        flowProvider: () -> kotlinx.coroutines.flow.Flow<Resource<VitalDetailGuidanceResponse>>
+    ) {
+        viewModelScope.launch {
+            flowProvider().collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> targetState.update { it.copy(isLoading = true, errorMessage = null) }
+                    is Resource.Success -> targetState.update { it.copy(isLoading = false, data = resource.data, errorMessage = null) }
+                    is Resource.Error -> targetState.update { it.copy(isLoading = false, errorMessage = resource.message) }
+                }
+            }
+        }
+    }
+
+    fun fetchHrDetails(userId: Int? = null, email: String? = null) {
+        collectVitalDetail(_hrDetailState) { vitalsRepository.getHrDetails(userId, email) }
+    }
+
+    fun fetchSpo2Details(userId: Int? = null, email: String? = null) {
+        collectVitalDetail(_spo2DetailState) { vitalsRepository.getSpo2Details(userId, email) }
+    }
+
+    fun fetchBpDetails(userId: Int? = null, email: String? = null) {
+        collectVitalDetail(_bpDetailState) { vitalsRepository.getBpDetails(userId, email) }
+    }
 
     private val _isAiInsightLoading = MutableStateFlow(false)
     val isAiInsightLoading: StateFlow<Boolean> = _isAiInsightLoading.asStateFlow()
@@ -347,6 +394,53 @@ class VitalsViewModel(
                 }
             }
         }
+    }
+
+    fun logManualVitals(
+        heartRate: Int? = null,
+        spo2: Int? = null,
+        systolic: Int? = null,
+        diastolic: Int? = null,
+        notes: String? = null,
+        userId: Int? = null,
+        email: String? = null,
+        onSuccess: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val req = ManualVitalsLogRequest(
+                userId = userId,
+                email = email,
+                heartRate = heartRate,
+                spo2 = spo2,
+                systolic = systolic,
+                diastolic = diastolic,
+                notes = notes?.takeIf { it.isNotBlank() }
+            )
+            vitalsRepository.logManualVitals(req).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> {
+                        _manualLogState.update { it.copy(isSaving = true, errorMessage = null, isSuccess = false) }
+                    }
+                    is Resource.Success -> {
+                        _manualLogState.update { it.copy(isSaving = false, isSuccess = true, errorMessage = null) }
+                        fetchSummary(userId, email)
+                        if (heartRate != null) fetchHrDetails(userId, email)
+                        if (spo2 != null) fetchSpo2Details(userId, email)
+                        if (systolic != null && diastolic != null) fetchBpDetails(userId, email)
+                        onSuccess()
+                    }
+                    is Resource.Error -> {
+                        _manualLogState.update {
+                            it.copy(isSaving = false, isSuccess = false, errorMessage = resource.message)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun resetManualLogState() {
+        _manualLogState.value = AddReadingUiState()
     }
 
     fun resetAddReadingState() {

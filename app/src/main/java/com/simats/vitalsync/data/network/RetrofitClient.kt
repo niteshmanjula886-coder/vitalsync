@@ -1,16 +1,29 @@
 package com.simats.vitalsync.data.network
 
+import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.util.Log
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.io.IOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
+    private const val TAG = "RetrofitClient"
+
     @Volatile
     private var currentBaseUrl: String = ApiConstants.DEFAULT_BASE_URL
+
+    @Volatile
+    var isDebugLoggingEnabled: Boolean = true
 
     @Volatile
     private var retrofitInstance: Retrofit? = null
@@ -45,11 +58,20 @@ object RetrofitClient {
     @Volatile
     private var verifiedBaseUrlPrefix: String? = null
 
+    fun configureDebugLogging(context: Context) {
+        isDebugLoggingEnabled =
+            (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    }
+
     private val okHttpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor { message ->
-            android.util.Log.d("API_DEBUG", message)
+            Log.d(TAG, message)
         }.apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (isDebugLoggingEnabled) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
 
         OkHttpClient.Builder()
@@ -82,22 +104,42 @@ object RetrofitClient {
 
                 try {
                     response = chain.proceed(requestWithHeaders)
+                    if (!response.isSuccessful) {
+                        Log.e(TAG, "HTTP ${response.code} ${response.message} from $effectiveUrl")
+                    }
                 } catch (e: Exception) {
-                    android.util.Log.e("API_DEBUG", "Request to $effectiveUrl failed: ${e.message}", e)
+                    Log.e(TAG, "Request to $effectiveUrl failed (${e.javaClass.simpleName}): ${e.message}", e)
                     attemptException = e
+                    verifiedBaseUrlPrefix = null
                     response = null
                 }
 
-                // If any HTTP response was received (success, 4xx, or 5xx backend error), return it immediately without hanging
+                // Return any HTTP response (2xx/4xx/5xx) immediately without probing alternate hosts
                 if (response != null) {
                     return@addInterceptor response
                 }
 
-                // Only attempt fallback URL on actual network failure (timeout / unreachable host)
+                // Do not replay requests onto alternate hosts when the backend received the request but read timed out
+                if (attemptException != null && !isHostUnreachableError(attemptException)) {
+                    throw attemptException
+                }
+
+                // Probe local/emulator/ADB-reverse/tunnel host candidates on connection/DNS failure
                 val candidateUrls = if (ApiConstants.isRunningOnEmulator) {
-                    listOf(ApiConstants.EMULATOR_BASE_URL, ApiConstants.LAN_BASE_URL)
+                    listOf(
+                        ApiConstants.EMULATOR_BASE_URL,
+                        ApiConstants.ADB_LOCALHOST_BASE_URL,
+                        ApiConstants.LOCALHOST_BASE_URL,
+                        ApiConstants.LAN_BASE_URL,
+                        ApiConstants.REMOTE_DEVTUNNEL_URL
+                    )
                 } else {
-                    listOf(ApiConstants.LAN_BASE_URL, ApiConstants.REMOTE_DEVTUNNEL_URL)
+                    listOf(
+                        ApiConstants.LAN_BASE_URL,
+                        ApiConstants.ADB_LOCALHOST_BASE_URL,
+                        ApiConstants.LOCALHOST_BASE_URL,
+                        ApiConstants.REMOTE_DEVTUNNEL_URL
+                    )
                 }
 
                 for (fallbackBase in candidateUrls) {
@@ -111,33 +153,50 @@ object RetrofitClient {
                         try {
                             val altResponse = chain.proceed(altRequest)
                             verifiedBaseUrlPrefix = fallbackBase
+                            Log.i(TAG, "Connected via fallback host: $fallbackBase")
+                            if (!altResponse.isSuccessful) {
+                                Log.e(TAG, "HTTP ${altResponse.code} ${altResponse.message} from $altUrl")
+                            }
                             return@addInterceptor altResponse
                         } catch (e: Exception) {
-                            android.util.Log.w("API_DEBUG", "Fallback request to $altUrl failed: ${e.message}")
+                            Log.w(TAG, "Fallback request to $altUrl failed: ${e.message}")
                         }
                     }
                 }
 
-                throw (attemptException ?: java.io.IOException(ApiConstants.SERVER_UNREACHABLE_MESSAGE))
+                throw (attemptException ?: IOException(ApiConstants.SERVER_UNREACHABLE_MESSAGE))
             }
             .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
             .addInterceptor(logging)
             .connectTimeout(ApiConstants.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(ApiConstants.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(ApiConstants.WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(false)
+            .retryOnConnectionFailure(true)
             .build()
+    }
+
+    private fun isHostUnreachableError(e: Exception): Boolean {
+        return when (e) {
+            is ConnectException,
+            is UnknownHostException,
+            is NoRouteToHostException -> true
+            is SocketTimeoutException ->
+                e.message?.contains("connect", ignoreCase = true) == true
+            else -> false
+        }
     }
 
     private fun replaceBasePrefix(url: String, targetBase: String): String {
         val currentBasePrefix = when {
             url.startsWith(ApiConstants.EMULATOR_BASE_URL) -> ApiConstants.EMULATOR_BASE_URL
             url.startsWith(ApiConstants.LAN_BASE_URL) -> ApiConstants.LAN_BASE_URL
+            url.startsWith(ApiConstants.ADB_LOCALHOST_BASE_URL) -> ApiConstants.ADB_LOCALHOST_BASE_URL
+            url.startsWith(ApiConstants.LOCALHOST_BASE_URL) -> ApiConstants.LOCALHOST_BASE_URL
             url.startsWith(ApiConstants.REMOTE_DEVTUNNEL_URL) -> ApiConstants.REMOTE_DEVTUNNEL_URL
             else -> currentBaseUrl
         }
         return if (url.startsWith(currentBasePrefix)) {
-            url.replace(currentBasePrefix, targetBase)
+            url.replaceFirst(currentBasePrefix, targetBase)
         } else {
             url
         }

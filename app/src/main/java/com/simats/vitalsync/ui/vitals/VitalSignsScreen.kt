@@ -57,15 +57,14 @@ fun VitalSignsScreen(
     modifier: Modifier = Modifier,
     aiInsight: AiInsightResponse? = null,
     isInsightLoading: Boolean = false,
-    isBtConnected: Boolean = false,
-    heartRateValue: String = "--",
-    heartRateStatus: String = "No data available",
+    heartRateValue: String = "-- BPM",
+    heartRateStatus: String = "Tap to log",
     heartRateUpdated: String = "No readings",
-    bpValue: String = "--/--",
-    bpStatus: String = "No data available",
+    bpValue: String = "--/-- mmHg",
+    bpStatus: String = "Tap to log",
     bpUpdated: String = "No readings",
-    spo2Value: String = "--",
-    spo2Status: String = "No data available",
+    spo2Value: String = "--%",
+    spo2Status: String = "Tap to log",
     spo2Updated: String = "No readings",
     tempValue: String = "--",
     tempStatus: String = "No data available",
@@ -73,7 +72,6 @@ fun VitalSignsScreen(
     bmiValue: String = "--",
     bmiStatus: String = "Not set",
     onBackClick: () -> Unit = {},
-    onPairWatchClick: () -> Unit = {},
     onAskAiClick: () -> Unit = {},
     onHeartRateClick: () -> Unit = {},
     onBloodPressureClick: () -> Unit = {},
@@ -266,11 +264,11 @@ private fun VitalTileCard(
 ) {
     // Dynamic Classification Color Mapping based on Status / Trend
     val (statusColor, statusBgColor) = when {
-        status.contains("No ", ignoreCase = true) || status.contains("Connect", ignoreCase = true) || status.contains("Not ", ignoreCase = true) ->
+        status.contains("No ", ignoreCase = true) || status.contains("Connect", ignoreCase = true) || status.contains("Not ", ignoreCase = true) || status.contains("Tap to log", ignoreCase = true) ->
             Pair(Color(0xFF6B7280), Color(0xFFF1F5F9)) // Neutral Slate when disconnected/no data
-        status.contains("Low", ignoreCase = true) || status.contains("High", ignoreCase = true) || status.contains("Critical", ignoreCase = true) ->
+        status.contains("Low", ignoreCase = true) || status.contains("Hypotension", ignoreCase = true) || status.contains("High", ignoreCase = true) || status.contains("Critical", ignoreCase = true) || status.contains("Crisis", ignoreCase = true) || status.contains("Stage 2", ignoreCase = true) ->
             Pair(Color(0xFFDC2626), Color(0xFFFEE2E2)) // Red
-        status.contains("Warning", ignoreCase = true) || status.contains("Elevated", ignoreCase = true) || status.contains("Hypertension", ignoreCase = true) ->
+        status.contains("Warning", ignoreCase = true) || status.contains("Elevated", ignoreCase = true) || status.contains("Stage 1", ignoreCase = true) || status.contains("Hypertension", ignoreCase = true) ->
             Pair(Color(0xFFD97706), Color(0xFFFEF3C7)) // Amber/Orange
         else ->
             Pair(VitalPrimaryMint, VitalNavSelectedBg) // Green

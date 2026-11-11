@@ -6,6 +6,8 @@ import com.simats.vitalsync.data.model.vitals.BloodPressureResponse
 import com.simats.vitalsync.data.model.vitals.BmiResponse
 import com.simats.vitalsync.data.model.vitals.DeleteVitalReadingResponse
 import com.simats.vitalsync.data.model.vitals.HeartRateResponse
+import com.simats.vitalsync.data.model.vitals.ManualVitalsLogRequest
+import com.simats.vitalsync.data.model.vitals.ManualVitalsLogResponse
 import com.simats.vitalsync.data.model.vitals.Spo2Response
 import com.simats.vitalsync.data.model.vitals.VitalsReadingsResponse
 import com.simats.vitalsync.data.model.vitals.VitalsSummaryResponse
@@ -91,5 +93,28 @@ interface VitalsApiService {
     suspend fun logSleep(
         @Body body: com.simats.vitalsync.data.model.vitals.LogSleepRequest
     ): Response<com.simats.vitalsync.data.model.vitals.LogSleepResponse>
+
+    @GET("vitals/get_hr_details.php")
+    suspend fun getHrDetails(
+        @Query("user_id") userId: Int? = null,
+        @Query("email") email: String? = null
+    ): Response<com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse>
+
+    @GET("vitals/get_spo2_details.php")
+    suspend fun getSpo2Details(
+        @Query("user_id") userId: Int? = null,
+        @Query("email") email: String? = null
+    ): Response<com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse>
+
+    @GET("vitals/get_bp_details.php")
+    suspend fun getBpDetails(
+        @Query("user_id") userId: Int? = null,
+        @Query("email") email: String? = null
+    ): Response<com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse>
+
+    @POST("vitals/log_vitals.php")
+    suspend fun logManualVitals(
+        @Body body: ManualVitalsLogRequest
+    ): Response<ManualVitalsLogResponse>
 }
 

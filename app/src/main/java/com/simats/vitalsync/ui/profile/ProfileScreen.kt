@@ -59,7 +59,7 @@ fun ProfileScreen(
     onEditProfileClick: () -> Unit = {},
     onPersonalInformationClick: () -> Unit = {},
     onHealthGoalsClick: () -> Unit = {},
-    onConnectedDevicesClick: () -> Unit = {},
+    onLogVitalsClick: () -> Unit = {},
     onNotificationsClick: () -> Unit = {},
     onPrivacySecurityClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
@@ -218,7 +218,7 @@ fun ProfileScreen(
                 ProfileMenuItem(title = "Health Goals", iconType = ProfileMenuIcon.GOALS, onClick = onHealthGoalsClick)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 16.dp))
 
-                ProfileMenuItem(title = "Connected Devices", iconType = ProfileMenuIcon.DEVICES, onClick = onConnectedDevicesClick)
+                ProfileMenuItem(title = "Log Vitals", iconType = ProfileMenuIcon.DEVICES, onClick = onLogVitalsClick)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 16.dp))
 
                 ProfileMenuItem(title = "Notifications", iconType = ProfileMenuIcon.BELL, onClick = onNotificationsClick)

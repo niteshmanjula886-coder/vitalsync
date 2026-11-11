@@ -1,9 +1,6 @@
 package com.simats.vitalsync.ui.vitals
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,437 +12,220 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathMeasure
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.simats.vitalsync.ui.theme.VitalTealDark
+import com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse
+import com.simats.vitalsync.data.model.vitals.evaluateBloodPressure
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
 @Composable
 fun BloodPressureDetailScreen(
     modifier: Modifier = Modifier,
+    detailState: VitalDetailGuidanceResponse? = null,
+    isDetailLoading: Boolean = false,
     systolic: Int = 0,
     diastolic: Int = 0,
     status: String = "No data available",
     onBackClick: () -> Unit = {},
     onAddReadingClick: () -> Unit = {}
 ) {
+    val currentSys = detailState?.systolic?.takeIf { it > 0 } ?: systolic.takeIf { it > 0 }
+    val currentDia = detailState?.diastolic?.takeIf { it > 0 } ?: diastolic.takeIf { it > 0 }
+    val hasBp = currentSys != null && currentDia != null
+    val bpEval = evaluateBloodPressure(currentSys, currentDia)
+
+    val (statusLabel, statusColor, statusBg) = when {
+        !hasBp -> Triple("No Readings Yet", Color(0xFF6B7280), Color(0xFFF3F4F6))
+        bpEval.statusTitle == "Low Blood Pressure (Hypotension)" ->
+            Triple(bpEval.statusTitle, Color(0xFFE53935), Color(0xFFFEE2E2))
+        bpEval.statusTitle == "Hypertensive Crisis" ->
+            Triple(bpEval.statusTitle, Color(0xFFD32F2F), Color(0xFFFEE2E2))
+        bpEval.statusTitle == "Stage 2 Hypertension" ->
+            Triple(bpEval.statusTitle, Color(0xFFF57C00), Color(0xFFFED7AA))
+        bpEval.statusTitle == "Stage 1 Hypertension" ->
+            Triple(bpEval.statusTitle, Color(0xFFFFA000), Color(0xFFFFEDD5))
+        bpEval.statusTitle == "Elevated Blood Pressure" ->
+            Triple(bpEval.statusTitle, Color(0xFFD97706), Color(0xFFFEF3C7))
+        else ->
+            Triple(bpEval.statusTitle, Color(0xFF43A047), Color(0xFFECFDF5))
+    }
+
+    val recordedLabel = detailState?.recordedAt?.takeIf { it.isNotBlank() }?.let { "Recorded $it" }
+        ?: "Tap '+ Log BP' to record your cuff measurement"
+
+    val showMedicalBanner = hasBp && (bpEval.urgency == "MEDICAL_ATTENTION" || bpEval.statusTitle == "Low Blood Pressure (Hypotension)")
+    val medicalBannerText = when {
+        bpEval.statusTitle == "Low Blood Pressure (Hypotension)" && bpEval.urgency == "MEDICAL_ATTENTION" ->
+            "Hypotension Alert: Your blood pressure is critically low ($currentSys/$currentDia mmHg). Lie down safely with legs slightly elevated, hydrate slowly, and seek urgent medical care if dizzy or faint."
+        bpEval.statusTitle == "Low Blood Pressure (Hypotension)" ->
+            "Low Blood Pressure Warning: Sit or rise slowly to prevent dizziness, drink 300–500 ml of water or electrolytes, and monitor closely."
+        else ->
+            "Hypertensive Crisis Alert: Rest for 5 minutes and re-test. If readings remain elevated, contact emergency medical care immediately."
+    }
+
+    val (fallbackExplanation, fallbackActivity, fallbackTip) = when {
+        !hasBp -> Triple(
+            "No blood pressure measurements are logged yet. Measure while seated with back supported and your arm resting at heart level.",
+            "Sit quietly for 5 minutes with feet flat on the floor before recording BP.",
+            "Avoid caffeine, smoking, or brisk exercise 30 minutes prior to cuff testing."
+        )
+        bpEval.statusTitle == "Low Blood Pressure (Hypotension)" -> Triple(
+            "Your blood pressure of $currentSys/$currentDia mmHg is below healthy bounds (Hypotension: systolic < 90 or diastolic < 60 mmHg). Insufficient arterial pressure can reduce oxygen perfusion to your brain.",
+            "Avoid sudden posture changes or vigorous standing exertion; sit or rest comfortably with legs slightly elevated.",
+            "Drink 300–500 ml of water or electrolytes slowly and seek prompt medical advice if dizziness or blurred vision occurs."
+        )
+        bpEval.statusTitle == "Hypertensive Crisis" -> Triple(
+            "Your reading of $currentSys/$currentDia mmHg reaches the Hypertensive Crisis threshold (>= 180 systolic or >= 120 diastolic). Severely elevated arterial pressure stresses blood vessels and organs.",
+            "Avoid all physical exertion; sit quietly calmly and re-test after 5 minutes.",
+            "Seek emergency medical evaluation immediately if repeat values stay critical or symptoms appear."
+        )
+        bpEval.statusTitle == "Stage 2 Hypertension" -> Triple(
+            "Your blood pressure of $currentSys/$currentDia mmHg falls inside Stage 2 Hypertension (>= 140 systolic or >= 90 diastolic). Sustained arterial resistance in this band should be tracked consistently and shared with a physician.",
+            "Perform gentle mobility stretching and paced deep breathing; avoid heavy isometric straining.",
+            "Keep sodium intake below 1,500 mg daily, pace water intake, and log a resting morning follow-up."
+        )
+        bpEval.statusTitle == "Stage 1 Hypertension" -> Triple(
+            "Your reading of $currentSys/$currentDia mmHg classifies as Stage 1 Hypertension (130–139 systolic or 80–89 diastolic). Mild increases in arterial tone respond well to consistent aerobic pacing and reduced dietary sodium.",
+            "Take an easy 20-minute walk to support endothelial nitric oxide release and lower vascular resistance.",
+            "Choose potassium-rich foods (leafy greens, bananas), hydrate steadily, and unwind stress."
+        )
+        bpEval.statusTitle == "Elevated Blood Pressure" -> Triple(
+            "Your blood pressure of $currentSys/$currentDia mmHg is in the Elevated Blood Pressure range (120–129 systolic with diastolic below 80). Addressing mild systolic pressure early protects long-term arterial flexibility.",
+            "Enjoy a brisk 20–30 minute walk or gentle cycling session.",
+            "Moderate salt intake, ensure steady hydration, and maintain regular sleep hours."
+        )
+        else -> Triple(
+            "Your blood pressure of $currentSys/$currentDia mmHg sits cleanly within Optimal Blood Pressure (90–119 / 60–79 mmHg). Vascular load and resting arterial tension look healthy right now.",
+            "Cleared for regular cardio, resistance workouts, or daily brisk activity.",
+            "Keep balanced nutrition, hydration, and calm sleep habits to sustain normal arterial pressure."
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFFAFCFB))
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+            .padding(horizontal = 20.dp)
+            .verticalScroll(rememberScrollState())
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
+        Spacer(modifier = Modifier.height(16.dp))
+
+        VitalDetailTopBar(
+            title = "Blood Pressure",
+            actionLabel = "+ Log BP",
+            onBackClick = onBackClick,
+            onActionClick = onAddReadingClick
+        )
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // Hero Vital Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Header Bar
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        BackArrowIcon(
-                            modifier = Modifier.size(20.dp),
-                            color = Color(0xFF111827)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = "Blood Pressure",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFF1F5F9)),
-                    contentAlignment = Alignment.Center
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CalendarIcon(modifier = Modifier.size(18.dp))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Latest Reading Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Latest Reading",
-                            fontSize = 13.sp,
-                            color = Color(0xFF6B7280)
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFE6F4EA))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = if (systolic > 0 && diastolic > 0) status else "No data",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (systolic > 0 && diastolic > 0) Color(0xFF0F9F7A) else Color(0xFF6B7280)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = if (systolic > 0 && diastolic > 0) "$systolic / $diastolic" else "-- / --",
-                            fontSize = 36.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "mmHg",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6B7280),
-                            modifier = Modifier.padding(bottom = 6.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
                     Text(
-                        text = if (systolic > 0 && diastolic > 0) "Recorded at rest" else "No readings recorded yet",
-                        fontSize = 12.sp,
-                        color = Color(0xFF9CA3AF)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Blood Pressure Trend Chart Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Blood pressure trend",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
-                        )
-
-                        Text(
-                            text = "7 days",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF0F9F7A)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text(text = "● Systolic (High/Med)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
-                        Text(text = "● Diastolic", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Animated Dual Trend Lines Chart
-                    var targetProgress by remember { mutableFloatStateOf(0f) }
-                    LaunchedEffect(Unit) {
-                        targetProgress = 1f
-                    }
-                    val chartProgress by animateFloatAsState(
-                        targetValue = targetProgress,
-                        animationSpec = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
-                        label = "BpTrendLinesAnimation"
+                        text = "Arterial Pressure",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Canvas(
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(110.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(statusBg)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
-                        val w = size.width
-                        val h = size.height
-
-                        // Systolic Full Path
-                        val sysFullPath = Path().apply {
-                            moveTo(0f, h * 0.25f)
-                            cubicTo(w * 0.12f, h * 0.22f, w * 0.20f, h * 0.22f, w * 0.25f, h * 0.22f)
-                            cubicTo(w * 0.38f, h * 0.30f, w * 0.42f, h * 0.30f, w * 0.50f, h * 0.30f)
-                            cubicTo(w * 0.62f, h * 0.20f, w * 0.68f, h * 0.20f, w * 0.75f, h * 0.20f)
-                            cubicTo(w * 0.88f, h * 0.25f, w * 0.95f, h * 0.25f, w, h * 0.25f)
-                        }
-
-                        // Diastolic Full Path
-                        val diaFullPath = Path().apply {
-                            moveTo(0f, h * 0.70f)
-                            cubicTo(w * 0.12f, h * 0.68f, w * 0.20f, h * 0.68f, w * 0.25f, h * 0.68f)
-                            cubicTo(w * 0.38f, h * 0.75f, w * 0.42f, h * 0.75f, w * 0.50f, h * 0.75f)
-                            cubicTo(w * 0.62f, h * 0.65f, w * 0.68f, h * 0.65f, w * 0.75f, h * 0.65f)
-                            cubicTo(w * 0.88f, h * 0.70f, w * 0.95f, h * 0.70f, w, h * 0.70f)
-                        }
-
-                        val sysMeasure = PathMeasure().apply { setPath(sysFullPath, false) }
-                        val diaMeasure = PathMeasure().apply { setPath(diaFullPath, false) }
-
-                        val sysAnimatedPath = Path()
-                        val diaAnimatedPath = Path()
-
-                        sysMeasure.getSegment(0f, sysMeasure.length * chartProgress, sysAnimatedPath, true)
-                        diaMeasure.getSegment(0f, diaMeasure.length * chartProgress, diaAnimatedPath, true)
-
-                        if (chartProgress > 0f) {
-                            // Systolic Area Fill
-                            val sysFill = Path().apply {
-                                addPath(sysAnimatedPath)
-                                lineTo(w * chartProgress, h)
-                                lineTo(0f, h)
-                                close()
-                            }
-                            drawPath(
-                                path = sysFill,
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(Color(0x300F9F7A), Color(0x000F9F7A))
-                                )
-                            )
-
-                            // Animated Systolic Line (Normal - Green)
-                            drawPath(
-                                path = sysAnimatedPath,
-                                color = Color(0xFF0F9F7A),
-                                style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                            )
-
-                            // Animated Diastolic Line (Optimal - Cyan)
-                            drawPath(
-                                path = diaAnimatedPath,
-                                color = Color(0xFF38BDF8),
-                                style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        listOf("M", "T", "W", "T", "F", "S", "S").forEach { day ->
-                            Text(text = day, fontSize = 12.sp, color = Color(0xFF9CA3AF))
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Recent Readings History (With Color-Coded Normal - Green, Med - Yellow, High - Red)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        text = "Recent readings",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    if (systolic > 0 && diastolic > 0) {
-                        BpHistoryRow(
-                            reading = "$systolic/$diastolic mmHg",
-                            time = "Latest Reading",
-                            status = status,
-                            textColor = if (systolic <= 120 && diastolic <= 80) Color(0xFF0F9F7A) else Color(0xFFF59E0B),
-                            bgColor = if (systolic <= 120 && diastolic <= 80) Color(0xFFE6F4EA) else Color(0xFFFEF3C7)
-                        )
-                    } else {
                         Text(
-                            text = "No readings recorded yet",
-                            fontSize = 14.sp,
-                            color = Color(0xFF9CA3AF)
+                            text = statusLabel,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = statusColor
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = if (hasBp) "$currentSys / $currentDia" else "-- / --",
+                        fontSize = 38.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "mmHg",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 7.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = recordedLabel,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // Add Reading Button
-        Button(
-            onClick = onAddReadingClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp)
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = VitalTealDark,
-                contentColor = Color.White
-            )
-        ) {
-            Text(
-                text = "+ Add Reading",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-private fun BpHistoryRow(
-    reading: String,
-    time: String,
-    status: String,
-    textColor: Color,
-    bgColor: Color
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(text = reading, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            Text(text = time, fontSize = 12.sp, color = Color(0xFF9CA3AF), modifier = Modifier.padding(top = 2.dp))
+        if (showMedicalBanner) {
+            Spacer(modifier = Modifier.height(14.dp))
+            VitalMedicalAlertBanner(message = medicalBannerText)
         }
 
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
-                .background(bgColor)
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-        ) {
-            Text(
-                text = status,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = textColor
-            )
-        }
-    }
-}
+        Spacer(modifier = Modifier.height(16.dp))
 
-@Composable
-private fun BackArrowIcon(
-    modifier: Modifier = Modifier,
-    color: Color = Color.Black
-) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
+        VitalOllamaGuidanceCard(
+            isLoading = isDetailLoading,
+            modelUsed = detailState?.modelUsed,
+            explanation = detailState?.explanation?.takeIf { it.isNotBlank() } ?: fallbackExplanation,
+            recommendedActivity = detailState?.recommendedActivity?.takeIf { it.isNotBlank() } ?: fallbackActivity,
+            lifestyleTip = detailState?.lifestyleTip?.takeIf { it.isNotBlank() } ?: fallbackTip
+        )
 
-        val path = Path().apply {
-            moveTo(w * 0.75f, h * 0.5f)
-            lineTo(w * 0.25f, h * 0.5f)
-            moveTo(w * 0.45f, h * 0.25f)
-            lineTo(w * 0.25f, h * 0.5f)
-            lineTo(w * 0.45f, h * 0.75f)
-        }
+        Spacer(modifier = Modifier.height(16.dp))
 
-        drawPath(path = path, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-    }
-}
+        VitalRecentLogsCard(
+            title = "Recent BP Logs",
+            logs = detailState?.recentLogs.orEmpty(),
+            emptyMessage = "No blood pressure logs recorded yet. Tap '+ Log BP' to record your cuff measurement."
+        )
 
-@Composable
-private fun CalendarIcon(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        val calPath = Path().apply {
-            moveTo(0f, h * 0.25f)
-            lineTo(w, h * 0.25f)
-            lineTo(w, h * 0.85f)
-            lineTo(0f, h * 0.85f)
-            close()
-        }
-
-        drawPath(path = calPath, color = Color(0xFF6B7280), style = Stroke(width = 1.6.dp.toPx()))
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
@@ -453,6 +233,6 @@ private fun CalendarIcon(modifier: Modifier = Modifier) {
 @Composable
 fun BloodPressureDetailScreenPreview() {
     VitalsyncTheme {
-        BloodPressureDetailScreen()
+        BloodPressureDetailScreen(systolic = 118, diastolic = 76)
     }
 }

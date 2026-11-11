@@ -19,6 +19,12 @@ object ApiConstants {
     const val EMULATOR_BASE_URL = "http://10.0.2.2/vitalsync-backend/"
 
     /**
+     * Physical device over USB with ADB reverse (`adb reverse tcp:80 tcp:80`).
+     */
+    const val ADB_LOCALHOST_BASE_URL = "http://127.0.0.1/vitalsync-backend/"
+    const val LOCALHOST_BASE_URL = "http://localhost/vitalsync-backend/"
+
+    /**
      * Optional remote DevTunnel URL (if running).
      */
     const val REMOTE_DEVTUNNEL_URL = "https://z11l1qr6-80.inc1.devtunnels.ms/vitalsync-backend/"
@@ -35,6 +41,11 @@ object ApiConstants {
                 || Build.MODEL.contains("google_sdk")
                 || Build.MODEL.contains("Emulator")
                 || Build.MODEL.contains("Android SDK built for x86")
+                || Build.MANUFACTURER.contains("Genymotion")
+                || Build.PRODUCT.contains("sdk_gphone")
+                || Build.PRODUCT.contains("emulator")
+                || Build.PRODUCT.contains("vbox86p")
+                || (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
                 || Build.HARDWARE.contains("goldfish")
                 || Build.HARDWARE.contains("ranchu")
 
@@ -46,10 +57,10 @@ object ApiConstants {
     val DEFAULT_BASE_URL: String
         get() = if (isRunningOnEmulator) EMULATOR_BASE_URL else LAN_BASE_URL
 
-    // Fast-fail network timeout settings so offline/unreachable servers never hang startup
-    const val CONNECT_TIMEOUT_SECONDS = 5L
-    const val READ_TIMEOUT_SECONDS = 15L
-    const val WRITE_TIMEOUT_SECONDS = 10L
+    // Resilient timeouts supporting both fast API calls and 15-30s+ local Ollama inference
+    const val CONNECT_TIMEOUT_SECONDS = 15L
+    const val READ_TIMEOUT_SECONDS = 60L
+    const val WRITE_TIMEOUT_SECONDS = 30L
 
     fun resolveNetworkErrorMessage(
         throwable: Throwable?,

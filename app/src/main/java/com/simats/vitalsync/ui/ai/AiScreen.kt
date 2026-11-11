@@ -56,9 +56,7 @@ fun AiScreen(
     aiInsightSummary: String? = null,
     aiInsight: AiInsightResponse? = null,
     isInsightLoading: Boolean = false,
-    isBtConnected: Boolean = false,
     weeklyReport: WeeklyReportDto? = null,
-    onPairWatchClick: () -> Unit = {},
     onAskAiClick: () -> Unit = {}
 ) {
     val metrics = weeklyReport?.metrics
@@ -91,14 +89,13 @@ fun AiScreen(
     val avgHr = metrics?.avgHrBpm ?: 0
     val hrTrendValue = when {
         avgHr > 0 -> "$avgHr BPM"
-        !isBtConnected -> "No Device"
         !metrics?.heartRateAvg.isNullOrBlank() && metrics?.heartRateAvg != "-- BPM" -> metrics!!.heartRateAvg
-        else -> "--"
+        else -> "-- BPM"
     }
     val hrTrendSub = when {
         avgHr > 0 -> "7d average"
-        !isBtConnected -> "Pair wearable"
-        else -> "No readings"
+        !metrics?.heartRateAvg.isNullOrBlank() && metrics?.heartRateAvg != "-- BPM" -> "7d average"
+        else -> "No readings yet"
     }
 
     Column(

@@ -104,9 +104,9 @@ import com.simats.vitalsync.ui.profile.ProfileSetupScreen
 import com.simats.vitalsync.ui.profile.RemindersScreen
 import com.simats.vitalsync.ui.profile.SettingsScreen
 import com.simats.vitalsync.ui.profile.VersionScreen
-import com.simats.vitalsync.data.device.HealthDeviceManager
-import com.simats.vitalsync.data.device.DeviceConnectionStatus
-import com.simats.vitalsync.ui.home.BlePairingBottomSheet
+import com.simats.vitalsync.ui.vitals.LogBloodPressureSheet
+import com.simats.vitalsync.ui.vitals.LogHeartRateSheet
+import com.simats.vitalsync.ui.vitals.LogSpo2Sheet
 import com.simats.vitalsync.ui.vitals.HeartRateViewModel
 import com.simats.vitalsync.ui.vitals.HeartRateViewModelFactory
 import com.simats.vitalsync.ui.profile.viewmodel.ProfileViewModel
@@ -142,6 +142,8 @@ import androidx.activity.compose.BackHandler
 import com.simats.vitalsync.data.sensor.StepSensorManager
 import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
+import com.simats.vitalsync.data.model.ai.MetricEvaluationDto
+import com.simats.vitalsync.data.model.vitals.evaluateBloodPressure
 import com.simats.vitalsync.ui.theme.SleepColorStandards
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -268,15 +270,6 @@ class MainActivity : ComponentActivity() {
                 )
                 val aiUiState by aiViewModel.uiState.collectAsState()
 
-                val deviceManager = remember { HealthDeviceManager.getInstance(applicationContext) }
-                val coroutineScope = rememberCoroutineScope()
-                val deviceConnStatus by deviceManager.connectionStatus.collectAsState()
-                val connectedDeviceName by deviceManager.connectedDeviceName.collectAsState()
-                val connectedDeviceAddress by deviceManager.connectedDeviceAddress.collectAsState()
-                val deviceBatteryLevel by deviceManager.batteryLevel.collectAsState()
-                val deviceLastSync by deviceManager.lastSyncTimestamp.collectAsState()
-                val discoveredDevicesList by deviceManager.discoveredDevices.collectAsState()
-                val liveMetrics by deviceManager.liveMetrics.collectAsState()
                 val stepSensorManager = remember { StepSensorManager.getInstance(applicationContext) }
                 val livePhoneSteps by stepSensorManager.liveSteps.collectAsState()
                 val livePhoneDistanceKm by stepSensorManager.liveDistanceKm.collectAsState()
@@ -285,7 +278,7 @@ class MainActivity : ComponentActivity() {
 
                 val activityRecognitionLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestPermission()
-                ) { isGranted ->
+                ) { _ ->
                     stepSensorManager.startTracking()
                 }
 
@@ -304,7 +297,7 @@ class MainActivity : ComponentActivity() {
                 val activitySummaryState by activityViewModel.summaryState.collectAsState()
                 val activityStepGoalState by activityViewModel.stepGoalState.collectAsState()
                 val activitySessionsState by activityViewModel.sessionsState.collectAsState()
-                var showBlePairingSheet by remember { mutableStateOf(false) }
+                var activeVitalSheet by remember { mutableStateOf<VitalReadingType?>(null) }
 
                 // Current logged-in user email
                 val currentUser = authViewModel.getLoggedInUser()
@@ -321,13 +314,15 @@ class MainActivity : ComponentActivity() {
                 val weeklyReportState by profileViewModel.weeklyReportState.collectAsState()
 
                 val vitalsSummaryState by vitalsViewModel.summaryState.collectAsState()
+                val manualLogState by vitalsViewModel.manualLogState.collectAsState()
+                val hrDetailState by vitalsViewModel.hrDetailState.collectAsState()
+                val spo2DetailState by vitalsViewModel.spo2DetailState.collectAsState()
+                val bpDetailState by vitalsViewModel.bpDetailState.collectAsState()
                 val vitalsAiInsight by vitalsViewModel.aiInsightState.collectAsState()
                 val isVitalsAiLoading by vitalsViewModel.isAiInsightLoading.collectAsState()
-                val isBtConnected = (deviceConnStatus == DeviceConnectionStatus.CONNECTED)
 
                 LaunchedEffect(currentEmail) {
                     if (currentEmail.isNotBlank()) {
-                        deviceManager.userEmail = currentEmail
                         // Launch critical startup telemetry asynchronously without blocking UI render
                         profileViewModel.fetchProfile(email = currentEmail)
                         vitalsViewModel.fetchSummary(email = currentEmail)
@@ -496,49 +491,33 @@ class MainActivity : ComponentActivity() {
 
                 val todayPrefix = remember(currentScreen, nutritionRefreshTrigger) { repository.getTodayDateString() }
 
-                val isLiveHr = liveMetrics.heartRate != null && liveMetrics.heartRate!! > 0
-                val hasTodayHrSummary = hrSummary != null && hrSummary.bpm > 0 && hrSummary.recordedAt.startsWith(todayPrefix)
-                val effectiveHrBpm: Int? = when {
-                    isLiveHr -> liveMetrics.heartRate
-                    hasTodayHrSummary -> hrSummary!!.bpm
-                    else -> null
-                }
-                val heartRateFormatted = effectiveHrBpm?.let { "$it BPM" } ?: "--"
-                val heartRateStatusFormatted = when {
-                    isLiveHr -> "Live"
-                    hasTodayHrSummary -> hrSummary!!.status
-                    !isBtConnected -> "No Device Connected"
-                    else -> "Connect Sensor to Track"
-                }
+                val hasTodayHrSummary = hrSummary != null && hrSummary.bpm > 0 &&
+                    (hrSummary.hasData || hrSummary.recordedAt.startsWith(todayPrefix))
+                val effectiveHrBpm: Int? = if (hasTodayHrSummary) hrSummary!!.bpm else null
+                val heartRateFormatted = effectiveHrBpm?.let { "$it BPM" } ?: "-- BPM"
+                val heartRateStatusFormatted = if (hasTodayHrSummary) hrSummary!!.status else "Tap to log"
+                val heartRateTrendFormatted = if (hasTodayHrSummary) hrSummary!!.trend else null
 
-                val isLiveSpo2 = liveMetrics.spo2 != null && liveMetrics.spo2!! > 0
-                val hasTodaySpo2Summary = spo2Summary != null && spo2Summary.percentage > 0 && spo2Summary.recordedAt.startsWith(todayPrefix)
-                val effectiveSpo2Pct: Int? = when {
-                    isLiveSpo2 -> liveMetrics.spo2
-                    hasTodaySpo2Summary -> spo2Summary!!.percentage
-                    else -> null
-                }
-                val spo2Formatted = effectiveSpo2Pct?.let { "$it%" } ?: "--"
-                val spo2StatusFormatted = when {
-                    isLiveSpo2 -> "Live"
-                    hasTodaySpo2Summary -> spo2Summary!!.status
-                    !isBtConnected -> "No Device Connected"
-                    else -> "Connect Sensor to Track"
-                }
+                val hasTodaySpo2Summary = spo2Summary != null && spo2Summary.percentage > 0 &&
+                    (spo2Summary.hasData || spo2Summary.recordedAt.startsWith(todayPrefix))
+                val effectiveSpo2Pct: Int? = if (hasTodaySpo2Summary) spo2Summary!!.percentage else null
+                val spo2Formatted = effectiveSpo2Pct?.let { "$it%" } ?: "--%"
+                val spo2StatusFormatted = if (hasTodaySpo2Summary) spo2Summary!!.status else "Tap to log"
+                val spo2TrendFormatted = if (hasTodaySpo2Summary) spo2Summary!!.trend else null
 
-                val isLiveBp = liveMetrics.bloodPressure != null && liveMetrics.bloodPressure!!.first > 0 && liveMetrics.bloodPressure!!.second > 0
-                val hasTodayBpSummary = bpSummary != null && bpSummary.systolic > 0 && bpSummary.diastolic > 0 && bpSummary.recordedAt.startsWith(todayPrefix)
-                val bpFormatted = when {
-                    isLiveBp -> "${liveMetrics.bloodPressure!!.first}/${liveMetrics.bloodPressure!!.second}"
-                    hasTodayBpSummary -> "${bpSummary!!.systolic}/${bpSummary.diastolic}"
-                    else -> "--/--"
+                val hasTodayBpSummary = bpSummary != null && bpSummary.systolic > 0 && bpSummary.diastolic > 0 &&
+                    (bpSummary.hasData || bpSummary.recordedAt.startsWith(todayPrefix))
+                val bpFormatted = if (hasTodayBpSummary) {
+                    "${bpSummary!!.systolic}/${bpSummary.diastolic} mmHg"
+                } else {
+                    "--/-- mmHg"
                 }
-                val bpStatusFormatted = when {
-                    isLiveBp -> "Live"
-                    hasTodayBpSummary -> bpSummary!!.status
-                    !isBtConnected -> "No Device Connected"
-                    else -> "Connect Sensor to Track"
+                val bpStatusFormatted = if (hasTodayBpSummary) {
+                    evaluateBloodPressure(bpSummary!!.systolic, bpSummary.diastolic).statusTitle
+                } else {
+                    "Tap to log"
                 }
+                val bpTrendFormatted = if (hasTodayBpSummary) bpSummary!!.trend else null
 
                 val todayRecords = remember(currentScreen, nutritionRefreshTrigger) {
                     val today = repository.getTodayDateString()
@@ -603,12 +582,9 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                val liveWatchSteps = liveMetrics.steps
-                val hasWatchSteps = liveWatchSteps != null && liveWatchSteps > 0
                 val hasPhoneLiveSteps = livePhoneSteps > 0
 
                 val currentEffectiveSteps = maxOf(
-                    if (hasWatchSteps) liveWatchSteps!! else 0,
                     livePhoneSteps,
                     stepsSummary?.current ?: 0,
                     localTodaySteps
@@ -636,7 +612,6 @@ class MainActivity : ComponentActivity() {
                     currentEffectiveSteps / 100
                 )
 
-                val isLiveSteps = hasWatchSteps || hasPhoneLiveSteps
                 val stepsFormatted = if (currentEffectiveSteps > 0) {
                     String.format(Locale.US, "%,d", currentEffectiveSteps)
                 } else {
@@ -645,7 +620,6 @@ class MainActivity : ComponentActivity() {
 
                 val stepsStatusFormatted = when {
                     currentEffectiveSteps > 0 -> "$effectiveProgressPercent% of goal"
-                    hasWatchSteps -> "From Watch"
                     hasPhoneLiveSteps -> "Live Sensor"
                     else -> "No data"
                 }
@@ -755,10 +729,13 @@ class MainActivity : ComponentActivity() {
 
                 val liveSleepScore = evaluatedSleepScore
 
+                val hasMeasuredBiometricsToday = (effectiveHrBpm != null || effectiveSpo2Pct != null || hasTodayBpSummary)
+
                 val localSynthesizedInsight = remember(
-                    isBtConnected,
                     effectiveHrBpm,
                     effectiveSpo2Pct,
+                    hasTodayBpSummary,
+                    bpSummary,
                     currentEffectiveSteps,
                     effectiveGoal,
                     todaySleepMinutes,
@@ -766,110 +743,272 @@ class MainActivity : ComponentActivity() {
                     targetWaterMl,
                     wellnessScoreVal
                 ) {
-                    val clauses = mutableListOf<String>()
-                    if (effectiveHrBpm != null) {
-                        clauses += when {
-                            effectiveHrBpm < 60 -> "Resting heart rate is low/athletic at $effectiveHrBpm BPM."
-                            effectiveHrBpm <= 100 -> "Resting heart rate of $effectiveHrBpm BPM is in a normal recovery range."
-                            else -> "Heart rate is elevated at $effectiveHrBpm BPM, which may indicate strain or fatigue."
-                        }
-                    }
-                    if (effectiveSpo2Pct != null) {
-                        clauses += if (effectiveSpo2Pct >= 95) {
-                            "SpO2 is healthy at $effectiveSpo2Pct%."
+                    val evaluations = mutableListOf<MetricEvaluationDto>()
+                    val optimalClauses = mutableListOf<String>()
+                    val concernClauses = mutableListOf<String>()
+                    var lowestMetricName = "Hydration"
+                    var lowestSeverity = -1
+                    var lowestNormScore = 101f
+                    var lowestActionTip = "Keep building steady hydration, movement, and sleep habits today."
+                    var hasAlert = false
+
+                    fun registerMetric(
+                        metric: String,
+                        valueLabel: String,
+                        status: String,
+                        tier: String,
+                        severity: Int,
+                        normScore: Float,
+                        clause: String,
+                        action: String
+                    ) {
+                        evaluations += MetricEvaluationDto(metric, valueLabel, status, tier, severity)
+                        if (severity == 0) {
+                            optimalClauses += clause
                         } else {
-                            "SpO2 is sub-optimal at $effectiveSpo2Pct%."
+                            concernClauses += clause
+                        }
+                        if (tier == "Alert" || tier == "Low / Alert") {
+                            hasAlert = true
+                        }
+                        if (severity > lowestSeverity || (severity == lowestSeverity && normScore < lowestNormScore)) {
+                            lowestSeverity = severity
+                            lowestNormScore = normScore
+                            lowestMetricName = metric
+                            lowestActionTip = action
                         }
                     }
-                    val stepsPctRaw = if (effectiveGoal > 0) (currentEffectiveSteps.toFloat() / effectiveGoal) * 100f else 0f
-                    val stepsFmt = String.format(Locale.US, "%,d", currentEffectiveSteps)
-                    val stepGoalFmt = String.format(Locale.US, "%,d", effectiveGoal)
-                    val stepClause = when {
-                        stepsPctRaw < 50f ->
-                            "You have completed $stepsFmt of your $stepGoalFmt daily step goal. A 20-minute brisk walk will help you close the gap."
-                        stepsPctRaw < 100f -> {
-                            val remStepsFmt = String.format(Locale.US, "%,d", maxOf(0, effectiveGoal - currentEffectiveSteps))
-                            "Good progress! You're only $remStepsFmt steps away from hitting your personalized $stepGoalFmt-step target."
-                        }
-                        else -> {
-                            val excessFmt = String.format(Locale.US, "%,d", maxOf(0, currentEffectiveSteps - effectiveGoal))
-                            "Target unlocked! You exceeded your $stepGoalFmt-step goal by $excessFmt steps today."
+
+                    if (effectiveHrBpm != null) {
+                        when {
+                            effectiveHrBpm < 60 -> registerMetric(
+                                "Heart Rate", "$effectiveHrBpm bpm", "Resting/Athletic", "Optimal", 0, 95f,
+                                "Resting heart rate is Optimal (Resting/Athletic) at $effectiveHrBpm bpm.",
+                                "Maintain your steady recovery pacing while keeping heart rate at $effectiveHrBpm bpm."
+                            )
+                            effectiveHrBpm <= 100 -> registerMetric(
+                                "Heart Rate", "$effectiveHrBpm bpm", "Normal Resting", "Optimal", 0, 92f,
+                                "Heart rate is Optimal (Normal Resting) at $effectiveHrBpm bpm.",
+                                "Keep resting heart rate steady around $effectiveHrBpm bpm with light movement and hydration."
+                            )
+                            effectiveHrBpm <= 120 -> registerMetric(
+                                "Heart Rate", "$effectiveHrBpm bpm", "Elevated", "Needs Attention", 1, 55f,
+                                "Heart rate is Elevated at $effectiveHrBpm bpm, signaling mild strain or stress.",
+                                "Take 5 minutes of slow nasal breathing and rehydrate to lower your $effectiveHrBpm bpm heart rate."
+                            )
+                            else -> registerMetric(
+                                "Heart Rate", "$effectiveHrBpm bpm", "High", "Alert", 2, 20f,
+                                "Heart rate is High (Alert) at $effectiveHrBpm bpm and warrants seated rest.",
+                                "Pause strenuous effort, rest quietly, hydrate slowly, and recheck your $effectiveHrBpm bpm reading."
+                            )
                         }
                     }
-                    val sleepHoursVal = todaySleepMinutes / 60.0
-                    val sleepClause = when {
-                        todaySleepMinutes <= 0 -> "No sleep has been logged yet today."
-                        sleepHoursVal < 6.0 -> "Sleep quality is Poor at $sleepDurationFormatted (Score $evaluatedSleepScore)."
-                        sleepHoursVal < 7.0 -> "Sleep quality is Fair at $sleepDurationFormatted (Score $evaluatedSleepScore)."
-                        sleepHoursVal <= 8.5 -> "Sleep quality is Optimal at $sleepDurationFormatted (Score $evaluatedSleepScore)."
-                        else -> "Sleep quality is Excellent at $sleepDurationFormatted (Score $evaluatedSleepScore)."
+
+                    if (effectiveSpo2Pct != null) {
+                        when {
+                            effectiveSpo2Pct >= 95 -> registerMetric(
+                                "SpO2", "$effectiveSpo2Pct%", "Optimal Oxygenation", "Optimal", 0, 98f,
+                                "Blood oxygen is Optimal at $effectiveSpo2Pct% SpO2.",
+                                "Blood oxygen is optimal at $effectiveSpo2Pct%; continue steady nasal breathing."
+                            )
+                            effectiveSpo2Pct >= 90 -> registerMetric(
+                                "SpO2", "$effectiveSpo2Pct%", "Mild Hypoxia", "Needs Attention", 1, 50f,
+                                "SpO2 shows Mild Hypoxia at $effectiveSpo2Pct%, below the 95% optimal threshold.",
+                                "Move to a well-ventilated space, practice slow diaphragmatic breathing, and recheck $effectiveSpo2Pct% SpO2."
+                            )
+                            else -> registerMetric(
+                                "SpO2", "$effectiveSpo2Pct%", "Low Oxygen", "Alert", 2, 15f,
+                                "SpO2 is critically low at $effectiveSpo2Pct% (Alert) and requires prompt rest and monitoring.",
+                                "Rest upright in fresh air immediately and seek medical evaluation if SpO2 remains below 92% ($effectiveSpo2Pct%)."
+                            )
+                        }
                     }
-                    clauses += "$stepClause $sleepClause"
+
+                    if (hasTodayBpSummary && bpSummary != null) {
+                        val sys = bpSummary.systolic
+                        val dia = bpSummary.diastolic
+                        val bpVal = "$sys/$dia mmHg"
+                        val bpEval = evaluateBloodPressure(sys, dia)
+                        when (bpEval.statusTitle) {
+                            "Low Blood Pressure (Hypotension)" -> registerMetric(
+                                "Blood Pressure", bpVal, bpEval.statusTitle, bpEval.tier, 2,
+                                if (sys < 80 || dia < 50) 10f else 18f,
+                                "Blood pressure is Critically Low (Hypotension Alert) at $bpVal (< 90 systolic or < 60 diastolic).",
+                                "Sit or lie down slowly, hydrate with fluids and electrolytes, and consult a healthcare provider if dizzy near $bpVal."
+                            )
+                            "Hypertensive Crisis" -> registerMetric(
+                                "Blood Pressure", bpVal, bpEval.statusTitle, bpEval.tier, 2, 10f,
+                                "Blood pressure sits in Hypertensive Crisis (Alert) at $bpVal.",
+                                "Sit quietly for 5 minutes and recheck $bpVal; seek immediate medical attention if elevated pressure persists."
+                            )
+                            "Stage 2 Hypertension" -> registerMetric(
+                                "Blood Pressure", bpVal, bpEval.statusTitle, bpEval.tier, 2, 25f,
+                                "Blood pressure falls in Stage 2 Hypertension at $bpVal.",
+                                "Limit sodium below 1,500 mg today, avoid heavy straining, and consult a healthcare provider regarding $bpVal."
+                            )
+                            "Stage 1 Hypertension" -> registerMetric(
+                                "Blood Pressure", bpVal, bpEval.statusTitle, bpEval.tier, 1, 45f,
+                                "Blood pressure sits in Stage 1 Hypertension at $bpVal.",
+                                "Rest quietly for 10 minutes, keep sodium low today, and take a calm 20-minute walk to support $bpVal."
+                            )
+                            "Elevated Blood Pressure" -> registerMetric(
+                                "Blood Pressure", bpVal, bpEval.statusTitle, bpEval.tier, 1, 65f,
+                                "Blood pressure is Elevated at $bpVal (120\u2013129 systolic with diastolic below 80).",
+                                "Choose potassium-rich foods over salty snacks and take a calm 15-minute walk to ease $bpVal."
+                            )
+                            else -> registerMetric(
+                                "Blood Pressure", bpVal, bpEval.statusTitle, bpEval.tier, 0, 95f,
+                                "Blood pressure is Optimal at $bpVal.",
+                                "Maintain balanced meals and steady hydration to keep blood pressure near $bpVal."
+                            )
+                        }
+                    }
 
                     val hydPctRaw = if (targetWaterMl > 0) (consumedWaterMl.toFloat() / targetWaterMl) * 100f else 0f
                     val remMl = maxOf(0, targetWaterMl - consumedWaterMl)
                     val waterFmt = String.format(Locale.US, "%,d", consumedWaterMl)
                     val targetWaterFmt = String.format(Locale.US, "%,d", targetWaterMl)
                     val remWaterFmt = String.format(Locale.US, "%,d", remMl)
-                    val hydClause = when {
-                        hydPctRaw < 40f ->
-                            "Water intake is critically low ($waterFmt / $targetWaterFmt ml, $remWaterFmt ml remaining). Dehydration can lead to acute mental fatigue, headaches, decreased muscle recovery, and sluggish metabolism. Drink 1\u20132 glasses immediately to restore fluid balance."
-                        hydPctRaw < 75f ->
-                            "Intake is lagging behind your daily goal ($waterFmt / $targetWaterFmt ml, $remWaterFmt ml remaining). Insufficient hydration can trigger false hunger cues, reduce physical endurance, and elevate resting heart rate. Try keeping a water bottle nearby to sip consistently."
-                        hydPctRaw < 100f ->
-                            "You're close to your hydration target ($waterFmt / $targetWaterFmt ml)! Just $remWaterFmt ml remaining to ensure optimal electrolyte balance and physical performance."
-                        else ->
-                            "Daily hydration goal achieved ($waterFmt / $targetWaterFmt ml)! Optimal fluid balance supports muscle recovery and cognitive clarity. Maintain steady intake if working out."
-                    }
-                    clauses += if (effectiveHrBpm == null && effectiveSpo2Pct == null && !isBtConnected) {
-                        "$hydClause Pair a wearable device to monitor resting heart rate and recovery metrics in real time."
-                    } else {
-                        hydClause
+                    when {
+                        hydPctRaw >= 80f -> registerMetric(
+                            "Hydration", "$waterFmt/$targetWaterFmt ml", "Well Hydrated", "Optimal", 0, minOf(100f, hydPctRaw),
+                            "Hydration is Optimal at $waterFmt / $targetWaterFmt ml (${hydPctRaw.roundToInt()}%).",
+                            "Finish the remaining $remWaterFmt ml gradually today to reach your $targetWaterFmt ml goal."
+                        )
+                        hydPctRaw >= 40f -> registerMetric(
+                            "Hydration", "$waterFmt/$targetWaterFmt ml", "Below Target", "Needs Improvement", 1, hydPctRaw,
+                            "Hydration needs improvement at $waterFmt / $targetWaterFmt ml ($remWaterFmt ml remaining).",
+                            "Drink 400\u2013500 ml of water over the next 2 hours to close the $remWaterFmt ml gap toward $targetWaterFmt ml."
+                        )
+                        else -> registerMetric(
+                            "Hydration", "$waterFmt/$targetWaterFmt ml", "Critically Dehydrated", "Low / Alert", 2, hydPctRaw,
+                            "Hydration is Critically Low at $waterFmt / $targetWaterFmt ml ($remWaterFmt ml deficit).",
+                            "Drink 500 ml water right now and aim for ${String.format(Locale.US, "%,d", maxOf(500, (remMl * 0.6f).roundToInt()))} ml more before evening to avoid fatigue."
+                        )
                     }
 
-                    val tip = when {
-                        !isBtConnected && effectiveHrBpm == null ->
-                            "Pair a wearable device to monitor resting heart rate and recovery metrics in real time."
-                        hydPctRaw < 40f ->
-                            "Drink 1\u20132 glasses of water immediately ($remWaterFmt ml left) to avoid fatigue and headaches."
-                        hydPctRaw < 75f ->
-                            "Keep a water bottle nearby\u2014$remWaterFmt ml remaining to hit your $targetWaterFmt ml goal."
-                        currentEffectiveSteps < effectiveGoal ->
-                            "Take a 20-minute brisk walk to close the remaining ${String.format(Locale.US, "%,d", effectiveGoal - currentEffectiveSteps)} steps toward your $stepGoalFmt-step target."
-                        else ->
-                            "Target unlocked! Maintain steady hydration and restorative sleep tonight."
+                    val stepsPctRaw = if (effectiveGoal > 0) (currentEffectiveSteps.toFloat() / effectiveGoal) * 100f else 0f
+                    val stepsFmt = String.format(Locale.US, "%,d", currentEffectiveSteps)
+                    val stepGoalFmt = String.format(Locale.US, "%,d", effectiveGoal)
+                    val remSteps = maxOf(0, effectiveGoal - currentEffectiveSteps)
+                    val remStepsFmt = String.format(Locale.US, "%,d", remSteps)
+                    val stepAddBlock = String.format(Locale.US, "%,d", maxOf(1000, minOf(remSteps, 2500)))
+                    when {
+                        stepsPctRaw >= 70f -> registerMetric(
+                            "Activity", "$stepsFmt/$stepGoalFmt", "Active Day", "Optimal", 0, minOf(100f, stepsPctRaw),
+                            "Activity is Optimal at $stepsFmt / $stepGoalFmt steps (${stepsPctRaw.roundToInt()}%).",
+                            if (remSteps > 0) "Add a quick $remStepsFmt-step stroll to complete your $stepGoalFmt-step target." else "Maintain gentle stretching after exceeding your $stepGoalFmt-step goal."
+                        )
+                        stepsPctRaw >= 30f -> registerMetric(
+                            "Activity", "$stepsFmt/$stepGoalFmt", "Moderate Activity", "Needs Improvement", 1, stepsPctRaw,
+                            "Activity needs improvement at $stepsFmt / $stepGoalFmt steps ($remStepsFmt steps shy of goal).",
+                            "Take a brisk 20-minute walk to add ~$stepAddBlock steps toward your $stepGoalFmt-step goal."
+                        )
+                        else -> registerMetric(
+                            "Activity", "$stepsFmt/$stepGoalFmt", "Sedentary / Lagging", "Low", 2, stepsPctRaw,
+                            "Activity is Low at $stepsFmt / $stepGoalFmt steps ($remStepsFmt steps remaining today).",
+                            "Take a brisk 20-minute walk now to add ~$stepAddBlock steps toward your $stepGoalFmt-step goal."
+                        )
+                    }
+
+                    val sleepHoursVal = todaySleepMinutes / 60.0
+                    when {
+                        todaySleepMinutes <= 0 -> {
+                            evaluations += MetricEvaluationDto("Sleep", "Not logged", "Not Logged", "Not Logged", 0)
+                        }
+                        sleepHoursVal >= 7.0 -> registerMetric(
+                            "Sleep", sleepDurationFormatted, "Fully Rested", "Optimal", 0, minOf(100f, ((sleepHoursVal / 8.0) * 100.0).toFloat()),
+                            "Sleep is Optimal (Fully Rested) at $sleepDurationFormatted.",
+                            "Keep your steady bedtime schedule to maintain 7.0+ hrs of Optimal sleep."
+                        )
+                        sleepHoursVal >= 5.5 -> registerMetric(
+                            "Sleep", sleepDurationFormatted, "Mild Sleep Deficit", "Needs Improvement", 1, ((sleepHoursVal / 8.0) * 100.0).toFloat(),
+                            "Sleep needs improvement (Mild Sleep Deficit) at $sleepDurationFormatted.",
+                            "Wind down 45 minutes earlier tonight without screens to reach 7.5+ hrs of restorative sleep."
+                        )
+                        else -> registerMetric(
+                            "Sleep", sleepDurationFormatted, "Severe Sleep Deprivation", "Low / Alert", 2, maxOf(15f, ((sleepHoursVal / 8.0) * 100.0).toFloat()),
+                            "Sleep is Critically Low (Severe Sleep Deprivation) at $sleepDurationFormatted.",
+                            "Prioritize an early bedtime tonight to hit 7.5\u20138.0 hrs and recover from severe sleep deficit."
+                        )
+                    }
+
+                    val computedTier = when {
+                        hasAlert -> "ALERT"
+                        evaluations.any { it.severity >= 1 } -> "NEEDS_ATTENTION"
+                        else -> "OPTIMAL"
+                    }
+
+                    val headline = when (computedTier) {
+                        "OPTIMAL" -> if (hasMeasuredBiometricsToday) "Optimal Vitals & Habits" else "Strong Daily Balance"
+                        "ALERT" -> if (lowestMetricName in listOf("Blood Pressure", "SpO2", "Heart Rate")) "$lowestMetricName Alert" else "Priority Recovery Alert"
+                        else -> if (lowestSeverity >= 1) "$lowestMetricName Needs Focus" else "Steady Daily Progress"
+                    }
+
+                    val orderedSummaryParts = mutableListOf<String>()
+                    if (optimalClauses.isNotEmpty()) {
+                        orderedSummaryParts += optimalClauses.take(2).joinToString(" ")
+                    }
+                    if (concernClauses.isNotEmpty()) {
+                        orderedSummaryParts += concernClauses.take(2).joinToString(" ")
+                    }
+                    if (todaySleepMinutes <= 0) {
+                        orderedSummaryParts += "No sleep has been logged yet today."
+                    }
+                    if (!hasMeasuredBiometricsToday) {
+                        orderedSummaryParts += "Tap '+ Log Vitals' to record Heart Rate, SpO2, or Blood Pressure for complete cardiovascular grading."
+                    }
+
+                    val finalTip = if (computedTier == "OPTIMAL" && !hasMeasuredBiometricsToday) {
+                        "Great daily momentum! Tap '+ Log Vitals' on Home to record Heart Rate, SpO2, or Blood Pressure."
+                    } else {
+                        lowestActionTip
                     }
 
                     AiInsightResponse(
                         success = true,
                         score = wellnessScoreVal,
-                        statusTitle = if (wellnessScoreVal >= 80) "Strong Daily Wellness" else if (wellnessScoreVal >= 55) "Steady Daily Progress" else "Daily Telemetry Overview",
-                        summary = clauses.joinToString(" "),
-                        actionTip = tip,
-                        isBtConnected = isBtConnected,
+                        statusTitle = headline,
+                        overallTier = computedTier,
+                        summary = orderedSummaryParts.take(3).joinToString(" "),
+                        actionTip = finalTip,
+                        metricEvaluations = evaluations,
+                        isBtConnected = false,
                         modelUsed = "vitalsync:local-summary"
                     )
                 }
 
                 val rawRemoteInsight = aiUiState.aiInsight ?: vitalsAiInsight
-                val hasMeasuredBiometricsToday = (effectiveHrBpm != null || effectiveSpo2Pct != null || hasTodayBpSummary || isLiveBp)
                 val effectiveHomeAiInsight = if (rawRemoteInsight != null &&
                     rawRemoteInsight.summary.isNotBlank() &&
                     !rawRemoteInsight.summary.contains("adequate", ignoreCase = true) &&
+                    !rawRemoteInsight.summary.contains("bluetooth", ignoreCase = true) &&
+                    !rawRemoteInsight.summary.contains("smartwatch", ignoreCase = true) &&
+                    !rawRemoteInsight.summary.contains("wearable", ignoreCase = true) &&
                     (hasMeasuredBiometricsToday || (!rawRemoteInsight.summary.contains("72 bpm", ignoreCase = true) && !rawRemoteInsight.summary.contains("98%", ignoreCase = true) && !rawRemoteInsight.summary.contains("120/80")))
                 ) {
-                    rawRemoteInsight.copy(score = wellnessScoreVal)
+                    val resolvedEvaluations = rawRemoteInsight.metricEvaluations.ifEmpty {
+                        localSynthesizedInsight.metricEvaluations
+                    }
+                    val resolvedTier = rawRemoteInsight.overallTier.ifBlank {
+                        localSynthesizedInsight.overallTier
+                    }
+                    rawRemoteInsight.copy(
+                        score = wellnessScoreVal,
+                        overallTier = resolvedTier,
+                        metricEvaluations = resolvedEvaluations
+                    )
                 } else {
                     localSynthesizedInsight
                 }
 
                 // Synchronize live telemetry with AI insight asynchronously in the background without blocking startup
-                LaunchedEffect(currentEmail, isBtConnected, consumedWaterMl, sleepDurationFormatted, totalDisplaySteps, effectiveGoal) {
+                LaunchedEffect(currentEmail, effectiveHrBpm, effectiveSpo2Pct, hasTodayBpSummary, consumedWaterMl, sleepDurationFormatted, totalDisplaySteps, effectiveGoal) {
                     if (currentEmail.isNotBlank() && currentScreen != ScreenState.SPLASH) {
                         val uid = currentUser?.id ?: 1
                         aiViewModel.fetchDynamicAiInsight(
                             userId = uid,
-                            isBtConnected = isBtConnected,
+                            isBtConnected = false,
                             hydrationMl = consumedWaterMl,
                             sleepText = sleepDurationFormatted,
                             sleepScore = liveSleepScore,
@@ -1162,10 +1301,13 @@ class MainActivity : ComponentActivity() {
                                     userPhotoBitmap = globalProfilePhotoBitmap,
                                     heartRateValue = heartRateFormatted,
                                     heartRateStatus = heartRateStatusFormatted,
+                                    heartRateTrend = heartRateTrendFormatted,
                                     spo2Value = spo2Formatted,
                                     spo2Status = spo2StatusFormatted,
+                                    spo2Trend = spo2TrendFormatted,
                                     bpValue = bpFormatted,
                                     bpStatus = bpStatusFormatted,
+                                    bpTrend = bpTrendFormatted,
                                     stepsValue = stepsFormatted,
                                     stepsStatus = stepsStatusFormatted,
                                     wellnessScore = wellnessScoreVal,
@@ -1178,9 +1320,22 @@ class MainActivity : ComponentActivity() {
                                     sleepScore = sleepScoreFormatted,
                                     hydrationConsumed = hydrationConsumedFormatted,
                                     hydrationSubtext = hydrationSubtextFormatted,
-                                    isDeviceConnected = (deviceConnStatus == DeviceConnectionStatus.CONNECTED),
-                                    connectedDeviceName = connectedDeviceName,
-                                    onPairWatchClick = { showBlePairingSheet = true },
+                                    hasLoggedBiometrics = hasMeasuredBiometricsToday,
+                                    onLogVitalsClick = {
+                                        currentScreen = ScreenState.VITAL_SIGNS
+                                    },
+                                    onLogHeartRateClick = {
+                                        vitalsViewModel.resetManualLogState()
+                                        activeVitalSheet = VitalReadingType.HEART_RATE
+                                    },
+                                    onLogSpo2Click = {
+                                        vitalsViewModel.resetManualLogState()
+                                        activeVitalSheet = VitalReadingType.SPO2
+                                    },
+                                    onLogBloodPressureClick = {
+                                        vitalsViewModel.resetManualLogState()
+                                        activeVitalSheet = VitalReadingType.BLOOD_PRESSURE
+                                    },
                                     showAiInsights = appSettingsState.aiInsights,
                                     onWellnessScoreClick = { currentScreen = ScreenState.WEEKLY_REPORT },
                                     onVitalsClick = { currentScreen = ScreenState.VITAL_SIGNS },
@@ -1193,7 +1348,6 @@ class MainActivity : ComponentActivity() {
                                     onHydrationClick = { currentScreen = ScreenState.HYDRATION_DETAIL },
                                     onPersonalInformationClick = { currentScreen = ScreenState.PERSONAL_INFORMATION },
                                     onHealthGoalsClick = { currentScreen = ScreenState.HEALTH_GOALS },
-                                    onConnectedDevicesClick = { currentScreen = ScreenState.CONNECTED_DEVICES },
                                     onNotificationsClick = { currentScreen = ScreenState.NOTIFICATIONS },
                                     onPrivacySecurityClick = { currentScreen = ScreenState.PRIVACY_SECURITY },
                                     onSettingsClick = { currentScreen = ScreenState.SETTINGS },
@@ -1471,7 +1625,7 @@ class MainActivity : ComponentActivity() {
                                 val reportHydrationStatus = report?.metrics?.hydrationStatus ?: (if (hydrationSummary != null && hydrationSummary.consumedMl > 0) "${hydrationSummary.progressPercent}% of goal" else "No Data")
                                 val reportActivitySteps = report?.metrics?.activitySteps ?: activityStepsFormatted
                                 val reportActivityStatus = report?.metrics?.activityStatus ?: stepsStatusFormatted
-                                val reportAiObs = report?.summaryText?.takeIf { it.isNotBlank() } ?: (if (wellnessScoreVal > 0) "Weekly clinical summary: Vitals tracked across heart rate, SpO2, and activity. Keep up the balanced routine!" else "No weekly vital logs recorded yet. Start tracking or connect a smartwatch to view clinical observations.")
+                                val reportAiObs = report?.summaryText?.takeIf { it.isNotBlank() } ?: (if (wellnessScoreVal > 0) "Weekly clinical summary: Vitals tracked across heart rate, SpO2, and activity. Keep up the balanced routine!" else "No weekly vital logs recorded yet. Log your vitals or daily activity to view clinical observations.")
 
                                 WeeklyHealthReportScreen(
                                     wellnessScore = reportScore,
@@ -1650,24 +1804,11 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             ScreenState.CONNECTED_DEVICES -> {
-                                ConnectedDevicesScreen(
-                                    connectionStatus = deviceConnStatus,
-                                    connectedDeviceName = connectedDeviceName,
-                                    connectedDeviceAddress = connectedDeviceAddress,
-                                    batteryLevel = deviceBatteryLevel,
-                                    lastSyncTimestamp = deviceLastSync,
-                                    discoveredDevices = discoveredDevicesList,
-                                    onStartScan = { deviceManager.startScan() },
-                                    onStopScan = { deviceManager.stopScan() },
-                                    onConnectDevice = { dev -> deviceManager.connectDevice(dev) },
-                                    onDisconnectDevice = { deviceManager.disconnect() },
-                                    onRequestPermissions = { deviceManager.startScan() },
-                                    onSyncHealthConnect = { coroutineScope.launch { deviceManager.syncHealthConnectData() } },
-                                    onBackClick = {
-                                        homeInitialTab = 3
-                                        currentScreen = ScreenState.MAIN
-                                    }
-                                )
+                                // Replaced by Manual Vitals workflow
+                                LaunchedEffect(Unit) {
+                                    homeInitialTab = 3
+                                    currentScreen = ScreenState.MAIN
+                                }
                             }
                             ScreenState.NOTIFICATIONS -> {
                                 NotificationsScreen(
@@ -1769,7 +1910,6 @@ class MainActivity : ComponentActivity() {
                                     sleep = healthPermissionsState.sleep,
                                     hydration = healthPermissionsState.hydration,
                                     writeHealthData = healthPermissionsState.writeHealthData,
-                                    onRequestBluetoothPermissions = { deviceManager.startScan() },
                                     onRequestHealthPermissions = {
                                         try {
                                             val intent = Intent("androidx.health.ACTION_HEALTH_CONNECT_SETTINGS").apply {
@@ -1839,28 +1979,15 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.VITAL_SIGNS -> {
                                 VitalSignsScreen(
-                                    isBtConnected = isBtConnected,
-                                    heartRateValue = if (effectiveHrBpm != null) "$effectiveHrBpm bpm" else "--",
+                                    heartRateValue = heartRateFormatted,
                                     heartRateStatus = heartRateStatusFormatted,
-                                    heartRateUpdated = when {
-                                        isLiveHr -> "Live BLE Sensor"
-                                        hasTodayHrSummary -> hrSummary!!.recordedAt
-                                        else -> "No readings today"
-                                    },
+                                    heartRateUpdated = if (hasTodayHrSummary) hrSummary!!.recordedAt else "No readings today",
                                     bpValue = bpFormatted,
                                     bpStatus = bpStatusFormatted,
-                                    bpUpdated = when {
-                                        isLiveBp -> "Live BLE Sensor"
-                                        hasTodayBpSummary -> bpSummary!!.recordedAt
-                                        else -> "No readings today"
-                                    },
+                                    bpUpdated = if (hasTodayBpSummary) bpSummary!!.recordedAt else "No readings today",
                                     spo2Value = spo2Formatted,
                                     spo2Status = spo2StatusFormatted,
-                                    spo2Updated = when {
-                                        isLiveSpo2 -> "Live BLE Sensor"
-                                        hasTodaySpo2Summary -> spo2Summary!!.recordedAt
-                                        else -> "No readings today"
-                                    },
+                                    spo2Updated = if (hasTodaySpo2Summary) spo2Summary!!.recordedAt else "No readings today",
                                     weightValue = if (userWeightKg.isNotBlank()) "$userWeightKg kg" else "--",
                                     bmiValue = calculatedBmiValue,
                                     bmiStatus = calculatedBmiCategory,
@@ -1868,26 +1995,29 @@ class MainActivity : ComponentActivity() {
                                         homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN
                                     },
-                                    onPairWatchClick = { showBlePairingSheet = true },
                                     onAskAiClick = { currentScreen = ScreenState.AI_CHAT },
                                     onHeartRateClick = { currentScreen = ScreenState.HEART_RATE_DETAIL },
                                     onBloodPressureClick = { currentScreen = ScreenState.BLOOD_PRESSURE_DETAIL },
                                     onSpO2Click = { currentScreen = ScreenState.SPO2_DETAIL },
                                     onBmiClick = { currentScreen = ScreenState.BMI_DETAIL },
                                     onAddReadingClick = {
-                                        activeReadingType = VitalReadingType.HEART_RATE
-                                        currentScreen = ScreenState.ADD_READING
+                                        vitalsViewModel.resetManualLogState()
+                                        activeVitalSheet = VitalReadingType.HEART_RATE
                                     }
                                 )
                             }
                             ScreenState.HEART_RATE_DETAIL -> {
-                                LaunchedEffect(currentEmail) {
+                                LaunchedEffect(currentEmail, currentUser?.id, profileState.userId) {
+                                    val uid = currentUser?.id ?: profileState.userId.takeIf { it > 0 }
+                                    vitalsViewModel.fetchHrDetails(userId = uid, email = currentEmail.ifBlank { null })
                                     if (currentEmail.isNotBlank()) {
-                                        heartRateViewModel.fetchAnalytics(currentEmail)
+                                        heartRateViewModel.fetchAnalytics(currentEmail, uid)
                                     }
                                 }
                                 HeartRateDetailScreen(
                                     uiState = hrUiState,
+                                    detailState = hrDetailState.data,
+                                    isDetailLoading = hrDetailState.isLoading,
                                     initialBpm = hrSummary?.bpm ?: 0,
                                     restingBpm = hrSummary?.restingBpm ?: 0,
                                     minBpm = hrSummary?.minBpm ?: 0,
@@ -1897,6 +2027,10 @@ class MainActivity : ComponentActivity() {
                                     onBackClick = {
                                         homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN
+                                    },
+                                    onAddReadingClick = {
+                                        vitalsViewModel.resetManualLogState()
+                                        activeVitalSheet = VitalReadingType.HEART_RATE
                                     },
                                     onReadingReviewClick = { currentScreen = ScreenState.READING_REVIEW }
                                 )
@@ -2245,7 +2379,13 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             ScreenState.BLOOD_PRESSURE_DETAIL -> {
+                                LaunchedEffect(currentEmail, currentUser?.id, profileState.userId) {
+                                    val uid = currentUser?.id ?: profileState.userId.takeIf { it > 0 }
+                                    vitalsViewModel.fetchBpDetails(userId = uid, email = currentEmail.ifBlank { null })
+                                }
                                 BloodPressureDetailScreen(
+                                    detailState = bpDetailState.data,
+                                    isDetailLoading = bpDetailState.isLoading,
                                     systolic = bpSummary?.systolic ?: 0,
                                     diastolic = bpSummary?.diastolic ?: 0,
                                     status = if (bpSummary != null && bpSummary.systolic > 0) bpSummary.status else "No data available",
@@ -2254,21 +2394,27 @@ class MainActivity : ComponentActivity() {
                                         currentScreen = ScreenState.MAIN
                                     },
                                     onAddReadingClick = {
-                                        activeReadingType = VitalReadingType.BLOOD_PRESSURE
-                                        currentScreen = ScreenState.ADD_READING
+                                        vitalsViewModel.resetManualLogState()
+                                        activeVitalSheet = VitalReadingType.BLOOD_PRESSURE
                                     }
                                 )
                             }
                             ScreenState.SPO2_DETAIL -> {
+                                LaunchedEffect(currentEmail, currentUser?.id, profileState.userId) {
+                                    val uid = currentUser?.id ?: profileState.userId.takeIf { it > 0 }
+                                    vitalsViewModel.fetchSpo2Details(userId = uid, email = currentEmail.ifBlank { null })
+                                }
                                 Spo2DetailScreen(
+                                    detailState = spo2DetailState.data,
+                                    isDetailLoading = spo2DetailState.isLoading,
                                     initialPercentage = spo2Summary?.percentage ?: 0,
                                     onBackClick = {
                                         homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN
                                     },
                                     onAddReadingClick = {
-                                        activeReadingType = VitalReadingType.SPO2
-                                        currentScreen = ScreenState.ADD_READING
+                                        vitalsViewModel.resetManualLogState()
+                                        activeVitalSheet = VitalReadingType.SPO2
                                     }
                                 )
                             }
@@ -2302,7 +2448,7 @@ class MainActivity : ComponentActivity() {
                                             val uid = currentUser?.id ?: 1
                                             aiViewModel.fetchDynamicAiInsight(
                                                 userId = uid,
-                                                isBtConnected = isBtConnected,
+                                                isBtConnected = false,
                                                 hydrationMl = consumedWaterMl,
                                                 sleepText = sleepDurationFormatted,
                                                 sleepScore = liveSleepScore,
@@ -2464,11 +2610,89 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    if (showBlePairingSheet) {
-                        BlePairingBottomSheet(
-                            deviceManager = deviceManager,
-                            onDismiss = { showBlePairingSheet = false }
+                    val submitSingleVital: (
+                        hr: Int?,
+                        spo2: Int?,
+                        sys: Int?,
+                        dia: Int?,
+                        notes: String?,
+                        toastMsg: String
+                    ) -> Unit = { hr, spo2, sys, dia, notes, toastMsg ->
+                        val uid = currentUser?.id ?: profileState.userId.takeIf { it > 0 } ?: 1
+                        vitalsViewModel.logManualVitals(
+                            heartRate = hr,
+                            spo2 = spo2,
+                            systolic = sys,
+                            diastolic = dia,
+                            notes = notes,
+                            userId = uid,
+                            email = currentEmail.ifBlank { null },
+                            onSuccess = {
+                                activeVitalSheet = null
+                                Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
+                                if (currentEmail.isNotBlank()) {
+                                    heartRateViewModel.fetchAnalytics(currentEmail, uid)
+                                    profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
+                                }
+                                aiViewModel.fetchDynamicAiInsight(
+                                    userId = uid,
+                                    isBtConnected = false,
+                                    hydrationMl = consumedWaterMl,
+                                    sleepText = sleepDurationFormatted,
+                                    sleepScore = liveSleepScore,
+                                    steps = totalDisplaySteps,
+                                    stepGoal = effectiveGoal,
+                                    targetWaterMl = targetWaterMl
+                                )
+                            }
                         )
+                    }
+
+                    when (activeVitalSheet) {
+                        VitalReadingType.HEART_RATE -> {
+                            LogHeartRateSheet(
+                                initialBpm = effectiveHrBpm,
+                                isSaving = manualLogState.isSaving,
+                                serverError = manualLogState.errorMessage,
+                                onDismiss = {
+                                    vitalsViewModel.resetManualLogState()
+                                    activeVitalSheet = null
+                                },
+                                onSave = { hr, notes ->
+                                    submitSingleVital(hr, null, null, null, notes, "Heart rate logged")
+                                }
+                            )
+                        }
+                        VitalReadingType.SPO2 -> {
+                            LogSpo2Sheet(
+                                initialSpo2 = effectiveSpo2Pct,
+                                isSaving = manualLogState.isSaving,
+                                serverError = manualLogState.errorMessage,
+                                onDismiss = {
+                                    vitalsViewModel.resetManualLogState()
+                                    activeVitalSheet = null
+                                },
+                                onSave = { spo2, notes ->
+                                    submitSingleVital(null, spo2, null, null, notes, "SpO₂ logged")
+                                }
+                            )
+                        }
+                        VitalReadingType.BLOOD_PRESSURE -> {
+                            LogBloodPressureSheet(
+                                initialSystolic = if (hasTodayBpSummary) bpSummary?.systolic else null,
+                                initialDiastolic = if (hasTodayBpSummary) bpSummary?.diastolic else null,
+                                isSaving = manualLogState.isSaving,
+                                serverError = manualLogState.errorMessage,
+                                onDismiss = {
+                                    vitalsViewModel.resetManualLogState()
+                                    activeVitalSheet = null
+                                },
+                                onSave = { sys, dia, notes ->
+                                    submitSingleVital(null, null, sys, dia, notes, "Blood pressure logged")
+                                }
+                            )
+                        }
+                        else -> Unit
                     }
                 }
             }

@@ -87,7 +87,7 @@ fun WeeklyHealthReportScreen(
     hydrationStatus: String = "No Data",
     activitySteps: String = "-- steps",
     activityStatus: String = "No Data",
-    aiObservationText: String = "No weekly vital logs recorded yet. Start tracking or connect a smartwatch to view clinical observations.",
+    aiObservationText: String = "No weekly vital logs recorded yet. Log your vitals or activity to view clinical observations.",
     showAiInsights: Boolean = true,
     onBackClick: () -> Unit = {},
     onDownloadPdfClick: () -> Unit = {},

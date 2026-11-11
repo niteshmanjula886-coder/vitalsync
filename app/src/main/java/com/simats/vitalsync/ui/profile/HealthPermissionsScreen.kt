@@ -62,8 +62,6 @@ fun HealthPermissionsScreen(
     hydration: Boolean = false,
     writeHealthData: Boolean = true,
     lastSyncTimestamp: Long? = null,
-    isBluetoothGranted: Boolean = false,
-    onRequestBluetoothPermissions: () -> Unit = {},
     onRequestHealthPermissions: () -> Unit = {},
     onSavePermissions: (vitalSigns: Boolean, activity: Boolean, sleep: Boolean, hydration: Boolean, writeHealthData: Boolean) -> Unit = { _, _, _, _, _ -> },
     onBackClick: () -> Unit = {}
@@ -175,64 +173,6 @@ fun HealthPermissionsScreen(
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(text = "Manage", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF15803D))
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Bluetooth Permission Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = if (isBluetoothGranted) Color(0xFFF0FDF4) else Color(0xFFFEF3C7)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (isBluetoothGranted) Color(0xFFBBF7D0) else Color(0xFFFDE68A)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "📡", fontSize = 22.sp)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Bluetooth Low Energy",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
-                            )
-                            Text(
-                                text = if (isBluetoothGranted) "Access granted for device sensors" else "Required for heart rate & pulse sensors",
-                                fontSize = 11.sp,
-                                color = Color(0xFF6B7280)
-                            )
-                        }
-                    }
-
-                    if (!isBluetoothGranted) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFD97706))
-                                .clickable { onRequestBluetoothPermissions() }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Text(text = "Grant", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFDCFCE7))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(text = "Active", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF15803D))
-                        }
                     }
                 }
             }

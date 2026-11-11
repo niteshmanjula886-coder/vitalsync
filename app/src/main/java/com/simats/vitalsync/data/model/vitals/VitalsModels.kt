@@ -6,37 +6,94 @@ data class HeartRateSummary(
     @SerializedName("bpm")
     val bpm: Int = 0,
     @SerializedName("status")
-    val status: String = "No readings yet",
+    val status: String = "Tap to log",
     @SerializedName("resting_bpm")
     val restingBpm: Int = 0,
     @SerializedName("min_bpm")
     val minBpm: Int = 0,
     @SerializedName("max_bpm")
     val maxBpm: Int = 0,
+    @SerializedName("trend")
+    val trend: String? = null,
     @SerializedName("recorded_at")
-    val recordedAt: String = ""
+    val recordedAt: String = "",
+    @SerializedName("has_data")
+    val hasData: Boolean = false
 )
 
 data class BloodPressureSummary(
-    @SerializedName("systolic")
+    @SerializedName("systolic", alternate = ["systolic_bp", "systolicBp"])
     val systolic: Int = 0,
-    @SerializedName("diastolic")
+    @SerializedName("diastolic", alternate = ["diastolic_bp", "diastolicBp"])
     val diastolic: Int = 0,
     @SerializedName("text")
     val text: String = "--/-- mmHg",
+    @SerializedName("badge_color")
+    val badgeColor: String = "#9E9E9E",
     @SerializedName("status")
-    val status: String = "No readings yet",
+    val status: String = "Tap to log",
+    @SerializedName("trend")
+    val trend: String? = null,
     @SerializedName("recorded_at")
-    val recordedAt: String = ""
+    val recordedAt: String = "",
+    @SerializedName("has_data")
+    val hasData: Boolean = false
 )
+
+data class BpClinicalEvaluation(
+    val statusTitle: String,
+    val urgency: String,
+    val tier: String,
+    val badgeColor: String = "#43A047"
+)
+
+/**
+ * Evaluates systolic/diastolic blood pressure strictly following AHA/ACC clinical boundaries,
+ * prioritizing Hypotension (< 90 / < 60) first before hypertension and optimal bounds.
+ */
+fun evaluateBloodPressure(systolic: Int?, diastolic: Int?): BpClinicalEvaluation {
+    if (systolic == null || diastolic == null || systolic <= 0 || diastolic <= 0) {
+        return BpClinicalEvaluation("No Data", "NORMAL", "Optimal", "#9E9E9E")
+    }
+    // 1. Hypotension / Low Blood Pressure (Check first to avoid falling into normal)
+    if (systolic < 90 || diastolic < 60) {
+        val urgency = if (systolic < 80 || diastolic < 50) "MEDICAL_ATTENTION" else "NEEDS_IMPROVEMENT"
+        return BpClinicalEvaluation("Low Blood Pressure (Hypotension)", urgency, "Alert", "#E53935")
+    }
+    // 2. Hypertensive Crisis (Emergency)
+    if (systolic >= 180 || diastolic >= 120) {
+        return BpClinicalEvaluation("Hypertensive Crisis", "MEDICAL_ATTENTION", "Alert", "#D32F2F")
+    }
+    // 3. Stage 2 Hypertension (Sys >= 140 OR Dia >= 90)
+    if (systolic >= 140 || diastolic >= 90) {
+        return BpClinicalEvaluation("Stage 2 Hypertension", "NEEDS_IMPROVEMENT", "Needs Attention", "#F57C00")
+    }
+    // 4. Stage 1 Hypertension (Sys 130-139 OR Dia 80-89)
+    if ((systolic in 130..139) || (diastolic in 80..89)) {
+        return BpClinicalEvaluation("Stage 1 Hypertension", "NEEDS_IMPROVEMENT", "Needs Attention", "#FFA000")
+    }
+    // 5. Elevated Blood Pressure (Sys 120-129 AND Dia < 80)
+    if (systolic in 120..129 && diastolic < 80) {
+        return BpClinicalEvaluation("Elevated Blood Pressure", "NORMAL", "Needs Attention", "#FFB300")
+    }
+    // 6. Optimal / Normal Blood Pressure (Sys 90-119 AND Dia 60-79)
+    if (systolic in 90..119 && diastolic in 60..79) {
+        return BpClinicalEvaluation("Optimal Blood Pressure", "NORMAL", "Optimal", "#43A047")
+    }
+    return BpClinicalEvaluation("Normal Blood Pressure", "NORMAL", "Optimal", "#43A047")
+}
 
 data class Spo2Summary(
     @SerializedName("percentage")
     val percentage: Int = 0,
     @SerializedName("status")
-    val status: String = "No readings yet",
+    val status: String = "Tap to log",
+    @SerializedName("trend")
+    val trend: String? = null,
     @SerializedName("recorded_at")
-    val recordedAt: String = ""
+    val recordedAt: String = "",
+    @SerializedName("has_data")
+    val hasData: Boolean = false
 )
 
 data class BmiSummary(
@@ -153,9 +210,9 @@ data class HeartRateResponse(
 data class BloodPressureDetailItem(
     @SerializedName("id")
     val id: Int = 0,
-    @SerializedName("systolic")
+    @SerializedName("systolic", alternate = ["systolic_bp", "systolicBp"])
     val systolic: Int = 0,
-    @SerializedName("diastolic")
+    @SerializedName("diastolic", alternate = ["diastolic_bp", "diastolicBp"])
     val diastolic: Int = 0,
     @SerializedName("formatted")
     val formatted: String = "--/-- mmHg",
@@ -475,5 +532,111 @@ data class LogSleepResponse(
     val quality: String? = null,
     @SerializedName("quality_label")
     val qualityLabel: String? = null
+)
+
+data class ManualVitalsLogRequest(
+    @SerializedName("user_id")
+    val userId: Int? = null,
+    @SerializedName("email")
+    val email: String? = null,
+    @SerializedName("heart_rate")
+    val heartRate: Int? = null,
+    @SerializedName("spo2")
+    val spo2: Int? = null,
+    @SerializedName("systolic", alternate = ["systolic_bp", "systolicBp"])
+    val systolic: Int? = null,
+    @SerializedName("diastolic", alternate = ["diastolic_bp", "diastolicBp"])
+    val diastolic: Int? = null,
+    @SerializedName("notes")
+    val notes: String? = null
+)
+
+data class ManualVitalsLogData(
+    @SerializedName("id")
+    val id: Int = 0,
+    @SerializedName("user_id")
+    val userId: Int = 0,
+    @SerializedName("heart_rate")
+    val heartRate: Int? = null,
+    @SerializedName("heart_rate_status")
+    val heartRateStatus: String? = null,
+    @SerializedName("spo2")
+    val spo2: Int? = null,
+    @SerializedName("spo2_status")
+    val spo2Status: String? = null,
+    @SerializedName("systolic", alternate = ["systolic_bp", "systolicBp"])
+    val systolic: Int? = null,
+    @SerializedName("diastolic", alternate = ["diastolic_bp", "diastolicBp"])
+    val diastolic: Int? = null,
+    @SerializedName("bp_status")
+    val bpStatus: String? = null,
+    @SerializedName("source")
+    val source: String = "Manual Entry",
+    @SerializedName("notes")
+    val notes: String? = null,
+    @SerializedName("logged_at")
+    val loggedAt: String = ""
+)
+
+data class ManualVitalsLogResponse(
+    @SerializedName("success")
+    val success: Boolean = false,
+    @SerializedName("status")
+    val status: String? = null,
+    @SerializedName("message")
+    val message: String? = null,
+    @SerializedName("data")
+    val data: ManualVitalsLogData? = null
+)
+
+data class VitalRecentLogDto(
+    @SerializedName("id")
+    val id: Int = 0,
+    @SerializedName("value")
+    val value: String = "",
+    @SerializedName("status")
+    val status: String = "",
+    @SerializedName("date")
+    val date: String = "",
+    @SerializedName("urgency")
+    val urgency: String = "NORMAL"
+)
+
+data class VitalDetailGuidanceResponse(
+    @SerializedName("success")
+    val success: Boolean = false,
+    @SerializedName("has_data")
+    val hasData: Boolean = false,
+    @SerializedName("current_display")
+    val currentDisplay: String = "--",
+    @SerializedName("current_bpm")
+    val currentBpm: Int? = null,
+    @SerializedName("current_spo2")
+    val currentSpo2: Int? = null,
+    @SerializedName("systolic", alternate = ["systolic_bp", "systolicBp"])
+    val systolic: Int? = null,
+    @SerializedName("diastolic", alternate = ["diastolic_bp", "diastolicBp"])
+    val diastolic: Int? = null,
+    @SerializedName("status_title")
+    val statusTitle: String = "No Readings Yet",
+    @SerializedName("tier")
+    val tier: String = "Optimal",
+    @SerializedName("badge_color")
+    val badgeColor: String = "#9E9E9E",
+    @SerializedName("urgency")
+    val urgency: String = "NORMAL",
+    @SerializedName("recorded_at")
+    val recordedAt: String = "",
+    @SerializedName("explanation")
+    val explanation: String = "",
+    @SerializedName("recommended_activity")
+    val recommendedActivity: String = "",
+    @SerializedName("lifestyle_tip")
+    val lifestyleTip: String = "",
+    @SerializedName("recent_logs")
+    val recentLogs: List<VitalRecentLogDto> = emptyList(),
+    @SerializedName("model_used")
+    val modelUsed: String? = null
+
 )
 

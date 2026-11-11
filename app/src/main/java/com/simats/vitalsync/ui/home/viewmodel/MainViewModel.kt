@@ -3,31 +3,20 @@ package com.simats.vitalsync.ui.home.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.simats.vitalsync.data.device.DeviceConnectionStatus
-import com.simats.vitalsync.data.device.HealthDeviceManager
 import com.simats.vitalsync.data.model.ai.AiChatRequest
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
 import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val deviceManager = HealthDeviceManager.getInstance(application)
-
-    val isBluetoothConnected: StateFlow<Boolean> = deviceManager.connectionStatus
-        .map { it == DeviceConnectionStatus.CONNECTED }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     private val _aiInsight = MutableStateFlow<AiInsightResponse?>(null)
     val aiInsight: StateFlow<AiInsightResponse?> = _aiInsight.asStateFlow()
@@ -47,12 +36,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var currentUserId: Int = 1
 
     init {
-        // Observe Bluetooth connection status and trigger non-blocking background AI Insight updates
-        viewModelScope.launch(Dispatchers.IO) {
-            isBluetoothConnected.collect { connected ->
-                fetchAiInsight(currentUserId, connected)
-            }
-        }
+        fetchAiInsight(currentUserId)
     }
 
     fun clearError() {
@@ -62,13 +46,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setUserId(userId: Int) {
         if (userId > 0 && userId != currentUserId) {
             currentUserId = userId
-            fetchAiInsight(currentUserId, isBluetoothConnected.value)
+            fetchAiInsight(currentUserId)
         }
     }
 
     fun fetchAiInsight(
         userId: Int = currentUserId,
-        isBtConnected: Boolean = isBluetoothConnected.value,
         hydrationMl: Int? = null,
         sleepText: String? = null,
         sleepScore: Int? = null,
@@ -79,10 +62,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
-                val response = withTimeout(12_000L) {
+                val response = withTimeout(15_000L) {
                     RetrofitClient.aiApiService.getAiInsight(
                         userId = userId,
-                        isBtConnected = isBtConnected,
+                        isBtConnected = false,
                         hydrationMl = hydrationMl,
                         sleepText = sleepText,
                         sleepScore = sleepScore,
