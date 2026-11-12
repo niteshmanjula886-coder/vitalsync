@@ -327,5 +327,13 @@ class NutritionViewModel(
             }
         }
     }
+
+    fun resetState() {
+        _foodsState.value = FoodsUiState()
+        _addFoodState.value = AddFoodUiState()
+        _goalState.value = NutritionGoalUiState()
+        _mealsState.value = MealsUiState()
+        _logMealState.value = LogMealUiState()
+    }
 }
 

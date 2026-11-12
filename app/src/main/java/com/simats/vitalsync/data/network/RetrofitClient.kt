@@ -3,8 +3,11 @@ package com.simats.vitalsync.data.network
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -203,6 +206,44 @@ object RetrofitClient {
     }
 
     fun getBaseUrl(): String = currentBaseUrl
+
+    /**
+     * Resolves an avatar URL or relative path against the active backend host and downloads its bytes.
+     */
+    suspend fun downloadImageBytes(urlOrPath: String): ByteArray? = withContext(Dispatchers.IO) {
+        val raw = urlOrPath.trim()
+        if (raw.isBlank()) return@withContext null
+
+        val targetUrl = if (raw.startsWith("http://", ignoreCase = true) || raw.startsWith("https://", ignoreCase = true)) {
+            val idx = raw.indexOf("/vitalsync-backend/", ignoreCase = true)
+            if (idx >= 0) {
+                val relative = raw.substring(idx + "/vitalsync-backend/".length).trimStart('/')
+                currentBaseUrl + relative
+            } else {
+                raw
+            }
+        } else {
+            currentBaseUrl + raw.trimStart('/')
+        }
+
+        try {
+            val request = Request.Builder()
+                .url(targetUrl)
+                .get()
+                .build()
+            okHttpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    response.body?.bytes()
+                } else {
+                    Log.w(TAG, "Failed to download avatar ($targetUrl): HTTP ${response.code}")
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error downloading avatar ($targetUrl): ${e.message}")
+            null
+        }
+    }
 
     fun updateBaseUrl(newBaseUrl: String) {
         val formattedUrl = if (newBaseUrl.endsWith("/")) newBaseUrl else "$newBaseUrl/"

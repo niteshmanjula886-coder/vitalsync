@@ -5,12 +5,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -158,17 +162,21 @@ fun AiInsightCard(
             if (evaluations.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     evaluations.chunked(2).forEach { rowItems ->
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Max),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             rowItems.forEach { eval ->
                                 MetricStateChip(
                                     evaluation = eval,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
                                 )
                             }
                             if (rowItems.size == 1) {
@@ -254,24 +262,22 @@ fun AiInsightCard(
                 Text(
                     text = "Powered by ${insight?.modelUsed ?: "qwen2.5:1.5b"}",
                     fontSize = 10.sp,
-                    color = Color(0xFF9CA3AF)
+                    color = Color(0xFF9CA3AF),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
 
-                if (hasLoggedBiometrics) {
-                    Text(
-                        text = "• Grounded in Logged Vitals ✓",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F9F7A)
-                    )
-                } else {
-                    Text(
-                        text = "• Ready for Vitals Log",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0284C7)
-                    )
-                }
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = if (hasLoggedBiometrics) "• Grounded in Logged Vitals ✓" else "• Ready for Vitals Log",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (hasLoggedBiometrics) Color(0xFF0F9F7A) else Color(0xFF0284C7),
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
         }
     }
@@ -294,46 +300,77 @@ private fun MetricStateChip(
             Triple(Color(0xFFECFDF5), Color(0xFF059669), Color(0xFF065F46))
     }
 
+    val displayValue = if (evaluation.value.isNotBlank() && !evaluation.value.equals("Not logged", ignoreCase = true)) {
+        evaluation.value
+    } else {
+        "Not logged"
+    }
+
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(chipBg)
-            .padding(horizontal = 10.dp, vertical = 7.dp)
+            .padding(horizontal = 11.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(badgeColor)
+                )
+                Spacer(modifier = Modifier.width(5.dp))
+                Text(
+                    text = evaluation.metric,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF374151),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             Text(
-                text = evaluation.metric,
-                fontSize = 11.sp,
+                text = displayValue,
+                fontSize = 12.5.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1F2937),
+                color = if (displayValue == "Not logged") Color(0xFF6B7280) else Color(0xFF111827),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.width(4.dp))
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = evaluation.status,
+                fontSize = 10.sp,
+                lineHeight = 13.sp,
+                color = labelColor,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(badgeColor.copy(alpha = 0.12f))
+                .padding(horizontal = 7.dp, vertical = 2.dp)
+        ) {
             Text(
                 text = evaluation.tier,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 color = badgeColor,
-                maxLines = 1
+                maxLines = 1,
+                softWrap = false
             )
         }
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = if (evaluation.value.isNotBlank() && !evaluation.value.equals("Not logged", ignoreCase = true)) {
-                "${evaluation.status} • ${evaluation.value}"
-            } else {
-                evaluation.status
-            },
-            fontSize = 10.sp,
-            color = labelColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }

@@ -40,18 +40,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -60,11 +55,13 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -81,10 +78,14 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.delay
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -272,9 +273,6 @@ fun HomeScreen(
                         onWellnessScoreClick = onWellnessScoreClick,
                         onVitalsClick = onVitalsClick,
                         onHeartRateClick = onHeartRateClick,
-                        onLogHeartRateClick = onLogHeartRateClick,
-                        onLogSpo2Click = onLogSpo2Click,
-                        onLogBloodPressureClick = onLogBloodPressureClick,
                         onBloodPressureClick = onBloodPressureClick,
                         onSpO2Click = onSpO2Click,
                         onStepsClick = onStepsClick,
@@ -331,6 +329,50 @@ fun HomeScreen(
     }
 }
 
+/**
+ * Observes both a 60-second coroutine ticker and Lifecycle ON_RESUME events so the Home
+ * greeting switches seamlessly at 05:00, 12:00, and 17:00 without restarting the app.
+ */
+@Composable
+fun rememberDynamicGreeting(): String {
+    val context = LocalContext.current
+    var resumeTick by remember { mutableIntStateOf(0) }
+
+    DisposableEffect(context) {
+        val lifecycleOwner = context as? LifecycleOwner
+        if (lifecycleOwner == null) {
+            onDispose { }
+        } else {
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    resumeTick++
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        }
+    }
+
+    val greeting by produceState(initialValue = getGreetingForCurrentTime(), key1 = resumeTick) {
+        while (true) {
+            value = getGreetingForCurrentTime()
+            delay(60_000L)
+        }
+    }
+    return greeting
+}
+
+private fun getGreetingForCurrentTime(): String {
+    val hour = java.time.LocalTime.now().hour
+    return when (hour) {
+        in 5..11 -> "Good Morning"
+        in 12..16 -> "Good Afternoon"
+        else -> "Good Evening"
+    }
+}
+
 @Composable
 private fun HomeDashboardContent(
     userName: String,
@@ -357,9 +399,6 @@ private fun HomeDashboardContent(
     hydrationSubtext: String = "No data",
     hasLoggedBiometrics: Boolean = false,
     onLogVitalsClick: () -> Unit = {},
-    onLogHeartRateClick: () -> Unit = {},
-    onLogSpo2Click: () -> Unit = {},
-    onLogBloodPressureClick: () -> Unit = {},
     onWellnessScoreClick: () -> Unit,
     onVitalsClick: () -> Unit,
     onHeartRateClick: () -> Unit,
@@ -389,7 +428,7 @@ private fun HomeDashboardContent(
         label = "GaugeSweepAnimation"
     )
 
-    val firstName = userName.split(" ").firstOrNull() ?: "Alex"
+    val greeting = rememberDynamicGreeting()
 
     Column(
         modifier = Modifier
@@ -398,77 +437,23 @@ private fun HomeDashboardContent(
             .padding(horizontal = 20.dp)
             .padding(top = 16.dp, bottom = 24.dp)
     ) {
-        // Good Morning Header with Primary + Log Vitals Action Pill
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Good Morning, $firstName",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Here's your health overview",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            var showLogMenu by remember { mutableStateOf(false) }
-            Box {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(VitalTealDark)
-                        .clickable { showLogMenu = true }
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = "+ Log Vitals ▾",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        maxLines = 1
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = showLogMenu,
-                    onDismissRequest = { showLogMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("♥  Log Heart Rate", fontWeight = FontWeight.Medium) },
-                        onClick = {
-                            showLogMenu = false
-                            onLogHeartRateClick()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🫧  Log Blood Oxygen (SpO₂)", fontWeight = FontWeight.Medium) },
-                        onClick = {
-                            showLogMenu = false
-                            onLogSpo2Click()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🩺  Log Blood Pressure", fontWeight = FontWeight.Medium) },
-                        onClick = {
-                            showLogMenu = false
-                            onLogBloodPressureClick()
-                        }
-                    )
-                }
-            }
+        // Real-Time Clock-Aware Dynamic Greeting Header
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = if (userName.isNotBlank()) "$greeting, $userName" else "$greeting,",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Here's your health overview",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))

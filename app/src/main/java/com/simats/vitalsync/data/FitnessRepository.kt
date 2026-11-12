@@ -63,6 +63,11 @@ class FitnessRepository private constructor(context: Context) {
         }
     }
 
+    // ACCOUNT ISOLATION: CLEAR ALL USER-SCOPED LOCAL PREFS
+    fun clearAllUserLocalData() {
+        prefs.edit().clear().apply()
+    }
+
     // STEP GOAL LOCAL PERSISTENCE
     fun saveStepGoal(stepGoal: Int) {
         if (stepGoal >= 1000) {
@@ -342,7 +347,7 @@ class FitnessRepository private constructor(context: Context) {
     }
 
     fun getMealEntriesForDate(dateStr: String): List<MealEntry> {
-        val jsonStr = prefs.getString("key_meals_$dateStr", null) ?: return if (dateStr == "2025-10-15" || dateStr == getTodayDateString()) getSampleMealsForToday() else emptyList()
+        val jsonStr = prefs.getString("key_meals_$dateStr", null) ?: return emptyList()
         val list = mutableListOf<MealEntry>()
         try {
             val array = JSONArray(jsonStr)
@@ -452,7 +457,7 @@ class FitnessRepository private constructor(context: Context) {
 
     // WORKOUT HISTORY PERSISTENCE
     fun getAllWorkoutSessions(): List<WorkoutSession> {
-        val jsonStr = prefs.getString("key_workout_sessions", null) ?: return getSampleWorkoutSessions()
+        val jsonStr = prefs.getString("key_workout_sessions", null) ?: return emptyList()
         val list = mutableListOf<WorkoutSession>()
         try {
             val array = JSONArray(jsonStr)

@@ -26,13 +26,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -41,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -50,6 +53,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -77,26 +81,41 @@ val sampleHealthGoals = listOf(
     HealthGoal("4", "General Wellness", GoalIconType.WELLNESS)
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileSetupScreen(
     modifier: Modifier = Modifier,
+    initialName: String = "",
+    initialAge: String = "",
+    initialGender: String = "",
+    initialHeight: String = "",
+    initialWeight: String = "",
+    initialActivityLevel: String = "",
     onBackClick: () -> Unit = {},
+    onSelectionChanged: (gender: String, activityLevel: String) -> Unit = { _, _ -> },
+    onCompleteProfileDetails: (gender: String, activityLevel: String, primaryGoal: String) -> Unit = { _, _, _ -> },
     onSaveAndContinue: (name: String, age: String, height: String, weight: String) -> Unit = { _, _, _, _ -> }
 ) {
-    var name by remember { mutableStateOf("") }
-    var age by remember { mutableStateOf("") }
-    var gender by remember { mutableStateOf("") }
-    var height by remember { mutableStateOf("") }
-    var weight by remember { mutableStateOf("") }
-    var activityLevel by remember { mutableStateOf("") }
+    var name by remember(initialName) { mutableStateOf(initialName) }
+    var age by remember(initialAge) { mutableStateOf(initialAge) }
+    var gender by remember(initialGender) { mutableStateOf(initialGender) }
+    var height by remember(initialHeight) { mutableStateOf(initialHeight) }
+    var weight by remember(initialWeight) { mutableStateOf(initialWeight) }
+    var activityLevel by remember(initialActivityLevel) { mutableStateOf(initialActivityLevel) }
 
-    var isGenderDropdownExpanded by remember { mutableStateOf(false) }
-    var isActivityDropdownExpanded by remember { mutableStateOf(false) }
+    var showGenderSheet by remember { mutableStateOf(false) }
+    var showActivitySheet by remember { mutableStateOf(false) }
 
     val selectedGoals = remember { mutableStateListOf<String>() }
 
-    val genderOptions = listOf("Male", "Female", "Non-binary", "Prefer not to say")
-    val activityOptions = listOf("Sedentary", "Lightly active", "Moderately active", "Very active")
+    val genderOptions = listOf("Male", "Female", "Other", "Prefer not to say")
+    val activityOptions = listOf(
+        "Sedentary (Little to no exercise)",
+        "Lightly Active (1–3 days/week)",
+        "Moderately Active (3–5 days/week)",
+        "Very Active (6–7 days/week)",
+        "Athlete / Intense Daily Training"
+    )
 
     Column(
         modifier = modifier
@@ -206,48 +225,12 @@ fun ProfileSetupScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "Gender", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(
-                            value = gender,
-                            onValueChange = { },
-                            readOnly = true,
-                            placeholder = { Text("Select gender", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { isGenderDropdownExpanded = true },
-                            singleLine = true,
-                            shape = RoundedCornerShape(16.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                focusedBorderColor = VitalTealPrimary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                                focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                                unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                            ),
-                            trailingIcon = {
-                                ChevronDownIcon(
-                                    modifier = Modifier.size(16.dp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        )
-
-                        DropdownMenu(
-                            expanded = isGenderDropdownExpanded,
-                            onDismissRequest = { isGenderDropdownExpanded = false }
-                        ) {
-                            genderOptions.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(text = option) },
-                                    onClick = {
-                                        gender = option
-                                        isGenderDropdownExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
+                    SelectorFieldCard(
+                        value = gender,
+                        placeholder = "Select gender",
+                        isActive = showGenderSheet,
+                        onClick = { showGenderSheet = true }
+                    )
                 }
             }
 
@@ -305,51 +288,15 @@ fun ProfileSetupScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Activity Level Dropdown
+            // Daily Activity Level Selector
             Text(text = "Daily Activity Level", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
             Spacer(modifier = Modifier.height(6.dp))
-            Box(modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
-                    value = activityLevel,
-                    onValueChange = { },
-                    readOnly = true,
-                    placeholder = { Text("Select activity level", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isActivityDropdownExpanded = true },
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedBorderColor = VitalTealPrimary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                    ),
-                    trailingIcon = {
-                        ChevronDownIcon(
-                            modifier = Modifier.size(16.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                )
-
-                DropdownMenu(
-                    expanded = isActivityDropdownExpanded,
-                    onDismissRequest = { isActivityDropdownExpanded = false }
-                ) {
-                    activityOptions.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(text = option) },
-                            onClick = {
-                                activityLevel = option
-                                isActivityDropdownExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
+            SelectorFieldCard(
+                value = activityLevel,
+                placeholder = "Select activity level",
+                isActive = showActivitySheet,
+                onClick = { showActivitySheet = true }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -426,7 +373,13 @@ fun ProfileSetupScreen(
                 .padding(vertical = 24.dp)
         ) {
             Button(
-                onClick = { onSaveAndContinue(name, age, height, weight) },
+                onClick = {
+                    val primaryGoal = selectedGoals
+                        .mapNotNull { id -> sampleHealthGoals.firstOrNull { it.id == id }?.title }
+                        .firstOrNull() ?: ""
+                    onCompleteProfileDetails(gender, activityLevel, primaryGoal)
+                    onSaveAndContinue(name, age, height, weight)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
@@ -441,6 +394,169 @@ fun ProfileSetupScreen(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
+            }
+        }
+    }
+
+    if (showGenderSheet) {
+        ProfileOptionBottomSheet(
+            title = "Select Gender",
+            subtitle = "Used to calibrate calorie, heart rate, and clinical risk ranges",
+            options = genderOptions,
+            selectedOption = gender,
+            onDismiss = { showGenderSheet = false },
+            onSelect = { chosen ->
+                gender = chosen
+                showGenderSheet = false
+                onSelectionChanged(chosen, activityLevel)
+            }
+        )
+    }
+
+    if (showActivitySheet) {
+        ProfileOptionBottomSheet(
+            title = "Daily Activity Level",
+            subtitle = "Helps tailor step targets, hydration needs, and recovery insights",
+            options = activityOptions,
+            selectedOption = activityLevel,
+            onDismiss = { showActivitySheet = false },
+            onSelect = { chosen ->
+                activityLevel = chosen
+                showActivitySheet = false
+                onSelectionChanged(gender, chosen)
+            }
+        )
+    }
+}
+
+@Composable
+private fun SelectorFieldCard(
+    value: String,
+    placeholder: String,
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
+    val hasValue = value.isNotBlank()
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(
+            width = if (isActive) 1.6.dp else 1.dp,
+            color = if (isActive || hasValue) VitalTealPrimary else MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = if (hasValue) value else placeholder,
+                fontSize = 14.sp,
+                fontWeight = if (hasValue) FontWeight.Medium else FontWeight.Normal,
+                color = if (hasValue) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            ChevronDownIcon(
+                modifier = Modifier.size(16.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProfileOptionBottomSheet(
+    title: String,
+    subtitle: String,
+    options: List<String>,
+    selectedOption: String,
+    onDismiss: () -> Unit,
+    onSelect: (String) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            Text(
+                text = title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = subtitle,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                options.forEach { option ->
+                    val isSelected = option.equals(selectedOption, ignoreCase = true)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable { onSelect(option) },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) Color(0xFFE6F4EA) else MaterialTheme.colorScheme.background
+                        ),
+                        border = BorderStroke(
+                            width = if (isSelected) 1.5.dp else 1.dp,
+                            color = if (isSelected) VitalTealPrimary else MaterialTheme.colorScheme.outlineVariant
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = option,
+                                fontSize = 14.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) VitalTealDark else MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isSelected) {
+                                Text(
+                                    text = "✓",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = VitalTealDark
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

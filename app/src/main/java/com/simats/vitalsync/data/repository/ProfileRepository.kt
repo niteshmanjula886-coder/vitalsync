@@ -1,5 +1,8 @@
 package com.simats.vitalsync.data.repository
 
+import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.auth.User
 import com.simats.vitalsync.data.model.profile.AddReminderRequest
@@ -38,6 +41,30 @@ class ProfileRepository(
     private val apiService: ProfileApiService = RetrofitClient.profileApiService,
     private val sessionManager: SessionManager? = null
 ) {
+
+    fun updateLocalProfileFields(
+        name: String? = null,
+        age: Int? = null,
+        height: Float? = null,
+        weight: Float? = null,
+        gender: String? = null,
+        activityLevel: String? = null,
+        primaryGoal: String? = null
+    ): User? {
+        val current = sessionManager?.getUser() ?: return null
+        val updated = current.copy(
+            name = name?.takeIf { it.isNotBlank() } ?: current.name,
+            fullName = name?.takeIf { it.isNotBlank() } ?: current.fullName,
+            age = age?.takeIf { it > 0 } ?: current.age,
+            height = height?.takeIf { it > 0f } ?: current.height,
+            weight = weight?.takeIf { it > 0f } ?: current.weight,
+            gender = gender?.takeIf { it.isNotBlank() } ?: current.gender,
+            activityLevel = activityLevel?.takeIf { it.isNotBlank() } ?: current.activityLevel,
+            primaryGoal = primaryGoal?.takeIf { it.isNotBlank() } ?: current.primaryGoal
+        )
+        sessionManager.saveUserSession(updated)
+        return updated
+    }
 
     fun getProfile(userId: Int? = null, email: String? = null): Flow<Resource<User>> = flow {
         emit(Resource.Loading)
@@ -99,7 +126,7 @@ class ProfileRepository(
             val emailPart = if (resolvedEmail.isNotEmpty()) resolvedEmail.toRequestBody("text/plain".toMediaTypeOrNull()) else null
 
             val reqFile = imageFile.asRequestBody("image/*".toMediaTypeOrNull())
-            val bodyPart = MultipartBody.Part.createFormData("profile_image", imageFile.name, reqFile)
+            val bodyPart = MultipartBody.Part.createFormData("avatar", imageFile.name, reqFile)
 
             val response = apiService.uploadProfileImage(
                 userId = uidPart,
@@ -111,8 +138,13 @@ class ProfileRepository(
                 val body = response.body()!!
                 if (body.success) {
                     val currentUser = sessionManager?.getUser()
-                    if (currentUser != null && body.imageUrl != null) {
-                        sessionManager.saveUserSession(currentUser.copy(imageUrl = body.imageUrl, profileImage = body.profileImage))
+                    if (currentUser != null && (body.imageUrl != null || body.profileImage != null)) {
+                        sessionManager.saveUserSession(
+                            currentUser.copy(
+                                imageUrl = body.imageUrl ?: currentUser.imageUrl,
+                                profileImage = body.profileImage ?: currentUser.profileImage
+                            )
+                        )
                     }
                     emit(Resource.Success(body))
                 } else {
@@ -125,6 +157,18 @@ class ProfileRepository(
             emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
         }
     }.flowOn(Dispatchers.IO)
+
+    suspend fun fetchAvatarBitmap(user: User?): ImageBitmap? {
+        val rawUrl = user?.imageUrl?.takeIf { it.isNotBlank() }
+            ?: user?.profileImage?.takeIf { it.isNotBlank() }
+            ?: return null
+        val bytes = RetrofitClient.downloadImageBytes(rawUrl) ?: return null
+        return try {
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     fun getHealthGoals(userId: Int? = null, email: String? = null): Flow<Resource<HealthGoalsResponse>> = flow {
         emit(Resource.Loading)

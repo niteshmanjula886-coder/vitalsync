@@ -20,10 +20,10 @@ import kotlinx.coroutines.launch
 data class HydrationUiState(
     val isLoading: Boolean = false,
     val date: String = "",
-    val consumedWaterMl: Int = 1250,
+    val consumedWaterMl: Int = 0,
     val dailyTargetMl: Int = 2000,
-    val glassEquivalent: Float = 5.0f,
-    val progressPercentage: Int = 62,
+    val glassEquivalent: Float = 0f,
+    val progressPercentage: Int = 0,
     val isReminderEnabled: Boolean = true,
     val logs: List<HydrationLogDto> = emptyList(),
     val weeklyHistory: List<WeeklyHydrationDayDto> = emptyList(),
@@ -340,5 +340,9 @@ class HydrationViewModel(
 
     fun dismissToast() {
         _hydrationState.update { it.copy(showToast = false) }
+    }
+
+    fun resetState() {
+        _hydrationState.value = HydrationUiState()
     }
 }

@@ -1,4 +1,4 @@
-﻿package com.simats.vitalsync.data.sensor
+package com.simats.vitalsync.data.sensor
 
 import android.Manifest
 import android.content.Context
@@ -294,6 +294,19 @@ class StepSensorManager private constructor(context: Context) : SensorEventListe
             lastSyncedSteps = current
             onStepThresholdReached?.invoke(current, _liveDistanceKm.value, _liveCalories.value)
         }
+    }
+
+    fun resetForAccountSwitch() {
+        val today = getTodayDateString()
+        prefs.edit()
+            .clear()
+            .putString("last_tracked_date", today)
+            .putFloat("boot_baseline_$today", -1f)
+            .apply()
+        baselineManualOffset = 0
+        lastSyncedSteps = 0
+        _liveSteps.value = 0
+        updateMetrics(0)
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {

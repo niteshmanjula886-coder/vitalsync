@@ -39,7 +39,9 @@ data class UpdateProfileRequest(
     @SerializedName("primary_goal")
     val primaryGoal: String? = null,
     @SerializedName("step_goal")
-    val stepGoal: Int? = null
+    val stepGoal: Int? = null,
+    @SerializedName("clear_profile_image")
+    val clearProfileImage: Boolean? = null
 )
 
 data class UploadProfileResponse(
@@ -49,7 +51,7 @@ data class UploadProfileResponse(
     val message: String? = null,
     @SerializedName("profile_image")
     val profileImage: String? = null,
-    @SerializedName("image_url")
+    @SerializedName("image_url", alternate = ["profile_image_url", "avatar_url"])
     val imageUrl: String? = null
 )
 

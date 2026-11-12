@@ -141,6 +141,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import com.simats.vitalsync.data.sensor.StepSensorManager
 import com.simats.vitalsync.data.local.SessionManager
+import com.simats.vitalsync.data.network.RetrofitClient
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
 import com.simats.vitalsync.data.model.ai.MetricEvaluationDto
 import com.simats.vitalsync.data.model.vitals.evaluateBloodPressure
@@ -227,6 +228,10 @@ class MainActivity : ComponentActivity() {
 
         val repository = FitnessRepository.getInstance(applicationContext)
         val sessionManager = SessionManager.getInstance(applicationContext)
+        RetrofitClient.authHeaderProvider = {
+            val user = sessionManager.getUser()
+            if (user != null && user.id > 0) user.id.toString() else sessionManager.getUserEmail().ifBlank { null }
+        }
 
         setContent {
             var isDarkModeEnabled by remember { mutableStateOf(false) }
@@ -299,9 +304,10 @@ class MainActivity : ComponentActivity() {
                 val activitySessionsState by activityViewModel.sessionsState.collectAsState()
                 var activeVitalSheet by remember { mutableStateOf<VitalReadingType?>(null) }
 
-                // Current logged-in user email
-                val currentUser = authViewModel.getLoggedInUser()
+                // Current logged-in user (observed reactively across login, signup, profile updates, and logout)
+                val currentUser by authViewModel.currentUser.collectAsState()
                 val currentEmail = currentUser?.email ?: ""
+                var lastLoadedEmail by remember { mutableStateOf<String?>(null) }
 
                 val profileState by profileViewModel.profileState.collectAsState()
                 val healthGoalsState by profileViewModel.healthGoalsState.collectAsState()
@@ -323,17 +329,34 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(currentEmail) {
                     if (currentEmail.isNotBlank()) {
+                        if (lastLoadedEmail != null && !lastLoadedEmail.equals(currentEmail, ignoreCase = true)) {
+                            // Clear cached viewmodels/prefs when switching directly from one account to another
+                            repository.clearAllUserLocalData()
+                            stepSensorManager.resetForAccountSwitch()
+                            profileViewModel.resetState()
+                            vitalsViewModel.resetState()
+                            hydrationViewModel.resetState()
+                            heartRateViewModel.resetState()
+                            activityViewModel.resetState()
+                            aiViewModel.resetState()
+                            gymViewModel.resetState()
+                            nutritionViewModel.resetState()
+                        }
+                        lastLoadedEmail = currentEmail
+
                         // Launch critical startup telemetry asynchronously without blocking UI render
                         profileViewModel.fetchProfile(email = currentEmail)
                         vitalsViewModel.fetchSummary(email = currentEmail)
                         activityViewModel.loadSummary(email = currentEmail)
                         activityViewModel.loadStepGoal(email = currentEmail)
+                        hydrationViewModel.loadHydration(currentEmail, repository.getTodayDateString())
 
                         // Launch secondary optional telemetry in background
                         launch {
                             profileViewModel.fetchHealthGoals(email = currentEmail)
                             profileViewModel.fetchAppSettings(email = currentEmail)
                             profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
+                            aiViewModel.loadDailyInsight(userId = currentUser?.id)
                             aiViewModel.loadWeeklyTrends(email = currentEmail)
                             heartRateViewModel.fetchAnalytics(currentEmail)
                             activityViewModel.loadSessions(email = currentEmail)
@@ -372,6 +395,44 @@ class MainActivity : ComponentActivity() {
                 var globalUserInitials by remember { mutableStateOf("--") }
                 var globalUserAge by remember { mutableStateOf("") }
                 var globalProfilePhotoBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+                val profileAvatarBitmap by profileViewModel.avatarBitmap.collectAsState()
+
+                LaunchedEffect(profileAvatarBitmap) {
+                    globalProfilePhotoBitmap = profileAvatarBitmap
+                }
+
+                LaunchedEffect(currentUser?.id, currentUser?.imageUrl, currentUser?.profileImage) {
+                    if (currentUser != null) {
+                        profileViewModel.loadAvatarFromUser(currentUser)
+                    } else {
+                        globalProfilePhotoBitmap = null
+                    }
+                }
+
+                val performFullAccountCleanup: () -> Unit = {
+                    authViewModel.logout()
+                    repository.clearAllUserLocalData()
+                    stepSensorManager.resetForAccountSwitch()
+                    profileViewModel.resetState()
+                    vitalsViewModel.resetState()
+                    hydrationViewModel.resetState()
+                    heartRateViewModel.resetState()
+                    activityViewModel.resetState()
+                    aiViewModel.resetState()
+                    gymViewModel.resetState()
+                    nutritionViewModel.resetState()
+                    globalUserName = ""
+                    globalUserInitials = "--"
+                    globalUserAge = ""
+                    userHeightCm = ""
+                    userWeightKg = ""
+                    calculatedBmiValue = "--"
+                    calculatedBmiCategory = "--"
+                    globalProfilePhotoBitmap = null
+                    isNewUser = false
+                    homeInitialTab = 0
+                    lastLoadedEmail = null
+                }
 
                 // Reactive Recomposition Trigger for Nutrition Meals
                 var nutritionRefreshTrigger by remember { mutableIntStateOf(0) }
@@ -1192,8 +1253,12 @@ class MainActivity : ComponentActivity() {
                             ScreenState.ONBOARDING -> {
                                 OnboardingScreen(
                                     onSkipClick = {
-                                        homeInitialTab = 0
-                                        currentScreen = ScreenState.MAIN
+                                        if (authViewModel.isLoggedIn()) {
+                                            homeInitialTab = 0
+                                            currentScreen = ScreenState.MAIN
+                                        } else {
+                                            currentScreen = ScreenState.LOGIN
+                                        }
                                     },
                                     onFinishOnboarding = { currentScreen = ScreenState.LOGIN }
                                 )
@@ -1228,6 +1293,7 @@ class MainActivity : ComponentActivity() {
                                             } else {
                                                 parts.firstOrNull()?.take(2)?.uppercase() ?: "AM"
                                             }
+                                            profileViewModel.loadAvatarFromUser(user)
                                         }
                                     },
                                     onNavigateToSignUp = { currentScreen = ScreenState.SIGNUP },
@@ -1246,6 +1312,22 @@ class MainActivity : ComponentActivity() {
                                         currentScreen = ScreenState.PROFILE_SETUP
                                     },
                                     onSignUpSuccessWithUser = { user ->
+                                        repository.clearAllUserLocalData()
+                                        stepSensorManager.resetForAccountSwitch()
+                                        vitalsViewModel.resetState()
+                                        hydrationViewModel.resetState()
+                                        heartRateViewModel.resetState()
+                                        activityViewModel.resetState()
+                                        aiViewModel.resetState()
+                                        gymViewModel.resetState()
+                                        nutritionViewModel.resetState()
+                                        globalProfilePhotoBitmap = null
+                                        persistedStepGoal = 0
+                                        globalUserAge = ""
+                                        userHeightCm = ""
+                                        userWeightKg = ""
+                                        calculatedBmiValue = "--"
+                                        calculatedBmiCategory = "--"
                                         if (user != null) {
                                             globalUserName = user.displayName
                                             val parts = globalUserName.trim().split(" ")
@@ -1269,8 +1351,29 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             ScreenState.PROFILE_SETUP -> {
+                                var setupGender by remember { mutableStateOf(profileState.gender ?: "") }
+                                var setupActivityLevel by remember { mutableStateOf(profileState.activityLevel ?: "") }
+                                var setupPrimaryGoal by remember { mutableStateOf("") }
                                 ProfileSetupScreen(
+                                    initialName = globalUserName,
+                                    initialAge = globalUserAge,
+                                    initialGender = setupGender,
+                                    initialHeight = userHeightCm,
+                                    initialWeight = userWeightKg,
+                                    initialActivityLevel = setupActivityLevel,
                                     onBackClick = { currentScreen = ScreenState.SIGNUP },
+                                    onSelectionChanged = { selectedGender, selectedActivity ->
+                                        setupGender = selectedGender
+                                        setupActivityLevel = selectedActivity
+                                        profileViewModel.persistQuickProfileSelections(selectedGender, selectedActivity)?.let { updatedUser ->
+                                            authViewModel.updateCurrentUser(updatedUser)
+                                        }
+                                    },
+                                    onCompleteProfileDetails = { selectedGender, selectedActivity, selectedGoal ->
+                                        setupGender = selectedGender
+                                        setupActivityLevel = selectedActivity
+                                        setupPrimaryGoal = selectedGoal
+                                    },
                                     onSaveAndContinue = { newName, newAge, newHeight, newWeight ->
                                         if (newName.isNotBlank()) {
                                             globalUserName = newName
@@ -1284,6 +1387,18 @@ class MainActivity : ComponentActivity() {
                                         if (newAge.isNotBlank()) globalUserAge = newAge.filter { it.isDigit() }
                                         if (newHeight.isNotBlank()) userHeightCm = newHeight.filter { it.isDigit() }
                                         if (newWeight.isNotBlank()) userWeightKg = newWeight.filter { it.isDigit() || it == '.' }
+
+                                        profileViewModel.updatePersonalInformation(
+                                            newName = newName.ifBlank { globalUserName },
+                                            newAge = globalUserAge.toIntOrNull() ?: 0,
+                                            newHeightCm = userHeightCm.toDoubleOrNull() ?: 0.0,
+                                            newWeightKg = userWeightKg.toDoubleOrNull() ?: 0.0,
+                                            newGender = setupGender,
+                                            newActivityLevel = setupActivityLevel,
+                                            newPrimaryGoal = setupPrimaryGoal,
+                                            userId = currentUser?.id,
+                                            email = currentEmail
+                                        )
 
                                         currentScreen = ScreenState.WELCOME
                                     }
@@ -1388,7 +1503,8 @@ class MainActivity : ComponentActivity() {
                                     onOpenProgressAnalyticsClick = { currentScreen = ScreenState.FITNESS_PROGRESS },
                                     onViewWorkoutHistoryClick = { currentScreen = ScreenState.WORKOUT_HISTORY },
                                     onLogoutClick = {
-                                        authViewModel.logout()
+                                        performFullAccountCleanup()
+                                        persistedStepGoal = 0
                                         currentScreen = ScreenState.LOGIN
                                     }
                                 )
@@ -1727,6 +1843,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             ScreenState.PERSONAL_INFORMATION -> {
+                                var pendingAvatarCleared = false
                                 PersonalInformationScreen(
                                     currentName = globalUserName,
                                     currentInitials = globalUserInitials,
@@ -1734,12 +1851,22 @@ class MainActivity : ComponentActivity() {
                                     currentWeight = userWeightKg,
                                     currentDob = profileState.dob ?: "",
                                     currentGender = profileState.gender ?: "",
-                                    currentEmail = currentEmail,
+                                    currentEmail = profileState.email.ifBlank { currentEmail },
                                     currentPhone = profileState.phone ?: "",
                                     currentPhotoBitmap = globalProfilePhotoBitmap,
                                     onBackClick = {
                                         homeInitialTab = 3
                                         currentScreen = ScreenState.MAIN
+                                    },
+                                    onSaveAvatarFile = { avatarFile, cleared ->
+                                        pendingAvatarCleared = cleared
+                                        if (avatarFile != null) {
+                                            profileViewModel.uploadProfileImage(
+                                                imageFile = avatarFile,
+                                                userId = currentUser?.id,
+                                                email = currentEmail
+                                            )
+                                        }
                                     },
                                     onSaveChangesClick = { newName, newInitials, newAge, newHeight, newWeight, newPhotoBitmap, newDob, newGender, newPhone ->
                                         globalUserName = newName
@@ -1757,7 +1884,9 @@ class MainActivity : ComponentActivity() {
                                             newPhone = newPhone,
                                             newDob = newDob,
                                             newGender = newGender,
-                                            email = currentEmail
+                                            userId = currentUser?.id,
+                                            email = currentEmail,
+                                            clearProfileImage = pendingAvatarCleared
                                         )
 
                                         val h = newHeight.toFloatOrNull() ?: 0f

@@ -45,7 +45,7 @@ interface ProfileApiService {
     ): Response<ProfileResponse>
 
     @Multipart
-    @POST("auth/upload_profile.php")
+    @POST("profile/upload_avatar.php")
     suspend fun uploadProfileImage(
         @Part("user_id") userId: RequestBody? = null,
         @Part("email") email: RequestBody? = null,

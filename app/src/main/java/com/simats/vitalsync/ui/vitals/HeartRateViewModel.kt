@@ -104,6 +104,10 @@ class HeartRateViewModel(
             }
         }
     }
+
+    fun resetState() {
+        _uiState.value = HeartRateUiState()
+    }
 }
 
 class HeartRateViewModelFactory(private val context: Context) : ViewModelProvider.Factory {

@@ -446,6 +446,21 @@ class VitalsViewModel(
     fun resetAddReadingState() {
         _addReadingState.value = AddReadingUiState()
     }
+
+    fun resetState() {
+        _summaryState.value = VitalsSummaryUiState()
+        _heartRateState.value = HeartRateUiState()
+        _bloodPressureState.value = BloodPressureUiState()
+        _spo2State.value = Spo2UiState()
+        _bmiState.value = BmiUiState()
+        _readingsState.value = ReadingsUiState()
+        _addReadingState.value = AddReadingUiState()
+        _manualLogState.value = AddReadingUiState()
+        _aiInsightState.value = null
+        _hrDetailState.value = VitalGuidanceUiState()
+        _spo2DetailState.value = VitalGuidanceUiState()
+        _bpDetailState.value = VitalGuidanceUiState()
+    }
 }
 
 typealias VitalSignsViewModel = VitalsViewModel

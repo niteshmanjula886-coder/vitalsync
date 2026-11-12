@@ -1,5 +1,8 @@
 package com.simats.vitalsync.ui.profile.viewmodel
 
+import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.simats.vitalsync.data.model.auth.User
@@ -41,6 +44,7 @@ data class ProfileUiState(
     val phone: String? = null,
     val dob: String? = null,
     val gender: String? = null,
+    val activityLevel: String? = null,
     val email: String = "",
     val targetSteps: Int? = null,
     val targetSleepHours: Double? = null,
@@ -217,6 +221,7 @@ class ProfileViewModel(
                                     phone = user.phone ?: it.phone,
                                     dob = user.dob ?: it.dob,
                                     gender = user.gender ?: it.gender,
+                                    activityLevel = user.activityLevel ?: it.activityLevel,
                                     primaryGoal = user.primaryGoal ?: it.primaryGoal,
                                     targetSteps = user.stepGoal ?: it.targetSteps,
                                     user = user,
@@ -224,6 +229,7 @@ class ProfileViewModel(
                                 )
                             }
 
+                            loadAvatarFromUser(user)
                             // Non-critical settings fetched asynchronously without flooding startup
                             fetchAppSettings(user.id, user.email)
                         }
@@ -248,6 +254,39 @@ class ProfileViewModel(
         _profileState.update { it.copy(errorMessage = null) }
     }
 
+    private val _avatarBitmap = MutableStateFlow<ImageBitmap?>(null)
+    val avatarBitmap: StateFlow<ImageBitmap?> = _avatarBitmap.asStateFlow()
+
+    fun loadAvatarFromUser(user: User?) {
+        val rawAvatar = user?.imageUrl?.takeIf { it.isNotBlank() }
+            ?: user?.profileImage?.takeIf { it.isNotBlank() }
+        if (rawAvatar == null) {
+            _avatarBitmap.value = null
+            return
+        }
+        viewModelScope.launch {
+            val loaded = profileRepository.fetchAvatarBitmap(user)
+            if (loaded != null) {
+                _avatarBitmap.value = loaded
+            }
+        }
+    }
+
+    fun persistQuickProfileSelections(gender: String, activityLevel: String): User? {
+        val cleanGender = gender.trim()
+        val cleanActivity = activityLevel.trim()
+        _profileState.update {
+            it.copy(
+                gender = cleanGender.ifBlank { it.gender },
+                activityLevel = cleanActivity.ifBlank { it.activityLevel }
+            )
+        }
+        return profileRepository.updateLocalProfileFields(
+            gender = cleanGender.ifBlank { null },
+            activityLevel = cleanActivity.ifBlank { null }
+        )
+    }
+
     fun updatePersonalInformation(
         newName: String,
         newAge: Int,
@@ -258,7 +297,10 @@ class ProfileViewModel(
         newGender: String = "",
         newBloodGroup: String = "",
         userId: Int? = null,
-        email: String? = null
+        email: String? = null,
+        clearProfileImage: Boolean = false,
+        newActivityLevel: String = "",
+        newPrimaryGoal: String = ""
     ) {
         val parts = newName.trim().split(" ")
         val initialsStr = if (parts.size >= 2) {
@@ -267,33 +309,57 @@ class ProfileViewModel(
             parts.firstOrNull()?.take(2)?.uppercase() ?: "AM"
         }
 
+        if (clearProfileImage) {
+            _avatarBitmap.value = null
+        }
+
+        val updatedLocalUser = profileRepository.updateLocalProfileFields(
+            name = newName.ifBlank { null },
+            age = if (newAge > 0) newAge else null,
+            height = if (newHeightCm > 0.0) newHeightCm.toFloat() else null,
+            weight = if (newWeightKg > 0.0) newWeightKg.toFloat() else null,
+            gender = newGender.ifBlank { null },
+            activityLevel = newActivityLevel.ifBlank { null },
+            primaryGoal = newPrimaryGoal.ifBlank { null }
+        )
+
         _profileState.update {
             it.copy(
                 fullName = newName,
                 initials = initialsStr,
-                age = newAge,
-                heightCm = newHeightCm,
-                weightKg = newWeightKg,
+                age = if (newAge > 0) newAge else it.age,
+                heightCm = if (newHeightCm > 0.0) newHeightCm else it.heightCm,
+                weightKg = if (newWeightKg > 0.0) newWeightKg else it.weightKg,
                 phone = newPhone.ifBlank { it.phone },
                 dob = newDob.ifBlank { it.dob },
                 gender = newGender.ifBlank { it.gender },
+                activityLevel = newActivityLevel.ifBlank { it.activityLevel },
+                primaryGoal = newPrimaryGoal.ifBlank { it.primaryGoal },
                 bloodGroup = newBloodGroup.ifBlank { it.bloodGroup },
+                user = if (clearProfileImage) {
+                    (updatedLocalUser ?: it.user)?.copy(profileImage = null, imageUrl = null)
+                } else {
+                    updatedLocalUser ?: it.user
+                },
                 successMessage = "Personal information updated"
             )
         }
 
         viewModelScope.launch {
             val req = UpdateProfileRequest(
-                userId = userId ?: _profileState.value.userId,
+                userId = userId ?: _profileState.value.userId.takeIf { it > 0 },
                 email = email ?: _profileState.value.email,
                 name = newName,
                 fullName = newName,
-                age = newAge,
-                height = newHeightCm.toFloat(),
-                weight = newWeightKg.toFloat(),
-                phone = newPhone,
-                dob = newDob,
-                gender = newGender
+                age = if (newAge > 0) newAge else null,
+                height = if (newHeightCm > 0.0) newHeightCm.toFloat() else null,
+                weight = if (newWeightKg > 0.0) newWeightKg.toFloat() else null,
+                phone = newPhone.ifBlank { null },
+                dob = newDob.ifBlank { null },
+                gender = newGender.ifBlank { null },
+                activityLevel = newActivityLevel.ifBlank { null },
+                primaryGoal = newPrimaryGoal.ifBlank { null },
+                clearProfileImage = if (clearProfileImage) true else null
             )
             profileRepository.updateProfile(req).collect { resource ->
                 when (resource) {
@@ -326,16 +392,29 @@ class ProfileViewModel(
                     }
                     is Resource.Success -> {
                         val body = resource.data
+                        val resolvedUrl = body.imageUrl ?: body.profileImage
+                        try {
+                            val localBmp = BitmapFactory.decodeFile(imageFile.absolutePath)?.asImageBitmap()
+                            if (localBmp != null) {
+                                _avatarBitmap.value = localBmp
+                            }
+                        } catch (_: Exception) {
+                        }
                         _uploadAvatarState.update {
                             it.copy(
                                 isUploading = false,
-                                uploadedImageUrl = body.imageUrl ?: body.profileImage,
+                                uploadedImageUrl = resolvedUrl,
                                 errorMessage = null
                             )
                         }
-                        if (body.imageUrl != null) {
+                        if (resolvedUrl != null) {
                             _profileState.update { ps ->
-                                ps.copy(user = ps.user?.copy(imageUrl = body.imageUrl, profileImage = body.profileImage))
+                                ps.copy(
+                                    user = ps.user?.copy(
+                                        imageUrl = body.imageUrl ?: ps.user.imageUrl,
+                                        profileImage = body.profileImage ?: ps.user.profileImage
+                                    )
+                                )
                             }
                         }
                     }
@@ -984,5 +1063,20 @@ class ProfileViewModel(
         _notificationsState.update { it.copy(errorMessage = null, successMessage = null) }
         _supportState.update { it.copy(errorMessage = null, successMessage = null) }
         _weeklyReportState.update { it.copy(errorMessage = null) }
+    }
+
+    fun resetState() {
+        _profileState.value = ProfileUiState()
+        _healthGoalsState.value = HealthGoalsUiState()
+        _remindersState.value = RemindersUiState()
+        _uploadAvatarState.value = UploadAvatarUiState()
+        _appSettingsState.value = AppSettingsUiState()
+        _weeklyReportState.value = WeeklyReportUiState()
+        _healthPermissionsState.value = HealthPermissionsUiState()
+        _loginSessionsState.value = LoginSessionsUiState()
+        _notificationsState.value = NotificationsUiState()
+        _appVersionState.value = AppVersionUiState()
+        _supportState.value = SupportUiState()
+        _avatarBitmap.value = null
     }
 }

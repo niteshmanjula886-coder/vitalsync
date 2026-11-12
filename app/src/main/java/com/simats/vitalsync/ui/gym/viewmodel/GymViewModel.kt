@@ -146,4 +146,13 @@ class GymViewModel(
     fun resetSaveSessionState() {
         _saveSessionState.value = SaveWorkoutSessionUiState()
     }
+
+    fun resetState() {
+        _splitsState.value = SplitsUiState()
+        _exercisesState.value = ExercisesUiState()
+        _addExerciseState.value = AddExerciseUiState()
+        _sessionsState.value = WorkoutSessionsUiState()
+        _saveSessionState.value = SaveWorkoutSessionUiState()
+        _progressState.value = GymProgressUiState()
+    }
 }

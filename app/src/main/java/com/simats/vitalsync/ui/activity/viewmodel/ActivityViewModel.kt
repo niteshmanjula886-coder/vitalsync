@@ -231,6 +231,14 @@ class ActivityViewModel(
     fun resetStepGoalSavedState() {
         _stepGoalState.update { it.copy(isSavedSuccess = false) }
     }
+
+    fun resetState() {
+        _summaryState.value = ActivitySummaryUiState()
+        _stepGoalState.value = StepGoalUiState(dailyStepGoal = 8000, isGoalLoaded = false)
+        _sessionsState.value = ActivitySessionsUiState()
+        _saveSessionState.value = SaveSessionUiState()
+        _historyState.value = HistoryUiState()
+    }
 }
 
 

@@ -1,7 +1,10 @@
 package com.simats.vitalsync.ui.profile
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import java.io.File
+import java.io.FileOutputStream
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -38,6 +41,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,13 +101,21 @@ fun PersonalInformationScreen(
     currentPhone: String = "",
     currentPhotoBitmap: ImageBitmap? = null,
     onBackClick: () -> Unit = {},
+    onSaveAvatarFile: (avatarFile: File?, cleared: Boolean) -> Unit = { _, _ -> },
     onSaveChangesClick: (newName: String, newInitials: String, newAge: String, newHeight: String, newWeight: String, newPhotoBitmap: ImageBitmap?, newDob: String, newGender: String, newPhone: String) -> Unit = { _, _, _, _, _, _, _, _, _ -> }
 ) {
     val context = LocalContext.current
     var name by remember { mutableStateOf(currentName) }
     var initials by remember { mutableStateOf(currentInitials) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var photoCleared by remember { mutableStateOf(false) }
     var profileImageBitmap by remember { mutableStateOf<ImageBitmap?>(currentPhotoBitmap) }
+
+    LaunchedEffect(currentPhotoBitmap) {
+        if (!photoCleared && selectedImageUri == null && currentPhotoBitmap != null) {
+            profileImageBitmap = currentPhotoBitmap
+        }
+    }
 
     var dob by remember { mutableStateOf(currentDob) }
     var gender by remember { mutableStateOf(currentGender) }
@@ -123,10 +135,12 @@ fun PersonalInformationScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             selectedImageUri = uri
+            photoCleared = false
             try {
-                val inputStream = context.contentResolver.openInputStream(uri)
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                profileImageBitmap = bitmap?.asImageBitmap()
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    profileImageBitmap = bitmap?.asImageBitmap()
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -255,6 +269,7 @@ fun PersonalInformationScreen(
                                     .clickable {
                                         profileImageBitmap = null
                                         selectedImageUri = null
+                                        photoCleared = true
                                     }
                                     .padding(horizontal = 14.dp, vertical = 8.dp)
                             ) {
@@ -287,6 +302,7 @@ fun PersonalInformationScreen(
                                         initials = presetInitials
                                         profileImageBitmap = null
                                         selectedImageUri = null
+                                        photoCleared = true
                                     }
                                     .padding(4.dp),
                                 contentAlignment = Alignment.Center
@@ -532,7 +548,38 @@ fun PersonalInformationScreen(
 
         // Save Changes Button
         Button(
-            onClick = { onSaveChangesClick(name, initials, "$calculatedAge", height, weight, profileImageBitmap, dob, gender, phone) },
+            onClick = {
+                val avatarFile = selectedImageUri?.let { uri ->
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use { stream ->
+                            val decoded = BitmapFactory.decodeStream(stream)
+                            if (decoded != null) {
+                                val maxDim = 1024
+                                val scaled = if (decoded.width > maxDim || decoded.height > maxDim) {
+                                    val ratio = minOf(maxDim.toFloat() / decoded.width, maxDim.toFloat() / decoded.height)
+                                    Bitmap.createScaledBitmap(
+                                        decoded,
+                                        (decoded.width * ratio).toInt().coerceAtLeast(1),
+                                        (decoded.height * ratio).toInt().coerceAtLeast(1),
+                                        true
+                                    )
+                                } else {
+                                    decoded
+                                }
+                                val outFile = File(context.cacheDir, "avatar_upload_${System.currentTimeMillis()}.jpg")
+                                FileOutputStream(outFile).use { out ->
+                                    scaled.compress(Bitmap.CompressFormat.JPEG, 85, out)
+                                }
+                                outFile
+                            } else null
+                        }
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+                onSaveAvatarFile(avatarFile, photoCleared && avatarFile == null)
+                onSaveChangesClick(name, initials, "$calculatedAge", height, weight, profileImageBitmap, dob, gender, phone)
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)

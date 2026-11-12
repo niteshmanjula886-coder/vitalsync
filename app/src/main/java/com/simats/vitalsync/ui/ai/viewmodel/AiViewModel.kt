@@ -58,9 +58,11 @@ class AiViewModel(
     val isAiThinking: StateFlow<Boolean> = _isAiThinking.asStateFlow()
 
     init {
-        // Launch optional AI daily insight & weekly trends asynchronously without blocking initial UI render
-        loadDailyInsight()
-        loadWeeklyTrends()
+        if (SessionManager.getInstance(application).isLoggedIn()) {
+            // Launch optional AI daily insight & weekly trends asynchronously without blocking initial UI render
+            loadDailyInsight()
+            loadWeeklyTrends()
+        }
     }
 
     private fun getCurrentTimeText(): String {
@@ -402,11 +404,11 @@ class AiViewModel(
         sendMessage(userId = resolvedUserId, prompt = messageText, email = explicitEmail)
     }
 
-    fun loadDailyInsight(forceRefresh: Boolean = false) {
+    fun loadDailyInsight(userId: Int? = null, forceRefresh: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isInsightLoading = true) }
             try {
-                when (val result = withTimeout(12_000L) { repository.getDailyInsight(refresh = forceRefresh) }) {
+                when (val result = withTimeout(12_000L) { repository.getDailyInsight(userId = userId, refresh = forceRefresh) }) {
                     is Resource.Success -> {
                         _uiState.update {
                             it.copy(
@@ -517,6 +519,11 @@ class AiViewModel(
 
     fun dismissError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun resetState() {
+        _uiState.value = AiUiState()
+        _isAiThinking.value = false
     }
 }
 

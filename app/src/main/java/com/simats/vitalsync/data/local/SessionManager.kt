@@ -45,6 +45,11 @@ class SessionManager(context: Context) {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: SessionManager(context.applicationContext).also {
                     INSTANCE = it
+                    // Ensure every API request attaches the currently logged-in user's Bearer token
+                    RetrofitClient.authHeaderProvider = {
+                        val u = it.getUser()
+                        if (u != null && u.id > 0) u.id.toString() else it.getUserEmail().ifBlank { null }
+                    }
                     // Sync custom base URL if configured previously
                     val savedUrl = it.getCustomBaseUrl()
                     if (!savedUrl.isNullOrBlank()) {
