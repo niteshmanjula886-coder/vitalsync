@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import java.util.Locale
 
 private val DarkGreenNormal = Color(0xFF00A884)
 private val LightGreenNormalBg = Color(0xFFDDF7EC)
@@ -63,11 +64,29 @@ private val DarkYellowMid = Color(0xFFD97706)
 private val LightYellowMidBg = Color(0xFFFEF3C7)
 
 private val DarkRedLow = Color(0xFFDC2626)
+private val LightRedLowBg = Color(0xFFFEE2E2)
 
 enum class MetricStatusType {
     NORMAL,
     MID,
-    LOW
+    LOW,
+    NO_DATA
+}
+
+fun resolveMetricStatusType(statusText: String): MetricStatusType {
+    val clean = statusText.trim().lowercase(Locale.ROOT)
+    return when {
+        clean.isEmpty() || clean == "--" || clean.contains("no data") || clean.contains("no log") -> MetricStatusType.NO_DATA
+        clean.contains("normal") || clean.contains("optimal") || clean.contains("excellent") ||
+            clean.contains("good") || clean.contains("active") || clean.contains("restorative") -> MetricStatusType.NORMAL
+        clean.contains("mid") || clean.contains("moderate") || clean.contains("fair") ||
+            clean.contains("elevated") || clean.contains("stage 1") -> MetricStatusType.MID
+        clean.contains("low") || clean.contains("poor") || clean.contains("alert") ||
+            clean.contains("attention") || clean.contains("stage 2") || clean.contains("crisis") ||
+            clean.contains("hypoxemia") || clean.contains("hypotension") || clean.contains("critical") ||
+            clean.contains("dehydrated") || clean.contains("lagging") -> MetricStatusType.LOW
+        else -> MetricStatusType.NORMAL
+    }
 }
 
 @Composable
@@ -370,7 +389,7 @@ fun WeeklyHealthReportScreen(
                     title = "Heart Rate Avg",
                     value = heartRateAvg,
                     statusText = heartRateStatus,
-                    statusType = if (heartRateAvg != "-- BPM") MetricStatusType.NORMAL else MetricStatusType.LOW,
+                    statusType = resolveMetricStatusType(heartRateStatus),
                     modifier = Modifier.weight(1f)
                 )
 
@@ -378,7 +397,7 @@ fun WeeklyHealthReportScreen(
                     title = "Blood Pressure",
                     value = bpAvg,
                     statusText = bpStatus,
-                    statusType = if (bpAvg != "--/--") MetricStatusType.NORMAL else MetricStatusType.LOW,
+                    statusType = resolveMetricStatusType(bpStatus),
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -394,7 +413,7 @@ fun WeeklyHealthReportScreen(
                     title = "SpO₂ Avg",
                     value = spo2Avg,
                     statusText = spo2Status,
-                    statusType = if (spo2Avg != "--%") MetricStatusType.NORMAL else MetricStatusType.LOW,
+                    statusType = resolveMetricStatusType(spo2Status),
                     modifier = Modifier.weight(1f)
                 )
 
@@ -402,18 +421,7 @@ fun WeeklyHealthReportScreen(
                     title = "Sleep Quality",
                     value = sleepQuality,
                     statusText = sleepStatus,
-                    statusType = when {
-                        sleepQuality == "--" ||
-                            sleepQuality.equals("No Logs Recorded", ignoreCase = true) ||
-                            sleepStatus.equals("No Logs Recorded", ignoreCase = true) ||
-                            sleepStatus.equals("No Data", ignoreCase = true) -> MetricStatusType.LOW
-                        sleepQuality.contains("Poor", ignoreCase = true) ||
-                            sleepStatus.contains("Poor", ignoreCase = true) -> MetricStatusType.LOW
-                        sleepQuality.contains("Fair", ignoreCase = true) ||
-                            sleepStatus.contains("Fair", ignoreCase = true) ||
-                            sleepStatus.contains("Mid", ignoreCase = true) -> MetricStatusType.MID
-                        else -> MetricStatusType.NORMAL
-                    },
+                    statusType = resolveMetricStatusType(sleepStatus.ifBlank { sleepQuality }),
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -429,7 +437,7 @@ fun WeeklyHealthReportScreen(
                     title = "Hydration",
                     value = hydrationTotal,
                     statusText = hydrationStatus,
-                    statusType = if (hydrationTotal != "-- ml") MetricStatusType.NORMAL else MetricStatusType.LOW,
+                    statusType = resolveMetricStatusType(hydrationStatus),
                     modifier = Modifier.weight(1f)
                 )
 
@@ -437,7 +445,7 @@ fun WeeklyHealthReportScreen(
                     title = "Activity Steps",
                     value = activitySteps,
                     statusText = activityStatus,
-                    statusType = if (activitySteps != "-- steps") MetricStatusType.NORMAL else MetricStatusType.LOW,
+                    statusType = resolveMetricStatusType(activityStatus),
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -539,7 +547,8 @@ private fun ReportMetricCard(
     val (statusColor, statusBgColor) = when (statusType) {
         MetricStatusType.NORMAL -> Pair(DarkGreenNormal, LightGreenNormalBg)
         MetricStatusType.MID -> Pair(DarkYellowMid, LightYellowMidBg)
-        MetricStatusType.LOW -> Pair(Color(0xFF6B7280), Color(0xFFF1F5F9))
+        MetricStatusType.LOW -> Pair(DarkRedLow, LightRedLowBg)
+        MetricStatusType.NO_DATA -> Pair(Color(0xFF6B7280), Color(0xFFF1F5F9))
     }
 
     Card(

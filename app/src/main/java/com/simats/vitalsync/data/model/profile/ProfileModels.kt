@@ -468,12 +468,89 @@ data class WeeklySleepDayDto(
 data class WeeklyReportScoresDto(
     @SerializedName("heart_rate")
     val heartRate: Int = 0,
+    @SerializedName("blood_pressure")
+    val bloodPressure: Int = 0,
+    @SerializedName("spo2")
+    val spo2: Int = 0,
     @SerializedName("sleep")
     val sleep: Int = 0,
     @SerializedName("hydration")
     val hydration: Int = 0,
     @SerializedName("activity")
     val activity: Int = 0
+)
+
+data class MetricBreakdownItemDto(
+    @SerializedName("value")
+    val value: String = "--",
+    @SerializedName("status")
+    val status: String = "No Data",
+    @SerializedName("score")
+    val score: Int = 0,
+    @SerializedName("total_ml")
+    val totalMl: Int? = null,
+    @SerializedName("goal_ml")
+    val goalMl: Int? = null,
+    @SerializedName("total_steps")
+    val totalSteps: Int? = null,
+    @SerializedName("goal_steps")
+    val goalSteps: Int? = null,
+    @SerializedName("completion_percent")
+    val completionPercent: Int? = null,
+    @SerializedName("duration_minutes")
+    val durationMinutes: Int? = null,
+    @SerializedName("distance_km")
+    val distanceKm: Double? = null,
+    @SerializedName("calories_kcal")
+    val caloriesKcal: Int? = null
+)
+
+data class ExecutiveSummaryDto(
+    @SerializedName("summary")
+    val summary: String = "",
+    @SerializedName("key_findings")
+    val keyFindings: List<String> = emptyList(),
+    @SerializedName("recommendations")
+    val recommendations: List<String> = emptyList()
+)
+
+data class VitalPerformanceBreakdownDto(
+    @SerializedName("overall_wellness_score")
+    val overallWellnessScore: Int = 0,
+    @SerializedName("overall_status")
+    val overallStatus: String = "No Data",
+    @SerializedName("heart_rate")
+    val heartRate: MetricBreakdownItemDto? = null,
+    @SerializedName("blood_pressure")
+    val bloodPressure: MetricBreakdownItemDto? = null,
+    @SerializedName("spo2")
+    val spo2: MetricBreakdownItemDto? = null,
+    @SerializedName("sleep")
+    val sleep: MetricBreakdownItemDto? = null,
+    @SerializedName("hydration")
+    val hydration: MetricBreakdownItemDto? = null,
+    @SerializedName("activity")
+    val activity: MetricBreakdownItemDto? = null
+)
+
+data class VitalPerformanceBreakdown(
+    val overallWellnessScore: Int,
+    val overallStatus: String,
+    val heartRateValue: String,
+    val heartRateStatus: String,
+    val bpValue: String,
+    val bpStatus: String,
+    val spo2Value: String,
+    val spo2Status: String,
+    val sleepValue: String,
+    val sleepStatus: String,
+    val hydrationValue: String,
+    val hydrationStatus: String,
+    val activityValue: String,
+    val activityStatus: String,
+    val observationText: String,
+    val keyFindings: List<String> = emptyList(),
+    val recommendations: List<String> = emptyList()
 )
 
 data class WeeklyReportDto(
@@ -500,8 +577,116 @@ data class WeeklyReportDto(
     @SerializedName("sleep_days")
     val sleepDays: List<WeeklySleepDayDto> = emptyList(),
     @SerializedName("metrics")
-    val metrics: WeeklyReportMetricsDto? = null
+    val metrics: WeeklyReportMetricsDto? = null,
+    @SerializedName("vital_performance_breakdown")
+    val vitalPerformanceBreakdown: VitalPerformanceBreakdownDto? = null,
+    @SerializedName("executive_summary")
+    val executiveSummary: ExecutiveSummaryDto? = null
 ) {
+    /**
+     * Constructs a unified, validated VitalPerformanceBreakdown domain object, preferring
+     * calculated breakdown fields from the backend while falling back safely to metrics and client state.
+     */
+    fun toVitalPerformanceBreakdown(
+        fallbackScore: Int = 0,
+        fallbackStatus: String = "No Data",
+        fallbackHr: String = "-- BPM",
+        fallbackHrStatus: String = "No Data",
+        fallbackBp: String = "--/--",
+        fallbackBpStatus: String = "No Data",
+        fallbackSpo2: String = "--%",
+        fallbackSpo2Status: String = "No Data",
+        fallbackSleepVal: String = "--",
+        fallbackSleepStatus: String = "No Logs Recorded",
+        fallbackHydrationVal: String = "-- ml",
+        fallbackHydrationStatus: String = "No Data",
+        fallbackStepsVal: String = "-- steps",
+        fallbackStepsStatus: String = "No Data",
+        fallbackObs: String = ""
+    ): VitalPerformanceBreakdown {
+        val b = vitalPerformanceBreakdown
+        val exec = executiveSummary
+
+        val score = b?.overallWellnessScore?.takeIf { it > 0 }
+            ?: wellnessScore.takeIf { it > 0 }
+            ?: fallbackScore
+
+        val status = b?.overallStatus?.takeIf { it.isNotBlank() && !it.equals("No Data", ignoreCase = true) }
+            ?: categoryLabel.takeIf { it.isNotBlank() && !it.equals("Low", ignoreCase = true) }
+            ?: fallbackStatus
+
+        val hrVal = b?.heartRate?.value?.takeIf { it != "-- BPM" && it.isNotBlank() }
+            ?: metrics?.heartRateAvg?.takeIf { it != "-- BPM" && it.isNotBlank() }
+            ?: fallbackHr
+
+        val hrStat = b?.heartRate?.status?.takeIf { it.isNotBlank() && !it.equals("No Data", ignoreCase = true) }
+            ?: metrics?.heartRateStatus?.takeIf { it.isNotBlank() && !it.equals("No Data", ignoreCase = true) }
+            ?: fallbackHrStatus
+
+        val bpVal = b?.bloodPressure?.value?.takeIf { it != "--/--" && it.isNotBlank() }
+            ?: metrics?.bpAvg?.takeIf { it != "--/--" && it.isNotBlank() }
+            ?: fallbackBp
+
+        val bpStat = b?.bloodPressure?.status?.takeIf { it.isNotBlank() && !it.equals("No Data", ignoreCase = true) }
+            ?: metrics?.bpStatus?.takeIf { it.isNotBlank() && !it.equals("No Data", ignoreCase = true) }
+            ?: fallbackBpStatus
+
+        val spo2Val = b?.spo2?.value?.takeIf { it != "--%" && it.isNotBlank() }
+            ?: metrics?.spo2Avg?.takeIf { it != "--%" && it.isNotBlank() }
+            ?: fallbackSpo2
+
+        val spo2Stat = b?.spo2?.status?.takeIf { it.isNotBlank() && !it.equals("No Data", ignoreCase = true) }
+            ?: metrics?.spo2Status?.takeIf { it.isNotBlank() && !it.equals("No Data", ignoreCase = true) }
+            ?: fallbackSpo2Status
+
+        val sleepVal = b?.sleep?.value?.takeIf { it != "--" && it.isNotBlank() }
+            ?: resolvedBreakdownSleepValue().takeIf { it != "--" }
+            ?: fallbackSleepVal
+
+        val sleepStat = b?.sleep?.status?.takeIf { it.isNotBlank() && !it.equals("No Logs Recorded", ignoreCase = true) }
+            ?: resolvedBreakdownSleepStatus().takeIf { it != "No Logs Recorded" }
+            ?: fallbackSleepStatus
+
+        val hydVal = b?.hydration?.value?.takeIf { it != "0 ml" && it != "-- ml" && it.isNotBlank() }
+            ?: metrics?.hydrationTotal?.takeIf { it != "0 ml" && it != "-- ml" && it.isNotBlank() }
+            ?: fallbackHydrationVal
+
+        val hydStat = b?.hydration?.status?.takeIf { it.isNotBlank() && !it.equals("No Data", ignoreCase = true) }
+            ?: metrics?.hydrationStatus?.takeIf { it.isNotBlank() && !it.equals("No Data", ignoreCase = true) }
+            ?: fallbackHydrationStatus
+
+        val actVal = b?.activity?.value?.takeIf { it != "0 steps" && it != "-- steps" && it.isNotBlank() }
+            ?: metrics?.activitySteps?.takeIf { it != "0 steps" && it != "-- steps" && it.isNotBlank() }
+            ?: fallbackStepsVal
+
+        val actStat = b?.activity?.status?.takeIf { it.isNotBlank() && !it.equals("No Data", ignoreCase = true) }
+            ?: metrics?.activityStatus?.takeIf { it.isNotBlank() && !it.equals("No Data", ignoreCase = true) }
+            ?: fallbackStepsStatus
+
+        val obs = exec?.summary?.takeIf { it.isNotBlank() }
+            ?: summaryText.takeIf { it.isNotBlank() }
+            ?: fallbackObs
+
+        return VitalPerformanceBreakdown(
+            overallWellnessScore = score,
+            overallStatus = status,
+            heartRateValue = hrVal,
+            heartRateStatus = hrStat,
+            bpValue = bpVal,
+            bpStatus = bpStat,
+            spo2Value = spo2Val,
+            spo2Status = spo2Stat,
+            sleepValue = sleepVal,
+            sleepStatus = sleepStat,
+            hydrationValue = hydVal,
+            hydrationStatus = hydStat,
+            activityValue = actVal,
+            activityStatus = actStat,
+            observationText = obs,
+            keyFindings = exec?.keyFindings ?: emptyList(),
+            recommendations = exec?.recommendations ?: emptyList()
+        )
+    }
     /**
      * Resolve average nightly sleep minutes across explicit backend fields and logged sleep_days entries.
      */

@@ -138,9 +138,13 @@ class HydrationViewModel(
 
         // 1. Optimistic UI update
         _hydrationState.update { current ->
-            val newConsumed = (current.consumedWaterMl + amountMl).coerceAtMost(5000)
-            val newRatio = (newConsumed.toFloat() / current.dailyTargetMl.toFloat()).coerceIn(0f, 1f)
-            val newProgress = (newRatio * 100).toInt()
+            val newConsumed = current.consumedWaterMl + amountMl
+            val newRatio = if (current.dailyTargetMl > 0) {
+                (newConsumed.toFloat() / current.dailyTargetMl.toFloat()).coerceIn(0f, 1f)
+            } else 0f
+            val newProgress = if (current.dailyTargetMl > 0) {
+                ((newConsumed.toFloat() / current.dailyTargetMl.toFloat()) * 100).toInt()
+            } else 0
             val newGlasses = newConsumed / 250f
 
             val updatedWeekly = if (current.weeklyHistory.isNotEmpty()) {

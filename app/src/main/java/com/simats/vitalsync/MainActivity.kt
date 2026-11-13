@@ -42,6 +42,7 @@ import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
 import com.simats.vitalsync.util.WeeklyReportPdfGenerator
+import com.simats.vitalsync.data.model.profile.VitalPerformanceBreakdown
 import com.simats.vitalsync.util.NotificationReminderEngine
 import com.simats.vitalsync.data.ActivitySessionRecord
 import com.simats.vitalsync.data.Exercise
@@ -1727,38 +1728,62 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.WEEKLY_REPORT -> {
                                 val report = weeklyReportState.report ?: aiUiState.weeklyReport
-                                val reportScore = report?.wellnessScore ?: wellnessScoreVal
-                                val reportStatus = report?.categoryLabel ?: wellnessStatusVal
-                                val reportHrAvg = report?.metrics?.heartRateAvg ?: heartRateFormatted
-                                val reportHrStatus = report?.metrics?.heartRateStatus ?: heartRateStatusFormatted
-                                val reportBpAvg = report?.metrics?.bpAvg ?: bpFormatted
-                                val reportBpStatus = report?.metrics?.bpStatus ?: bpStatusFormatted
-                                val reportSpo2Avg = report?.metrics?.spo2Avg ?: spo2Formatted
-                                val reportSpo2Status = report?.metrics?.spo2Status ?: spo2StatusFormatted
-                                val reportSleepQuality = report?.resolvedBreakdownSleepValue() ?: "--"
-                                val reportSleepStatus = report?.resolvedBreakdownSleepStatus() ?: "No Logs Recorded"
-                                val reportHydrationTotal = report?.metrics?.hydrationTotal ?: (if (hydrationSummary != null && hydrationSummary.consumedMl > 0) "${hydrationSummary.consumedMl} ml" else "-- ml")
-                                val reportHydrationStatus = report?.metrics?.hydrationStatus ?: (if (hydrationSummary != null && hydrationSummary.consumedMl > 0) "${hydrationSummary.progressPercent}% of goal" else "No Data")
-                                val reportActivitySteps = report?.metrics?.activitySteps ?: activityStepsFormatted
-                                val reportActivityStatus = report?.metrics?.activityStatus ?: stepsStatusFormatted
-                                val reportAiObs = report?.summaryText?.takeIf { it.isNotBlank() } ?: (if (wellnessScoreVal > 0) "Weekly clinical summary: Vitals tracked across heart rate, SpO2, and activity. Keep up the balanced routine!" else "No weekly vital logs recorded yet. Log your vitals or daily activity to view clinical observations.")
+                                val fallbackObsText = if (wellnessScoreVal > 0) {
+                                    "Weekly clinical summary: Vitals tracked across heart rate, SpO2, blood pressure, sleep, and activity. Keep up the balanced routine!"
+                                } else {
+                                    "No weekly vital logs recorded yet. Log your vitals or daily activity to view clinical observations."
+                                }
+
+                                val breakdown = report?.toVitalPerformanceBreakdown(
+                                    fallbackScore = wellnessScoreVal,
+                                    fallbackStatus = wellnessStatusVal,
+                                    fallbackHr = heartRateFormatted,
+                                    fallbackHrStatus = heartRateStatusFormatted,
+                                    fallbackBp = bpFormatted,
+                                    fallbackBpStatus = bpStatusFormatted,
+                                    fallbackSpo2 = spo2Formatted,
+                                    fallbackSpo2Status = spo2StatusFormatted,
+                                    fallbackSleepVal = report?.resolvedBreakdownSleepValue() ?: "--",
+                                    fallbackSleepStatus = report?.resolvedBreakdownSleepStatus() ?: "No Logs Recorded",
+                                    fallbackHydrationVal = if (hydrationSummary != null && hydrationSummary.consumedMl > 0) "${hydrationSummary.consumedMl} ml" else "-- ml",
+                                    fallbackHydrationStatus = if (hydrationSummary != null && hydrationSummary.consumedMl > 0) "${hydrationSummary.progressPercent}% of goal" else "No Data",
+                                    fallbackStepsVal = activityStepsFormatted,
+                                    fallbackStepsStatus = stepsStatusFormatted,
+                                    fallbackObs = fallbackObsText
+                                ) ?: VitalPerformanceBreakdown(
+                                    overallWellnessScore = wellnessScoreVal,
+                                    overallStatus = wellnessStatusVal,
+                                    heartRateValue = heartRateFormatted,
+                                    heartRateStatus = heartRateStatusFormatted,
+                                    bpValue = bpFormatted,
+                                    bpStatus = bpStatusFormatted,
+                                    spo2Value = spo2Formatted,
+                                    spo2Status = spo2StatusFormatted,
+                                    sleepValue = "--",
+                                    sleepStatus = "No Logs Recorded",
+                                    hydrationValue = if (hydrationSummary != null && hydrationSummary.consumedMl > 0) "${hydrationSummary.consumedMl} ml" else "-- ml",
+                                    hydrationStatus = if (hydrationSummary != null && hydrationSummary.consumedMl > 0) "${hydrationSummary.progressPercent}% of goal" else "No Data",
+                                    activityValue = activityStepsFormatted,
+                                    activityStatus = stepsStatusFormatted,
+                                    observationText = fallbackObsText
+                                )
 
                                 WeeklyHealthReportScreen(
-                                    wellnessScore = reportScore,
-                                    wellnessStatus = reportStatus,
-                                    heartRateAvg = reportHrAvg,
-                                    heartRateStatus = reportHrStatus,
-                                    bpAvg = reportBpAvg,
-                                    bpStatus = reportBpStatus,
-                                    spo2Avg = reportSpo2Avg,
-                                    spo2Status = reportSpo2Status,
-                                    sleepQuality = reportSleepQuality,
-                                    sleepStatus = reportSleepStatus,
-                                    hydrationTotal = reportHydrationTotal,
-                                    hydrationStatus = reportHydrationStatus,
-                                    activitySteps = reportActivitySteps,
-                                    activityStatus = reportActivityStatus,
-                                    aiObservationText = reportAiObs,
+                                    wellnessScore = breakdown.overallWellnessScore,
+                                    wellnessStatus = breakdown.overallStatus,
+                                    heartRateAvg = breakdown.heartRateValue,
+                                    heartRateStatus = breakdown.heartRateStatus,
+                                    bpAvg = breakdown.bpValue,
+                                    bpStatus = breakdown.bpStatus,
+                                    spo2Avg = breakdown.spo2Value,
+                                    spo2Status = breakdown.spo2Status,
+                                    sleepQuality = breakdown.sleepValue,
+                                    sleepStatus = breakdown.sleepStatus,
+                                    hydrationTotal = breakdown.hydrationValue,
+                                    hydrationStatus = breakdown.hydrationStatus,
+                                    activitySteps = breakdown.activityValue,
+                                    activityStatus = breakdown.activityStatus,
+                                    aiObservationText = breakdown.observationText,
                                     showAiInsights = appSettingsState.aiInsights,
                                     onBackClick = {
                                         homeInitialTab = 0
@@ -1769,21 +1794,7 @@ class MainActivity : ComponentActivity() {
                                             context = context,
                                             userName = globalUserName,
                                             userEmail = currentEmail,
-                                            wellnessScore = reportScore,
-                                            wellnessStatus = reportStatus,
-                                            heartRate = reportHrAvg,
-                                            heartRateStatus = reportHrStatus,
-                                            bp = reportBpAvg,
-                                            bpStatus = reportBpStatus,
-                                            spo2 = reportSpo2Avg,
-                                            spo2Status = reportSpo2Status,
-                                            sleep = reportSleepQuality,
-                                            sleepStatus = reportSleepStatus,
-                                            hydration = reportHydrationTotal,
-                                            hydrationStatus = reportHydrationStatus,
-                                            steps = reportActivitySteps,
-                                            stepsStatus = reportActivityStatus,
-                                            observationText = reportAiObs
+                                            breakdown = breakdown
                                         )
                                         if (file != null && file.exists()) {
                                             WeeklyReportPdfGenerator.sharePdf(context, file)
@@ -1795,15 +1806,25 @@ class MainActivity : ComponentActivity() {
                                         val summaryText = buildString {
                                             appendLine("VitalSync Weekly Health Report")
                                             appendLine("Patient: $globalUserName ($currentEmail)")
-                                            appendLine("Wellness Score: $reportScore/100 ($reportStatus)")
-                                            appendLine("- Heart Rate: $reportHrAvg ($reportHrStatus)")
-                                            appendLine("- Blood Pressure: $reportBpAvg ($reportBpStatus)")
-                                            appendLine("- SpO2: $reportSpo2Avg ($reportSpo2Status)")
-                                            appendLine("- Sleep: $reportSleepQuality ($reportSleepStatus)")
-                                            appendLine("- Hydration: $reportHydrationTotal ($reportHydrationStatus)")
-                                            appendLine("- Steps: $reportActivitySteps ($reportActivityStatus)")
+                                            appendLine("Wellness Score: ${breakdown.overallWellnessScore}/100 (${breakdown.overallStatus})")
                                             appendLine()
-                                            appendLine("Observations: $reportAiObs")
+                                            appendLine("Vital Performance Telemetry:")
+                                            appendLine("• Heart Rate: ${breakdown.heartRateValue} (${breakdown.heartRateStatus})")
+                                            appendLine("• Blood Pressure: ${breakdown.bpValue} (${breakdown.bpStatus})")
+                                            appendLine("• SpO2: ${breakdown.spo2Value} (${breakdown.spo2Status})")
+                                            appendLine("• Sleep Quality: ${breakdown.sleepValue} (${breakdown.sleepStatus})")
+                                            appendLine("• Hydration Intake: ${breakdown.hydrationValue} (${breakdown.hydrationStatus})")
+                                            appendLine("• Physical Activity: ${breakdown.activityValue} (${breakdown.activityStatus})")
+                                            appendLine()
+                                            appendLine("Clinical & AI Doctor Observations:")
+                                            appendLine(breakdown.observationText)
+                                            if (breakdown.recommendations.isNotEmpty()) {
+                                                appendLine()
+                                                appendLine("Key Recommendations:")
+                                                breakdown.recommendations.forEach { rec ->
+                                                    appendLine("• $rec")
+                                                }
+                                            }
                                         }
                                         WeeklyReportPdfGenerator.shareTextSummary(context, summaryText)
                                     }

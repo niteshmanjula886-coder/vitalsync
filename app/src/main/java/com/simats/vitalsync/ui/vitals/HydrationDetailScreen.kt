@@ -132,7 +132,7 @@ fun HydrationDetailScreen(
         if (viewModel != null) {
             viewModel.addWater(userEmail, amountMl, rawDate)
         } else {
-            localConsumedMl = (localConsumedMl + amountMl).coerceAtMost(5000)
+            localConsumedMl = localConsumedMl + amountMl
             localLastLoggedAmountMl = amountMl
             localShowToast = true
         }
