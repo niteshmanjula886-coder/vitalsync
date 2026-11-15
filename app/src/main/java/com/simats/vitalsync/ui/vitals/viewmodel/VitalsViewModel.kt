@@ -119,12 +119,18 @@ class VitalsViewModel(
         flowProvider: () -> kotlinx.coroutines.flow.Flow<Resource<VitalDetailGuidanceResponse>>
     ) {
         viewModelScope.launch {
-            flowProvider().collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> targetState.update { it.copy(isLoading = true, errorMessage = null) }
-                    is Resource.Success -> targetState.update { it.copy(isLoading = false, data = resource.data, errorMessage = null) }
-                    is Resource.Error -> targetState.update { it.copy(isLoading = false, errorMessage = resource.message) }
+            try {
+                flowProvider().collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> targetState.update { it.copy(isLoading = true, errorMessage = null) }
+                        is Resource.Success -> targetState.update { it.copy(isLoading = false, data = resource.data, errorMessage = null) }
+                        is Resource.Error -> targetState.update { it.copy(isLoading = false, errorMessage = resource.message) }
+                    }
                 }
+            } catch (e: Exception) {
+                targetState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                targetState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -157,7 +163,7 @@ class VitalsViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _isAiInsightLoading.value = true
             try {
-                val response = withTimeout(12_000L) {
+                val response = withTimeout(6_000L) {
                     RetrofitClient.aiApiService.getAiInsight(
                         userId = userId,
                         isBtConnected = isBtConnected,
@@ -206,6 +212,8 @@ class VitalsViewModel(
                 _summaryState.update { it.copy(isLoading = false, errorMessage = ApiConstants.SERVER_UNREACHABLE_MESSAGE) }
             } catch (e: Exception) {
                 _summaryState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _summaryState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -216,110 +224,140 @@ class VitalsViewModel(
 
     fun fetchHeartRate(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            vitalsRepository.getHeartRate(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _heartRateState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _heartRateState.update {
-                            it.copy(isLoading = false, data = resource.data, errorMessage = null)
+            try {
+                vitalsRepository.getHeartRate(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _heartRateState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _heartRateState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _heartRateState.update {
+                                it.copy(isLoading = false, data = resource.data, errorMessage = null)
+                            }
+                        }
+                        is Resource.Error -> {
+                            _heartRateState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _heartRateState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _heartRateState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun fetchBloodPressure(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            vitalsRepository.getBloodPressure(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _bloodPressureState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _bloodPressureState.update {
-                            it.copy(isLoading = false, data = resource.data, errorMessage = null)
+            try {
+                vitalsRepository.getBloodPressure(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _bloodPressureState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _bloodPressureState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _bloodPressureState.update {
+                                it.copy(isLoading = false, data = resource.data, errorMessage = null)
+                            }
+                        }
+                        is Resource.Error -> {
+                            _bloodPressureState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _bloodPressureState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _bloodPressureState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun fetchSpo2(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            vitalsRepository.getSpo2(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _spo2State.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _spo2State.update {
-                            it.copy(isLoading = false, data = resource.data, errorMessage = null)
+            try {
+                vitalsRepository.getSpo2(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _spo2State.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _spo2State.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _spo2State.update {
+                                it.copy(isLoading = false, data = resource.data, errorMessage = null)
+                            }
+                        }
+                        is Resource.Error -> {
+                            _spo2State.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _spo2State.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _spo2State.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun fetchBmi(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            vitalsRepository.getBmi(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _bmiState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _bmiState.update {
-                            it.copy(isLoading = false, data = resource.data, errorMessage = null)
+            try {
+                vitalsRepository.getBmi(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _bmiState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _bmiState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _bmiState.update {
+                                it.copy(isLoading = false, data = resource.data, errorMessage = null)
+                            }
+                        }
+                        is Resource.Error -> {
+                            _bmiState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _bmiState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _bmiState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun fetchReadings(userId: Int? = null, email: String? = null, type: String? = null) {
         viewModelScope.launch {
-            vitalsRepository.getReadings(userId, email, type).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _readingsState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _readingsState.update {
-                            it.copy(isLoading = false, readings = resource.data, errorMessage = null)
+            try {
+                vitalsRepository.getReadings(userId, email, type).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _readingsState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _readingsState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _readingsState.update {
+                                it.copy(isLoading = false, readings = resource.data, errorMessage = null)
+                            }
+                        }
+                        is Resource.Error -> {
+                            _readingsState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _readingsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _readingsState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -336,62 +374,74 @@ class VitalsViewModel(
         email: String? = null
     ) {
         viewModelScope.launch {
-            val req = AddVitalReadingRequest(
-                userId = userId,
-                email = email,
-                readingType = readingType,
-                valueNumeric = valueNumeric,
-                valueSecondary = valueSecondary,
-                valueText = valueText,
-                unit = unit,
-                statusLabel = statusLabel,
-                notes = notes
-            )
-            vitalsRepository.addReading(req).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _addReadingState.update { it.copy(isSaving = true, errorMessage = null, isSuccess = false) }
-                    }
-                    is Resource.Success -> {
-                        _addReadingState.update {
-                            it.copy(isSaving = false, isSuccess = true, errorMessage = null)
+            try {
+                val req = AddVitalReadingRequest(
+                    userId = userId,
+                    email = email,
+                    readingType = readingType,
+                    valueNumeric = valueNumeric,
+                    valueSecondary = valueSecondary,
+                    valueText = valueText,
+                    unit = unit,
+                    statusLabel = statusLabel,
+                    notes = notes
+                )
+                vitalsRepository.addReading(req).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _addReadingState.update { it.copy(isSaving = true, errorMessage = null, isSuccess = false) }
                         }
-                        // Refresh summary and readings after successful recording
-                        fetchSummary(userId, email)
-                        fetchReadings(userId, email, readingType)
-                    }
-                    is Resource.Error -> {
-                        _addReadingState.update {
-                            it.copy(isSaving = false, isSuccess = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _addReadingState.update {
+                                it.copy(isSaving = false, isSuccess = true, errorMessage = null)
+                            }
+                            // Refresh summary and readings after successful recording
+                            fetchSummary(userId, email)
+                            fetchReadings(userId, email, readingType)
+                        }
+                        is Resource.Error -> {
+                            _addReadingState.update {
+                                it.copy(isSaving = false, isSuccess = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _addReadingState.update { it.copy(isSaving = false, isSuccess = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _addReadingState.update { it.copy(isSaving = false) }
             }
         }
     }
 
     fun deleteReading(id: Int, userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            vitalsRepository.deleteReading(id, userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _readingsState.update { it.copy(isLoading = true) }
-                    }
-                    is Resource.Success -> {
-                        _readingsState.update {
-                            it.copy(
-                                isLoading = false,
-                                readings = it.readings.filter { r -> r.id != id }
-                            )
+            try {
+                vitalsRepository.deleteReading(id, userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _readingsState.update { it.copy(isLoading = true) }
                         }
-                        fetchSummary(userId, email)
-                    }
-                    is Resource.Error -> {
-                        _readingsState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _readingsState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    readings = it.readings.filter { r -> r.id != id }
+                                )
+                            }
+                            fetchSummary(userId, email)
+                        }
+                        is Resource.Error -> {
+                            _readingsState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _readingsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _readingsState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -407,34 +457,40 @@ class VitalsViewModel(
         onSuccess: () -> Unit = {}
     ) {
         viewModelScope.launch {
-            val req = ManualVitalsLogRequest(
-                userId = userId,
-                email = email,
-                heartRate = heartRate,
-                spo2 = spo2,
-                systolic = systolic,
-                diastolic = diastolic,
-                notes = notes?.takeIf { it.isNotBlank() }
-            )
-            vitalsRepository.logManualVitals(req).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _manualLogState.update { it.copy(isSaving = true, errorMessage = null, isSuccess = false) }
-                    }
-                    is Resource.Success -> {
-                        _manualLogState.update { it.copy(isSaving = false, isSuccess = true, errorMessage = null) }
-                        fetchSummary(userId, email)
-                        if (heartRate != null) fetchHrDetails(userId, email)
-                        if (spo2 != null) fetchSpo2Details(userId, email)
-                        if (systolic != null && diastolic != null) fetchBpDetails(userId, email)
-                        onSuccess()
-                    }
-                    is Resource.Error -> {
-                        _manualLogState.update {
-                            it.copy(isSaving = false, isSuccess = false, errorMessage = resource.message)
+            try {
+                val req = ManualVitalsLogRequest(
+                    userId = userId,
+                    email = email,
+                    heartRate = heartRate,
+                    spo2 = spo2,
+                    systolic = systolic,
+                    diastolic = diastolic,
+                    notes = notes?.takeIf { it.isNotBlank() }
+                )
+                vitalsRepository.logManualVitals(req).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _manualLogState.update { it.copy(isSaving = true, errorMessage = null, isSuccess = false) }
+                        }
+                        is Resource.Success -> {
+                            _manualLogState.update { it.copy(isSaving = false, isSuccess = true, errorMessage = null) }
+                            fetchSummary(userId, email)
+                            if (heartRate != null) fetchHrDetails(userId, email)
+                            if (spo2 != null) fetchSpo2Details(userId, email)
+                            if (systolic != null && diastolic != null) fetchBpDetails(userId, email)
+                            onSuccess()
+                        }
+                        is Resource.Error -> {
+                            _manualLogState.update {
+                                it.copy(isSaving = false, isSuccess = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _manualLogState.update { it.copy(isSaving = false, isSuccess = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _manualLogState.update { it.copy(isSaving = false) }
             }
         }
     }

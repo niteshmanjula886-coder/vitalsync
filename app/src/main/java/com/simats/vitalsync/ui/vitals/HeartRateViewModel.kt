@@ -101,6 +101,8 @@ class HeartRateViewModel(
             } catch (e: Exception) {
                 Log.w("HeartRateViewModel", "Failed to fetch vital analytics: ${e.message}")
                 _uiState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }

@@ -8,6 +8,7 @@ import com.simats.vitalsync.data.NutritionGoal
 import com.simats.vitalsync.data.model.nutrition.CreateFoodRequest
 import com.simats.vitalsync.data.model.nutrition.LogMealRequest
 import com.simats.vitalsync.data.model.nutrition.toSaveRequest
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.repository.NutritionRepository
 import com.simats.vitalsync.data.repository.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,29 +38,35 @@ class NutritionViewModel(
 
     fun loadFoods(email: String, query: String? = null, category: String? = null) {
         viewModelScope.launch {
-            repository.getFoods(email, query, category).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _foodsState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _foodsState.update {
-                            it.copy(
-                                isLoading = false,
-                                foods = resource.data,
-                                errorMessage = null
-                            )
+            try {
+                repository.getFoods(email, query, category).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _foodsState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _foodsState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = resource.message
-                            )
+                        is Resource.Success -> {
+                            _foodsState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    foods = resource.data,
+                                    errorMessage = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _foodsState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = resource.message
+                                )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _foodsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _foodsState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -88,38 +95,44 @@ class NutritionViewModel(
                 carbsGrams = carbs,
                 fatGrams = fat
             )
-            repository.addCustomFood(req).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _addFoodState.update { it.copy(isLoading = true, isSuccess = false, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        val foodDto = resource.data
-                        val domainFood = foodDto.toFoodItem()
-                        _addFoodState.update {
-                            it.copy(
-                                isLoading = false,
-                                isSuccess = true,
-                                createdFood = foodDto,
-                                errorMessage = null
-                            )
+            try {
+                repository.addCustomFood(req).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _addFoodState.update { it.copy(isLoading = true, isSuccess = false, errorMessage = null) }
                         }
-                        // Prepend newly created food to the food list state
-                        _foodsState.update { cur ->
-                            cur.copy(foods = listOf(foodDto) + cur.foods.filter { it.id != foodDto.id })
+                        is Resource.Success -> {
+                            val foodDto = resource.data
+                            val domainFood = foodDto.toFoodItem()
+                            _addFoodState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSuccess = true,
+                                    createdFood = foodDto,
+                                    errorMessage = null
+                                )
+                            }
+                            // Prepend newly created food to the food list state
+                            _foodsState.update { cur ->
+                                cur.copy(foods = listOf(foodDto) + cur.foods.filter { it.id != foodDto.id })
+                            }
+                            onSuccess(domainFood)
                         }
-                        onSuccess(domainFood)
-                    }
-                    is Resource.Error -> {
-                        _addFoodState.update {
-                            it.copy(
-                                isLoading = false,
-                                isSuccess = false,
-                                errorMessage = resource.message
-                            )
+                        is Resource.Error -> {
+                            _addFoodState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSuccess = false,
+                                    errorMessage = resource.message
+                                )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _addFoodState.update { it.copy(isLoading = false, isSuccess = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _addFoodState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -130,29 +143,35 @@ class NutritionViewModel(
 
     fun loadNutritionGoal(email: String) {
         viewModelScope.launch {
-            repository.getNutritionGoal(email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _goalState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _goalState.update {
-                            it.copy(
-                                isLoading = false,
-                                goal = resource.data,
-                                errorMessage = null
-                            )
+            try {
+                repository.getNutritionGoal(email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _goalState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _goalState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = resource.message
-                            )
+                        is Resource.Success -> {
+                            _goalState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    goal = resource.data,
+                                    errorMessage = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _goalState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = resource.message
+                                )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _goalState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _goalState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -164,63 +183,75 @@ class NutritionViewModel(
     ) {
         viewModelScope.launch {
             val req = goal.toSaveRequest(email)
-            repository.saveNutritionGoal(req).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _goalState.update { it.copy(isLoading = true, isSaveSuccess = false, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _goalState.update {
-                            it.copy(
-                                isLoading = false,
-                                isSaveSuccess = true,
-                                goal = resource.data,
-                                errorMessage = null
-                            )
+            try {
+                repository.saveNutritionGoal(req).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _goalState.update { it.copy(isLoading = true, isSaveSuccess = false, errorMessage = null) }
                         }
-                        onSuccess()
-                    }
-                    is Resource.Error -> {
-                        _goalState.update {
-                            it.copy(
-                                isLoading = false,
-                                isSaveSuccess = false,
-                                errorMessage = resource.message
-                            )
+                        is Resource.Success -> {
+                            _goalState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSaveSuccess = true,
+                                    goal = resource.data,
+                                    errorMessage = null
+                                )
+                            }
+                            onSuccess()
+                        }
+                        is Resource.Error -> {
+                            _goalState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSaveSuccess = false,
+                                    errorMessage = resource.message
+                                )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _goalState.update { it.copy(isLoading = false, isSaveSuccess = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _goalState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun loadMeals(email: String, date: String) {
         viewModelScope.launch {
-            repository.getMeals(email, date).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _mealsState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _mealsState.update {
-                            it.copy(
-                                isLoading = false,
-                                date = resource.data.date,
-                                totals = resource.data.totals,
-                                meals = resource.data.meals,
-                                errorMessage = null
-                            )
+            try {
+                repository.getMeals(email, date).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _mealsState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _mealsState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = resource.message
-                            )
+                        is Resource.Success -> {
+                            _mealsState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    date = resource.data.date,
+                                    totals = resource.data.totals,
+                                    meals = resource.data.meals,
+                                    errorMessage = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _mealsState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = resource.message
+                                )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _mealsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _mealsState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -249,36 +280,42 @@ class NutritionViewModel(
                 calculatedFat = calculatedFat,
                 dateString = dateString
             )
-            repository.logMeal(req).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _logMealState.update { it.copy(isLoading = true, isSuccess = false, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        val entryDto = resource.data
-                        val domainEntry = entryDto.toMealEntry()
-                        _logMealState.update {
-                            it.copy(
-                                isLoading = false,
-                                isSuccess = true,
-                                loggedEntry = entryDto,
-                                errorMessage = null
-                            )
+            try {
+                repository.logMeal(req).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _logMealState.update { it.copy(isLoading = true, isSuccess = false, errorMessage = null) }
                         }
-                        // Refresh meals for this date
-                        loadMeals(email, dateString)
-                        onSuccess(domainEntry)
-                    }
-                    is Resource.Error -> {
-                        _logMealState.update {
-                            it.copy(
-                                isLoading = false,
-                                isSuccess = false,
-                                errorMessage = resource.message
-                            )
+                        is Resource.Success -> {
+                            val entryDto = resource.data
+                            val domainEntry = entryDto.toMealEntry()
+                            _logMealState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSuccess = true,
+                                    loggedEntry = entryDto,
+                                    errorMessage = null
+                                )
+                            }
+                            // Refresh meals for this date
+                            loadMeals(email, dateString)
+                            onSuccess(domainEntry)
+                        }
+                        is Resource.Error -> {
+                            _logMealState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSuccess = false,
+                                    errorMessage = resource.message
+                                )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _logMealState.update { it.copy(isLoading = false, isSuccess = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _logMealState.update { it.copy(isLoading = false) }
             }
         }
     }

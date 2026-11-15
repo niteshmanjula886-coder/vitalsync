@@ -514,6 +514,85 @@ data class ExecutiveSummaryDto(
     val recommendations: List<String> = emptyList()
 )
 
+data class WeeklyTrendItemDto(
+    @SerializedName("formatted_value")
+    val formattedValue: String = "",
+    @SerializedName("title_value")
+    val titleValue: String = "",
+    @SerializedName("subtitle")
+    val subtitle: String = "",
+    @SerializedName("status")
+    val status: String = "",
+    @SerializedName("score")
+    val score: Int = 0,
+    @SerializedName("avg_bpm")
+    val avgBpm: Int? = null,
+    @SerializedName("min_bpm")
+    val minBpm: Int? = null,
+    @SerializedName("max_bpm")
+    val maxBpm: Int? = null,
+    @SerializedName("total_steps")
+    val totalSteps: Int? = null,
+    @SerializedName("avg_steps")
+    val avgSteps: Int? = null,
+    @SerializedName("goal_steps")
+    val goalSteps: Int? = null,
+    @SerializedName("workout_count")
+    val workoutCount: Int? = null,
+    @SerializedName("completion_percent")
+    val completionPercent: Int? = null,
+    @SerializedName("total_ml")
+    val totalMl: Int? = null,
+    @SerializedName("avg_ml")
+    val avgMl: Int? = null,
+    @SerializedName("goal_ml")
+    val goalMl: Int? = null,
+    @SerializedName("avg_hours")
+    val avgHours: Double? = null,
+    @SerializedName("total_hours")
+    val totalHours: Double? = null,
+    @SerializedName("avg_minutes")
+    val avgMinutes: Int? = null,
+    @SerializedName("avg_spo2")
+    val avgSpo2: Float? = null,
+    @SerializedName("avg_sys")
+    val avgSys: Int? = null,
+    @SerializedName("avg_dia")
+    val avgDia: Int? = null
+)
+
+data class WeeklyTrendsContainerDto(
+    @SerializedName("heart_rate")
+    val heartRate: WeeklyTrendItemDto? = null,
+    @SerializedName("activity")
+    val activity: WeeklyTrendItemDto? = null,
+    @SerializedName("sleep")
+    val sleep: WeeklyTrendItemDto? = null,
+    @SerializedName("hydration")
+    val hydration: WeeklyTrendItemDto? = null,
+    @SerializedName("spo2")
+    val spo2: WeeklyTrendItemDto? = null,
+    @SerializedName("blood_pressure")
+    val bloodPressure: WeeklyTrendItemDto? = null
+)
+
+data class WeeklyDailyBreakdownDto(
+    @SerializedName("date")
+    val date: String = "",
+    @SerializedName("day_label")
+    val dayLabel: String = "",
+    @SerializedName("steps_total")
+    val stepsTotal: Int = 0,
+    @SerializedName("hydration_ml")
+    val hydrationMl: Int = 0,
+    @SerializedName("sleep_minutes")
+    val sleepMinutes: Int = 0,
+    @SerializedName("sleep_hours")
+    val sleepHours: Double = 0.0,
+    @SerializedName("daily_score")
+    val dailyScore: Int = 0
+)
+
 data class VitalPerformanceBreakdownDto(
     @SerializedName("overall_wellness_score")
     val overallWellnessScore: Int = 0,
@@ -581,7 +660,11 @@ data class WeeklyReportDto(
     @SerializedName("vital_performance_breakdown")
     val vitalPerformanceBreakdown: VitalPerformanceBreakdownDto? = null,
     @SerializedName("executive_summary")
-    val executiveSummary: ExecutiveSummaryDto? = null
+    val executiveSummary: ExecutiveSummaryDto? = null,
+    @SerializedName("weekly_trends")
+    val weeklyTrends: WeeklyTrendsContainerDto? = null,
+    @SerializedName("daily_breakdown", alternate = ["weekly_series"])
+    val dailyBreakdown: List<WeeklyDailyBreakdownDto> = emptyList()
 ) {
     /**
      * Constructs a unified, validated VitalPerformanceBreakdown domain object, preferring
@@ -796,12 +879,22 @@ data class WeeklyReportMetricsDto(
     val heartRateStatus: String = "No Data",
     @SerializedName("avg_hr_bpm")
     val avgHrBpm: Int? = null,
+    @SerializedName("min_hr_bpm")
+    val minHrBpm: Int? = null,
+    @SerializedName("max_hr_bpm")
+    val maxHrBpm: Int? = null,
     @SerializedName("bp_avg")
     val bpAvg: String = "--/--",
     @SerializedName("bp_status")
     val bpStatus: String = "No Data",
+    @SerializedName("avg_sys")
+    val avgSys: Int? = null,
+    @SerializedName("avg_dia")
+    val avgDia: Int? = null,
     @SerializedName("spo2_avg")
     val spo2Avg: String = "--%",
+    @SerializedName("avg_spo2")
+    val avgSpo2: Int? = null,
     @SerializedName("spo2_status")
     val spo2Status: String = "No Data",
     @SerializedName("sleep_quality")
@@ -812,6 +905,10 @@ data class WeeklyReportMetricsDto(
     val avgSleepMinutes: Int = 0,
     @SerializedName("average_duration_minutes")
     val averageDurationMinutes: Int? = null,
+    @SerializedName("weekly_total_sleep_hours")
+    val weeklyTotalSleepHours: Double? = null,
+    @SerializedName("weekly_avg_sleep_hours")
+    val weeklyAvgSleepHours: Double? = null,
     @SerializedName("average_sleep_quality", alternate = ["sleep_score"])
     val averageSleepQuality: Int? = null,
     @SerializedName("hydration_total")
@@ -820,12 +917,20 @@ data class WeeklyReportMetricsDto(
     val hydrationStatus: String = "No Data",
     @SerializedName("total_hydration_ml")
     val totalHydrationMl: Int = 0,
+    @SerializedName("weekly_total_hydration_ml")
+    val weeklyTotalHydrationMl: Int? = null,
+    @SerializedName("weekly_avg_hydration_ml")
+    val weeklyAvgHydrationMl: Int? = null,
     @SerializedName("activity_steps")
     val activitySteps: String = "0 steps",
     @SerializedName("activity_status")
     val activityStatus: String = "No Data",
     @SerializedName("total_steps")
     val totalSteps: Int = 0,
+    @SerializedName("weekly_total_steps")
+    val weeklyTotalSteps: Int? = null,
+    @SerializedName("weekly_avg_steps")
+    val weeklyAvgSteps: Int? = null,
     @SerializedName("workout_count")
     val workoutCount: Int = 0
 )

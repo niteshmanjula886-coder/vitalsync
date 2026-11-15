@@ -154,7 +154,10 @@ object RetrofitClient {
                             .header("X-Tunnel-Skip-Anti-Abuse", "true")
                             .build()
                         try {
-                            val altResponse = chain.proceed(altRequest)
+                            val altResponse = chain
+                                .withConnectTimeout(2, TimeUnit.SECONDS)
+                                .withReadTimeout(4, TimeUnit.SECONDS)
+                                .proceed(altRequest)
                             verifiedBaseUrlPrefix = fallbackBase
                             Log.i(TAG, "Connected via fallback host: $fallbackBase")
                             if (!altResponse.isSuccessful) {

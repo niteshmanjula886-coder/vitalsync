@@ -6,6 +6,7 @@ import com.simats.vitalsync.data.model.auth.LoginRequest
 import com.simats.vitalsync.data.model.auth.ResetPasswordRequest
 import com.simats.vitalsync.data.model.auth.SignUpRequest
 import com.simats.vitalsync.data.model.auth.User
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.repository.AuthRepository
 import com.simats.vitalsync.data.repository.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,41 +102,47 @@ class AuthViewModel(
         }
 
         viewModelScope.launch {
-            authRepository.login(
-                LoginRequest(
-                    email = email.trim(),
-                    password = password,
-                    deviceName = deviceName
-                )
-            ).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _loginState.update {
-                            it.copy(isLoading = true, errorMessage = null, isSuccess = false)
+            try {
+                authRepository.login(
+                    LoginRequest(
+                        email = email.trim(),
+                        password = password,
+                        deviceName = deviceName
+                    )
+                ).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _loginState.update {
+                                it.copy(isLoading = true, errorMessage = null, isSuccess = false)
+                            }
                         }
-                    }
-                    is Resource.Success -> {
-                        _sessionExpiredNotice.value = null
-                        _currentUser.value = resource.data
-                        _loginState.update {
-                            it.copy(
-                                isLoading = false,
-                                isSuccess = true,
-                                errorMessage = null,
-                                user = resource.data
-                            )
+                        is Resource.Success -> {
+                            _sessionExpiredNotice.value = null
+                            _currentUser.value = resource.data
+                            _loginState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSuccess = true,
+                                    errorMessage = null,
+                                    user = resource.data
+                                )
+                            }
                         }
-                    }
-                    is Resource.Error -> {
-                        _loginState.update {
-                            it.copy(
-                                isLoading = false,
-                                isSuccess = false,
-                                errorMessage = resource.message
-                            )
+                        is Resource.Error -> {
+                            _loginState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSuccess = false,
+                                    errorMessage = resource.message
+                                )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _loginState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _loginState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -172,50 +179,56 @@ class AuthViewModel(
         }
 
         viewModelScope.launch {
-            authRepository.signUp(
-                SignUpRequest(
-                    name = name.trim(),
-                    email = email.trim(),
-                    password = password,
-                    confirmPassword = confirmPassword,
-                    phone = phone,
-                    dob = dob,
-                    age = age,
-                    gender = gender,
-                    height = height,
-                    weight = weight,
-                    activityLevel = activityLevel,
-                    primaryGoal = primaryGoal
-                )
-            ).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _signUpState.update {
-                            it.copy(isLoading = true, errorMessage = null, isSuccess = false)
+            try {
+                authRepository.signUp(
+                    SignUpRequest(
+                        name = name.trim(),
+                        email = email.trim(),
+                        password = password,
+                        confirmPassword = confirmPassword,
+                        phone = phone,
+                        dob = dob,
+                        age = age,
+                        gender = gender,
+                        height = height,
+                        weight = weight,
+                        activityLevel = activityLevel,
+                        primaryGoal = primaryGoal
+                    )
+                ).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _signUpState.update {
+                                it.copy(isLoading = true, errorMessage = null, isSuccess = false)
+                            }
                         }
-                    }
-                    is Resource.Success -> {
-                        _sessionExpiredNotice.value = null
-                        _currentUser.value = resource.data
-                        _signUpState.update {
-                            it.copy(
-                                isLoading = false,
-                                isSuccess = true,
-                                errorMessage = null,
-                                user = resource.data
-                            )
+                        is Resource.Success -> {
+                            _sessionExpiredNotice.value = null
+                            _currentUser.value = resource.data
+                            _signUpState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSuccess = true,
+                                    errorMessage = null,
+                                    user = resource.data
+                                )
+                            }
                         }
-                    }
-                    is Resource.Error -> {
-                        _signUpState.update {
-                            it.copy(
-                                isLoading = false,
-                                isSuccess = false,
-                                errorMessage = resource.message
-                            )
+                        is Resource.Error -> {
+                            _signUpState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSuccess = false,
+                                    errorMessage = resource.message
+                                )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _signUpState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _signUpState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -235,39 +248,45 @@ class AuthViewModel(
         }
 
         viewModelScope.launch {
-            authRepository.resetPassword(
-                ResetPasswordRequest(
-                    email = email.trim(),
-                    newPassword = newPassword,
-                    confirmPassword = confirmPassword
-                )
-            ).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _resetPasswordState.update {
-                            it.copy(isLoading = true, errorMessage = null, isSuccess = false)
+            try {
+                authRepository.resetPassword(
+                    ResetPasswordRequest(
+                        email = email.trim(),
+                        newPassword = newPassword,
+                        confirmPassword = confirmPassword
+                    )
+                ).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _resetPasswordState.update {
+                                it.copy(isLoading = true, errorMessage = null, isSuccess = false)
+                            }
                         }
-                    }
-                    is Resource.Success -> {
-                        _resetPasswordState.update {
-                            it.copy(
-                                isLoading = false,
-                                isSuccess = true,
-                                successMessage = resource.data,
-                                errorMessage = null
-                            )
+                        is Resource.Success -> {
+                            _resetPasswordState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSuccess = true,
+                                    successMessage = resource.data,
+                                    errorMessage = null
+                                )
+                            }
                         }
-                    }
-                    is Resource.Error -> {
-                        _resetPasswordState.update {
-                            it.copy(
-                                isLoading = false,
-                                isSuccess = false,
-                                errorMessage = resource.message
-                            )
+                        is Resource.Error -> {
+                            _resetPasswordState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSuccess = false,
+                                    errorMessage = resource.message
+                                )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _resetPasswordState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _resetPasswordState.update { it.copy(isLoading = false) }
             }
         }
     }

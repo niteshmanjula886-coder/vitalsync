@@ -59,6 +59,8 @@ class ActivityViewModel(
                 _summaryState.update { it.copy(isLoading = false, errorMessage = ApiConstants.SERVER_UNREACHABLE_MESSAGE) }
             } catch (e: Exception) {
                 _summaryState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _summaryState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -69,21 +71,27 @@ class ActivityViewModel(
 
     fun loadStepGoal(email: String) {
         viewModelScope.launch {
-            repository.getStepGoal(email).collect { res ->
-                when (res) {
-                    is Resource.Loading -> _stepGoalState.update { it.copy(isLoading = true, errorMessage = null) }
-                    is Resource.Success -> _stepGoalState.update {
-                        it.copy(
-                            isLoading = false,
-                            isGoalLoaded = true,
-                            dailyStepGoal = res.data.dailyStepGoal,
-                            estimatedDistanceKm = res.data.estimatedDistanceKm,
-                            estimatedCaloriesKcal = res.data.estimatedCaloriesKcal,
-                            errorMessage = null
-                        )
+            try {
+                repository.getStepGoal(email).collect { res ->
+                    when (res) {
+                        is Resource.Loading -> _stepGoalState.update { it.copy(isLoading = true, errorMessage = null) }
+                        is Resource.Success -> _stepGoalState.update {
+                            it.copy(
+                                isLoading = false,
+                                isGoalLoaded = true,
+                                dailyStepGoal = res.data.dailyStepGoal,
+                                estimatedDistanceKm = res.data.estimatedDistanceKm,
+                                estimatedCaloriesKcal = res.data.estimatedCaloriesKcal,
+                                errorMessage = null
+                            )
+                        }
+                        is Resource.Error -> _stepGoalState.update { it.copy(isLoading = false, errorMessage = res.message) }
                     }
-                    is Resource.Error -> _stepGoalState.update { it.copy(isLoading = false, errorMessage = res.message) }
                 }
+            } catch (e: Exception) {
+                _stepGoalState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _stepGoalState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -97,40 +105,52 @@ class ActivityViewModel(
             )
         }
         viewModelScope.launch {
-            repository.updateStepGoal(email, newGoal).collect { res ->
-                when (res) {
-                    is Resource.Loading -> _stepGoalState.update { it.copy(isLoading = true, errorMessage = null, isSavedSuccess = false) }
-                    is Resource.Success -> {
-                        val savedGoal = res.data.dailyStepGoal.takeIf { it >= 1000 } ?: newGoal
-                        repository.saveStepGoalLocally(savedGoal)
-                        _stepGoalState.update {
-                            it.copy(
-                                isLoading = false,
-                                isGoalLoaded = true,
-                                isSavedSuccess = true,
-                                dailyStepGoal = savedGoal,
-                                estimatedDistanceKm = res.data.estimatedDistanceKm,
-                                estimatedCaloriesKcal = res.data.estimatedCaloriesKcal,
-                                errorMessage = null
-                            )
+            try {
+                repository.updateStepGoal(email, newGoal).collect { res ->
+                    when (res) {
+                        is Resource.Loading -> _stepGoalState.update { it.copy(isLoading = true, errorMessage = null, isSavedSuccess = false) }
+                        is Resource.Success -> {
+                            val savedGoal = res.data.dailyStepGoal.takeIf { it >= 1000 } ?: newGoal
+                            repository.saveStepGoalLocally(savedGoal)
+                            _stepGoalState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isGoalLoaded = true,
+                                    isSavedSuccess = true,
+                                    dailyStepGoal = savedGoal,
+                                    estimatedDistanceKm = res.data.estimatedDistanceKm,
+                                    estimatedCaloriesKcal = res.data.estimatedCaloriesKcal,
+                                    errorMessage = null
+                                )
+                            }
+                            // Refresh summary after updating goal
+                            loadSummary(email)
                         }
-                        // Refresh summary after updating goal
-                        loadSummary(email)
+                        is Resource.Error -> _stepGoalState.update { it.copy(isLoading = false, errorMessage = res.message, isSavedSuccess = false) }
                     }
-                    is Resource.Error -> _stepGoalState.update { it.copy(isLoading = false, errorMessage = res.message, isSavedSuccess = false) }
                 }
+            } catch (e: Exception) {
+                _stepGoalState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _stepGoalState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun loadSessions(email: String, activityType: String? = null) {
         viewModelScope.launch {
-            repository.getSessions(email, activityType).collect { res ->
-                when (res) {
-                    is Resource.Loading -> _sessionsState.update { it.copy(isLoading = true, errorMessage = null) }
-                    is Resource.Success -> _sessionsState.update { it.copy(isLoading = false, sessions = res.data, errorMessage = null) }
-                    is Resource.Error -> _sessionsState.update { it.copy(isLoading = false, errorMessage = res.message) }
+            try {
+                repository.getSessions(email, activityType).collect { res ->
+                    when (res) {
+                        is Resource.Loading -> _sessionsState.update { it.copy(isLoading = true, errorMessage = null) }
+                        is Resource.Success -> _sessionsState.update { it.copy(isLoading = false, sessions = res.data, errorMessage = null) }
+                        is Resource.Error -> _sessionsState.update { it.copy(isLoading = false, errorMessage = res.message) }
+                    }
                 }
+            } catch (e: Exception) {
+                _sessionsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _sessionsState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -169,33 +189,46 @@ class ActivityViewModel(
                 startTime = startTime,
                 endTime = endTime
             )
-            repository.recordSession(req).collect { res ->
-                when (res) {
-                    is Resource.Loading -> _saveSessionState.update { it.copy(isLoading = true, errorMessage = null, isSuccess = false) }
-                    is Resource.Success -> {
-                        _saveSessionState.update { it.copy(isLoading = false, isSuccess = true, message = res.data, errorMessage = null) }
-                        // Refresh summary and history
-                        loadSummary(email)
-                        loadSessions(email)
-                        onComplete?.invoke()
-                    }
-                    is Resource.Error -> {
-                        _saveSessionState.update { it.copy(isLoading = false, isSuccess = false, errorMessage = res.message) }
-                        onComplete?.invoke()
+            try {
+                repository.recordSession(req).collect { res ->
+                    when (res) {
+                        is Resource.Loading -> _saveSessionState.update { it.copy(isLoading = true, errorMessage = null, isSuccess = false) }
+                        is Resource.Success -> {
+                            _saveSessionState.update { it.copy(isLoading = false, isSuccess = true, message = res.data, errorMessage = null) }
+                            // Refresh summary and history
+                            loadSummary(email)
+                            loadSessions(email)
+                            onComplete?.invoke()
+                        }
+                        is Resource.Error -> {
+                            _saveSessionState.update { it.copy(isLoading = false, isSuccess = false, errorMessage = res.message) }
+                            onComplete?.invoke()
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                _saveSessionState.update { it.copy(isLoading = false, isSuccess = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+                onComplete?.invoke()
+            } finally {
+                _saveSessionState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun loadHistory(email: String) {
         viewModelScope.launch {
-            repository.getHistory(email).collect { res ->
-                when (res) {
-                    is Resource.Loading -> _historyState.update { it.copy(isLoading = true, errorMessage = null) }
-                    is Resource.Success -> _historyState.update { it.copy(isLoading = false, history = res.data, errorMessage = null) }
-                    is Resource.Error -> _historyState.update { it.copy(isLoading = false, errorMessage = res.message) }
+            try {
+                repository.getHistory(email).collect { res ->
+                    when (res) {
+                        is Resource.Loading -> _historyState.update { it.copy(isLoading = true, errorMessage = null) }
+                        is Resource.Success -> _historyState.update { it.copy(isLoading = false, history = res.data, errorMessage = null) }
+                        is Resource.Error -> _historyState.update { it.copy(isLoading = false, errorMessage = res.message) }
+                    }
                 }
+            } catch (e: Exception) {
+                _historyState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _historyState.update { it.copy(isLoading = false) }
             }
         }
     }

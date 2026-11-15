@@ -6,6 +6,7 @@ import com.simats.vitalsync.data.Exercise
 import com.simats.vitalsync.data.WorkoutSession
 import com.simats.vitalsync.data.model.gym.CreateExerciseRequest
 import com.simats.vitalsync.data.model.gym.toSaveRequest
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.repository.GymRepository
 import com.simats.vitalsync.data.repository.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,24 +39,36 @@ class GymViewModel(
 
     fun loadSplits() {
         viewModelScope.launch {
-            repository.getSplits().collect { res ->
-                when (res) {
-                    is Resource.Loading -> _splitsState.update { it.copy(isLoading = true, errorMessage = null) }
-                    is Resource.Success -> _splitsState.update { it.copy(isLoading = false, splits = res.data, errorMessage = null) }
-                    is Resource.Error -> _splitsState.update { it.copy(isLoading = false, errorMessage = res.message) }
+            try {
+                repository.getSplits().collect { res ->
+                    when (res) {
+                        is Resource.Loading -> _splitsState.update { it.copy(isLoading = true, errorMessage = null) }
+                        is Resource.Success -> _splitsState.update { it.copy(isLoading = false, splits = res.data, errorMessage = null) }
+                        is Resource.Error -> _splitsState.update { it.copy(isLoading = false, errorMessage = res.message) }
+                    }
                 }
+            } catch (e: Exception) {
+                _splitsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _splitsState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun loadExercises(email: String) {
         viewModelScope.launch {
-            repository.getExercises(email).collect { res ->
-                when (res) {
-                    is Resource.Loading -> _exercisesState.update { it.copy(isLoading = true, errorMessage = null) }
-                    is Resource.Success -> _exercisesState.update { it.copy(isLoading = false, exercises = res.data, errorMessage = null) }
-                    is Resource.Error -> _exercisesState.update { it.copy(isLoading = false, errorMessage = res.message) }
+            try {
+                repository.getExercises(email).collect { res ->
+                    when (res) {
+                        is Resource.Loading -> _exercisesState.update { it.copy(isLoading = true, errorMessage = null) }
+                        is Resource.Success -> _exercisesState.update { it.copy(isLoading = false, exercises = res.data, errorMessage = null) }
+                        is Resource.Error -> _exercisesState.update { it.copy(isLoading = false, errorMessage = res.message) }
+                    }
                 }
+            } catch (e: Exception) {
+                _exercisesState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _exercisesState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -78,29 +91,41 @@ class GymViewModel(
                 defaultReps = defaultReps,
                 notes = notes
             )
-            repository.addCustomExercise(req).collect { res ->
-                when (res) {
-                    is Resource.Loading -> _addExerciseState.update { it.copy(isLoading = true, isSuccess = false, errorMessage = null) }
-                    is Resource.Success -> {
-                        val created = res.data
-                        _addExerciseState.update { it.copy(isLoading = false, isSuccess = true, createdExercise = created, errorMessage = null) }
-                        loadExercises(email)
-                        onSuccess?.invoke(created.toExercise())
+            try {
+                repository.addCustomExercise(req).collect { res ->
+                    when (res) {
+                        is Resource.Loading -> _addExerciseState.update { it.copy(isLoading = true, isSuccess = false, errorMessage = null) }
+                        is Resource.Success -> {
+                            val created = res.data
+                            _addExerciseState.update { it.copy(isLoading = false, isSuccess = true, createdExercise = created, errorMessage = null) }
+                            loadExercises(email)
+                            onSuccess?.invoke(created.toExercise())
+                        }
+                        is Resource.Error -> _addExerciseState.update { it.copy(isLoading = false, isSuccess = false, errorMessage = res.message) }
                     }
-                    is Resource.Error -> _addExerciseState.update { it.copy(isLoading = false, isSuccess = false, errorMessage = res.message) }
                 }
+            } catch (e: Exception) {
+                _addExerciseState.update { it.copy(isLoading = false, isSuccess = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _addExerciseState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun loadWorkoutSessions(email: String) {
         viewModelScope.launch {
-            repository.getWorkoutSessions(email).collect { res ->
-                when (res) {
-                    is Resource.Loading -> _sessionsState.update { it.copy(isLoading = true, errorMessage = null) }
-                    is Resource.Success -> _sessionsState.update { it.copy(isLoading = false, sessions = res.data, errorMessage = null) }
-                    is Resource.Error -> _sessionsState.update { it.copy(isLoading = false, errorMessage = res.message) }
+            try {
+                repository.getWorkoutSessions(email).collect { res ->
+                    when (res) {
+                        is Resource.Loading -> _sessionsState.update { it.copy(isLoading = true, errorMessage = null) }
+                        is Resource.Success -> _sessionsState.update { it.copy(isLoading = false, sessions = res.data, errorMessage = null) }
+                        is Resource.Error -> _sessionsState.update { it.copy(isLoading = false, errorMessage = res.message) }
+                    }
                 }
+            } catch (e: Exception) {
+                _sessionsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _sessionsState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -112,29 +137,41 @@ class GymViewModel(
     ) {
         viewModelScope.launch {
             val req = session.toSaveRequest(email)
-            repository.saveWorkoutSession(req).collect { res ->
-                when (res) {
-                    is Resource.Loading -> _saveSessionState.update { it.copy(isLoading = true, isSuccess = false, errorMessage = null) }
-                    is Resource.Success -> {
-                        _saveSessionState.update { it.copy(isLoading = false, isSuccess = true, sessionId = res.data.sessionId, errorMessage = null) }
-                        loadWorkoutSessions(email)
-                        loadGymProgress(email)
-                        onSuccess?.invoke()
+            try {
+                repository.saveWorkoutSession(req).collect { res ->
+                    when (res) {
+                        is Resource.Loading -> _saveSessionState.update { it.copy(isLoading = true, isSuccess = false, errorMessage = null) }
+                        is Resource.Success -> {
+                            _saveSessionState.update { it.copy(isLoading = false, isSuccess = true, sessionId = res.data.sessionId, errorMessage = null) }
+                            loadWorkoutSessions(email)
+                            loadGymProgress(email)
+                            onSuccess?.invoke()
+                        }
+                        is Resource.Error -> _saveSessionState.update { it.copy(isLoading = false, isSuccess = false, errorMessage = res.message) }
                     }
-                    is Resource.Error -> _saveSessionState.update { it.copy(isLoading = false, isSuccess = false, errorMessage = res.message) }
                 }
+            } catch (e: Exception) {
+                _saveSessionState.update { it.copy(isLoading = false, isSuccess = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _saveSessionState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun loadGymProgress(email: String) {
         viewModelScope.launch {
-            repository.getGymProgress(email).collect { res ->
-                when (res) {
-                    is Resource.Loading -> _progressState.update { it.copy(isLoading = true, errorMessage = null) }
-                    is Resource.Success -> _progressState.update { it.copy(isLoading = false, progress = res.data, errorMessage = null) }
-                    is Resource.Error -> _progressState.update { it.copy(isLoading = false, errorMessage = res.message) }
+            try {
+                repository.getGymProgress(email).collect { res ->
+                    when (res) {
+                        is Resource.Loading -> _progressState.update { it.copy(isLoading = true, errorMessage = null) }
+                        is Resource.Success -> _progressState.update { it.copy(isLoading = false, progress = res.data, errorMessage = null) }
+                        is Resource.Error -> _progressState.update { it.copy(isLoading = false, errorMessage = res.message) }
+                    }
                 }
+            } catch (e: Exception) {
+                _progressState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _progressState.update { it.copy(isLoading = false) }
             }
         }
     }

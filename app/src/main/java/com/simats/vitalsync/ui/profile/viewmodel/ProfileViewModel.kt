@@ -246,6 +246,8 @@ class ProfileViewModel(
                 _profileState.update { it.copy(isLoading = false, errorMessage = ApiConstants.SERVER_UNREACHABLE_MESSAGE) }
             } catch (e: Exception) {
                 _profileState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _profileState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -430,31 +432,37 @@ class ProfileViewModel(
 
     fun fetchHealthGoals(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            profileRepository.getHealthGoals(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _healthGoalsState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        val fetchedSteps = resource.data.stepGoal ?: resource.data.goals?.targetSteps
-                        _healthGoalsState.update {
-                            it.copy(
-                                isLoading = false,
-                                selectedGoal = resource.data.selectedGoal ?: it.selectedGoal,
-                                availableGoals = resource.data.availableGoals,
-                                errorMessage = null
-                            )
+            try {
+                profileRepository.getHealthGoals(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _healthGoalsState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                        if (fetchedSteps != null && fetchedSteps >= 1000) {
-                            _profileState.update { it.copy(targetSteps = fetchedSteps) }
+                        is Resource.Success -> {
+                            val fetchedSteps = resource.data.stepGoal ?: resource.data.goals?.targetSteps
+                            _healthGoalsState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    selectedGoal = resource.data.selectedGoal ?: it.selectedGoal,
+                                    availableGoals = resource.data.availableGoals,
+                                    errorMessage = null
+                                )
+                            }
+                            if (fetchedSteps != null && fetchedSteps >= 1000) {
+                                _profileState.update { it.copy(targetSteps = fetchedSteps) }
+                            }
                         }
-                    }
-                    is Resource.Error -> {
-                        _healthGoalsState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Error -> {
+                            _healthGoalsState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _healthGoalsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _healthGoalsState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -481,57 +489,69 @@ class ProfileViewModel(
         _healthGoalsState.update { it.copy(selectedGoal = goalTitle) }
 
         viewModelScope.launch {
-            val req = SaveHealthGoalRequest(
-                userId = targetUserId,
-                email = targetEmail,
-                goalId = goalId,
-                goalTitle = goalTitle,
-                primaryGoal = goalTitle
-            )
-            profileRepository.saveHealthGoal(req).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _healthGoalsState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        val selected = resource.data.selectedGoal ?: resource.data.primaryGoal ?: goalTitle
-                        _healthGoalsState.update {
-                            it.copy(
-                                isLoading = false,
-                                selectedGoal = selected,
-                                errorMessage = null
-                            )
+            try {
+                val req = SaveHealthGoalRequest(
+                    userId = targetUserId,
+                    email = targetEmail,
+                    goalId = goalId,
+                    goalTitle = goalTitle,
+                    primaryGoal = goalTitle
+                )
+                profileRepository.saveHealthGoal(req).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _healthGoalsState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                        _profileState.update { it.copy(primaryGoal = selected) }
-                    }
-                    is Resource.Error -> {
-                        _healthGoalsState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            val selected = resource.data.selectedGoal ?: resource.data.primaryGoal ?: goalTitle
+                            _healthGoalsState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    selectedGoal = selected,
+                                    errorMessage = null
+                                )
+                            }
+                            _profileState.update { it.copy(primaryGoal = selected) }
+                        }
+                        is Resource.Error -> {
+                            _healthGoalsState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _healthGoalsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _healthGoalsState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun fetchReminders(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            profileRepository.getReminders(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _remindersState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _remindersState.update {
-                            it.copy(isLoading = false, reminders = resource.data, errorMessage = null)
+            try {
+                profileRepository.getReminders(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _remindersState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _remindersState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _remindersState.update {
+                                it.copy(isLoading = false, reminders = resource.data, errorMessage = null)
+                            }
+                        }
+                        is Resource.Error -> {
+                            _remindersState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _remindersState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _remindersState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -566,56 +586,68 @@ class ProfileViewModel(
 
     fun addReminder(title: String, type: String, time: String, frequency: String, userId: Int, email: String? = null) {
         viewModelScope.launch {
-            val req = AddReminderRequest(
-                userId = userId,
-                email = email,
-                title = title,
-                reminderType = type,
-                time = time,
-                frequency = frequency
-            )
-            profileRepository.addReminder(req).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _remindersState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _remindersState.update {
-                            it.copy(isLoading = false, reminders = resource.data, errorMessage = null)
+            try {
+                val req = AddReminderRequest(
+                    userId = userId,
+                    email = email,
+                    title = title,
+                    reminderType = type,
+                    time = time,
+                    frequency = frequency
+                )
+                profileRepository.addReminder(req).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _remindersState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _remindersState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _remindersState.update {
+                                it.copy(isLoading = false, reminders = resource.data, errorMessage = null)
+                            }
+                        }
+                        is Resource.Error -> {
+                            _remindersState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _remindersState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _remindersState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun deleteReminder(reminderId: Int, userId: Int) {
         viewModelScope.launch {
-            profileRepository.deleteReminder(reminderId, userId).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _remindersState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _remindersState.update {
-                            it.copy(
-                                isLoading = false,
-                                reminders = it.reminders.filter { r -> r.id != reminderId },
-                                errorMessage = null
-                            )
+            try {
+                profileRepository.deleteReminder(reminderId, userId).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _remindersState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _remindersState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _remindersState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    reminders = it.reminders.filter { r -> r.id != reminderId },
+                                    errorMessage = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _remindersState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _remindersState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _remindersState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -625,39 +657,45 @@ class ProfileViewModel(
     // ==========================================
     fun fetchAppSettings(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            profileRepository.getAppSettings(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _appSettingsState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        val s = resource.data
-                        _appSettingsState.update {
-                            it.copy(
-                                isLoading = false,
-                                pushNotifications = s.pushNotifications,
-                                vitalAlerts = s.vitalAlerts,
-                                dailyReminders = s.dailyReminders,
-                                metricUnits = s.metricUnits,
-                                darkMode = s.darkMode,
-                                dataSyncInterval = s.dataSyncInterval,
-                                aiInsights = s.aiInsights,
-                                aiInsightsEnabled = s.aiInsightsEnabled,
-                                usageAnalytics = s.usageAnalytics,
-                                userAnalyticsEnabled = s.userAnalyticsEnabled,
-                                reminderWaterInterval = s.reminderWaterInterval,
-                                reminderWorkoutEnabled = s.reminderWorkoutEnabled,
-                                reminderSleepEnabled = s.reminderSleepEnabled,
-                                errorMessage = null
-                            )
+            try {
+                profileRepository.getAppSettings(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _appSettingsState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _appSettingsState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            val s = resource.data
+                            _appSettingsState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    pushNotifications = s.pushNotifications,
+                                    vitalAlerts = s.vitalAlerts,
+                                    dailyReminders = s.dailyReminders,
+                                    metricUnits = s.metricUnits,
+                                    darkMode = s.darkMode,
+                                    dataSyncInterval = s.dataSyncInterval,
+                                    aiInsights = s.aiInsights,
+                                    aiInsightsEnabled = s.aiInsightsEnabled,
+                                    usageAnalytics = s.usageAnalytics,
+                                    userAnalyticsEnabled = s.userAnalyticsEnabled,
+                                    reminderWaterInterval = s.reminderWaterInterval,
+                                    reminderWorkoutEnabled = s.reminderWorkoutEnabled,
+                                    reminderSleepEnabled = s.reminderSleepEnabled,
+                                    errorMessage = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _appSettingsState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _appSettingsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _appSettingsState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -751,12 +789,18 @@ class ProfileViewModel(
             _weeklyReportState.update { it.copy(isLoading = true, errorMessage = null) }
             val resolvedUid = userId ?: _profileState.value.userId
             val resolvedEmail = email ?: _profileState.value.email
-            profileRepository.getWeeklyHealthReport(userId = resolvedUid, email = resolvedEmail).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> _weeklyReportState.update { it.copy(isLoading = true) }
-                    is Resource.Success -> _weeklyReportState.update { it.copy(isLoading = false, report = resource.data, errorMessage = null) }
-                    is Resource.Error -> _weeklyReportState.update { it.copy(isLoading = false, errorMessage = resource.message) }
+            try {
+                profileRepository.getWeeklyHealthReport(userId = resolvedUid, email = resolvedEmail).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> _weeklyReportState.update { it.copy(isLoading = true) }
+                        is Resource.Success -> _weeklyReportState.update { it.copy(isLoading = false, report = resource.data, errorMessage = null) }
+                        is Resource.Error -> _weeklyReportState.update { it.copy(isLoading = false, errorMessage = resource.message) }
+                    }
                 }
+            } catch (e: Exception) {
+                _weeklyReportState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _weeklyReportState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -766,31 +810,37 @@ class ProfileViewModel(
     // ==========================================
     fun fetchHealthPermissions(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            profileRepository.getHealthPermissions(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _healthPermissionsState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        val p = resource.data
-                        _healthPermissionsState.update {
-                            it.copy(
-                                isLoading = false,
-                                vitalSigns = p.vitalSigns,
-                                activity = p.activity,
-                                sleep = p.sleep,
-                                hydration = p.hydration,
-                                writeHealthData = p.writeHealthData,
-                                errorMessage = null
-                            )
+            try {
+                profileRepository.getHealthPermissions(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _healthPermissionsState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _healthPermissionsState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            val p = resource.data
+                            _healthPermissionsState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    vitalSigns = p.vitalSigns,
+                                    activity = p.activity,
+                                    sleep = p.sleep,
+                                    hydration = p.hydration,
+                                    writeHealthData = p.writeHealthData,
+                                    errorMessage = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _healthPermissionsState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _healthPermissionsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _healthPermissionsState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -817,39 +867,45 @@ class ProfileViewModel(
         }
 
         viewModelScope.launch {
-            val req = UpdateHealthPermissionsRequest(
-                userId = userId ?: _profileState.value.userId,
-                email = email ?: _profileState.value.email,
-                vitalSigns = vitalSigns,
-                activity = activity,
-                sleep = sleep,
-                hydration = hydration,
-                writeHealthData = writeHealthData
-            )
-            profileRepository.updateHealthPermissions(req).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {}
-                    is Resource.Success -> {
-                        val p = resource.data
-                        _healthPermissionsState.update {
-                            it.copy(
-                                isLoading = false,
-                                vitalSigns = p.vitalSigns,
-                                activity = p.activity,
-                                sleep = p.sleep,
-                                hydration = p.hydration,
-                                writeHealthData = p.writeHealthData,
-                                successMessage = "Permissions saved successfully",
-                                errorMessage = null
-                            )
+            try {
+                val req = UpdateHealthPermissionsRequest(
+                    userId = userId ?: _profileState.value.userId,
+                    email = email ?: _profileState.value.email,
+                    vitalSigns = vitalSigns,
+                    activity = activity,
+                    sleep = sleep,
+                    hydration = hydration,
+                    writeHealthData = writeHealthData
+                )
+                profileRepository.updateHealthPermissions(req).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {}
+                        is Resource.Success -> {
+                            val p = resource.data
+                            _healthPermissionsState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    vitalSigns = p.vitalSigns,
+                                    activity = p.activity,
+                                    sleep = p.sleep,
+                                    hydration = p.hydration,
+                                    writeHealthData = p.writeHealthData,
+                                    successMessage = "Permissions saved successfully",
+                                    errorMessage = null
+                                )
+                            }
                         }
-                    }
-                    is Resource.Error -> {
-                        _healthPermissionsState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Error -> {
+                            _healthPermissionsState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _healthPermissionsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _healthPermissionsState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -859,49 +915,61 @@ class ProfileViewModel(
     // ==========================================
     fun fetchLoginSessions(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            profileRepository.getLoginSessions(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _loginSessionsState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _loginSessionsState.update {
-                            it.copy(isLoading = false, sessions = resource.data, errorMessage = null)
+            try {
+                profileRepository.getLoginSessions(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _loginSessionsState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _loginSessionsState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _loginSessionsState.update {
+                                it.copy(isLoading = false, sessions = resource.data, errorMessage = null)
+                            }
+                        }
+                        is Resource.Error -> {
+                            _loginSessionsState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _loginSessionsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _loginSessionsState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun logoutOtherSessions(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            profileRepository.logoutOtherSessions(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _loginSessionsState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _loginSessionsState.update {
-                            it.copy(
-                                isLoading = false,
-                                sessions = it.sessions.filter { s -> s.isCurrent },
-                                successMessage = "Logged out from other devices",
-                                errorMessage = null
-                            )
+            try {
+                profileRepository.logoutOtherSessions(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _loginSessionsState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _loginSessionsState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _loginSessionsState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    sessions = it.sessions.filter { s -> s.isCurrent },
+                                    successMessage = "Logged out from other devices",
+                                    errorMessage = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _loginSessionsState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _loginSessionsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _loginSessionsState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -911,27 +979,33 @@ class ProfileViewModel(
     // ==========================================
     fun fetchNotifications(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            profileRepository.getNotifications(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _notificationsState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _notificationsState.update {
-                            it.copy(
-                                isLoading = false,
-                                unreadCount = resource.data.unreadCount,
-                                notifications = resource.data.notifications,
-                                errorMessage = null
-                            )
+            try {
+                profileRepository.getNotifications(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _notificationsState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _notificationsState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _notificationsState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    unreadCount = resource.data.unreadCount,
+                                    notifications = resource.data.notifications,
+                                    errorMessage = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _notificationsState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _notificationsState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _notificationsState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -956,32 +1030,38 @@ class ProfileViewModel(
     // ==========================================
     fun fetchAppVersion() {
         viewModelScope.launch {
-            profileRepository.getAppVersion().collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _appVersionState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        val v = resource.data
-                        _appVersionState.update {
-                            it.copy(
-                                isLoading = false,
-                                version = v.version,
-                                versionName = v.versionName,
-                                buildType = v.buildType,
-                                isUpToDate = v.isUpToDate,
-                                checkedAt = v.checkedAt ?: "Today at 9:38 AM",
-                                features = v.features,
-                                errorMessage = null
-                            )
+            try {
+                profileRepository.getAppVersion().collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _appVersionState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _appVersionState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            val v = resource.data
+                            _appVersionState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    version = v.version,
+                                    versionName = v.versionName,
+                                    buildType = v.buildType,
+                                    isUpToDate = v.isUpToDate,
+                                    checkedAt = v.checkedAt ?: "Today at 9:38 AM",
+                                    features = v.features,
+                                    errorMessage = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _appVersionState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _appVersionState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _appVersionState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -991,29 +1071,35 @@ class ProfileViewModel(
     // ==========================================
     fun fetchSupportTickets(userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
-            profileRepository.getSupportTickets(userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _supportState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        val data = resource.data
-                        _supportState.update {
-                            it.copy(
-                                isLoading = false,
-                                tickets = data.tickets,
-                                emailSupport = data.emailSupport ?: it.emailSupport,
-                                hours = data.hours ?: it.hours,
-                                errorMessage = null
-                            )
+            try {
+                profileRepository.getSupportTickets(userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _supportState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _supportState.update {
-                            it.copy(isLoading = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            val data = resource.data
+                            _supportState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    tickets = data.tickets,
+                                    emailSupport = data.emailSupport ?: it.emailSupport,
+                                    hours = data.hours ?: it.hours,
+                                    errorMessage = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _supportState.update {
+                                it.copy(isLoading = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _supportState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _supportState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -1026,28 +1112,34 @@ class ProfileViewModel(
         onSuccess: () -> Unit = {}
     ) {
         viewModelScope.launch {
-            profileRepository.submitSupportTicket(subject, message, userId, email).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _supportState.update { it.copy(isSubmitting = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        _supportState.update {
-                            it.copy(
-                                isSubmitting = false,
-                                successMessage = "Inquiry submitted successfully",
-                                errorMessage = null
-                            )
+            try {
+                profileRepository.submitSupportTicket(subject, message, userId, email).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _supportState.update { it.copy(isSubmitting = true, errorMessage = null) }
                         }
-                        onSuccess()
-                        fetchSupportTickets(userId, email)
-                    }
-                    is Resource.Error -> {
-                        _supportState.update {
-                            it.copy(isSubmitting = false, errorMessage = resource.message)
+                        is Resource.Success -> {
+                            _supportState.update {
+                                it.copy(
+                                    isSubmitting = false,
+                                    successMessage = "Inquiry submitted successfully",
+                                    errorMessage = null
+                                )
+                            }
+                            onSuccess()
+                            fetchSupportTickets(userId, email)
+                        }
+                        is Resource.Error -> {
+                            _supportState.update {
+                                it.copy(isSubmitting = false, errorMessage = resource.message)
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _supportState.update { it.copy(isSubmitting = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _supportState.update { it.copy(isSubmitting = false) }
             }
         }
     }

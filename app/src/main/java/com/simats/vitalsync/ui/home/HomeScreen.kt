@@ -296,6 +296,12 @@ fun HomeScreen(
                         aiInsight = aiInsight,
                         isInsightLoading = isInsightLoading,
                         weeklyReport = weeklyReport,
+                        fallbackSteps = activitySteps,
+                        fallbackSleepDuration = sleepDuration,
+                        fallbackSleepScore = sleepScore,
+                        fallbackHydration = hydrationConsumed,
+                        fallbackHeartRate = heartRateValue,
+                        onRefreshWeekly = { onAiTabSelected() },
                         onAskAiClick = onAskAiClick
                     )
                     3 -> ProfileScreen(

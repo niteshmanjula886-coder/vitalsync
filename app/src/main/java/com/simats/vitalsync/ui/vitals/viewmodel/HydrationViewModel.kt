@@ -8,6 +8,7 @@ import com.simats.vitalsync.data.model.hydration.HydrationLogDto
 import com.simats.vitalsync.data.model.hydration.WeeklyHistoryItemDto
 import com.simats.vitalsync.data.model.hydration.WeeklyHydrationDayDto
 import com.simats.vitalsync.data.model.hydration.WeeklyHydrationSummaryDto
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.RetrofitClient
 import com.simats.vitalsync.data.repository.HydrationRepository
 import com.simats.vitalsync.data.repository.Resource
@@ -46,37 +47,43 @@ class HydrationViewModel(
 
     fun loadHydration(email: String, date: String) {
         viewModelScope.launch {
-            repository.getHydration(email, date).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _hydrationState.update { it.copy(isLoading = true, errorMessage = null) }
-                    }
-                    is Resource.Success -> {
-                        val data = resource.data
-                        _hydrationState.update {
-                            it.copy(
-                                isLoading = false,
-                                date = date,
-                                consumedWaterMl = data.consumedMl,
-                                dailyTargetMl = data.targetMl,
-                                glassEquivalent = data.glassEquivalent,
-                                progressPercentage = data.progressPercent,
-                                isReminderEnabled = data.remindersEnabled,
-                                logs = data.logs,
-                                weeklyHistory = data.weeklyHistory,
-                                errorMessage = null
-                            )
+            try {
+                repository.getHydration(email, date).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _hydrationState.update { it.copy(isLoading = true, errorMessage = null) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _hydrationState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = resource.message
-                            )
+                        is Resource.Success -> {
+                            val data = resource.data
+                            _hydrationState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    date = date,
+                                    consumedWaterMl = data.consumedMl,
+                                    dailyTargetMl = data.targetMl,
+                                    glassEquivalent = data.glassEquivalent,
+                                    progressPercentage = data.progressPercent,
+                                    isReminderEnabled = data.remindersEnabled,
+                                    logs = data.logs,
+                                    weeklyHistory = data.weeklyHistory,
+                                    errorMessage = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _hydrationState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = resource.message
+                                )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _hydrationState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _hydrationState.update { it.copy(isLoading = false) }
             }
         }
         loadWeeklyHistory(email)
@@ -174,49 +181,55 @@ class HydrationViewModel(
 
         // 2. Synchronize with backend
         viewModelScope.launch {
-            repository.logWater(email, amountMl, date).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _hydrationState.update { it.copy(isActionLoading = true) }
-                    }
-                    is Resource.Success -> {
-                        val body = resource.data
-                        _hydrationState.update { current ->
-                            val updatedWeekly = if (current.weeklyHistory.isNotEmpty()) {
-                                current.weeklyHistory.map { day ->
-                                    if (day.isToday || day.date == date) {
-                                        val ratio = if (body.targetMl > 0) {
-                                            (body.totalConsumedMl.toFloat() / body.targetMl.toFloat()).coerceIn(0f, 1f)
-                                        } else 0f
-                                        day.copy(consumedMl = body.totalConsumedMl, ratio = ratio)
-                                    } else {
-                                        day
-                                    }
-                                }
-                            } else {
-                                current.weeklyHistory
-                            }
-
-                            current.copy(
-                                isActionLoading = false,
-                                consumedWaterMl = body.totalConsumedMl,
-                                dailyTargetMl = body.targetMl,
-                                glassEquivalent = body.glassEquivalent,
-                                progressPercentage = body.progressPercent,
-                                weeklyHistory = updatedWeekly,
-                                errorMessage = null
-                            )
+            try {
+                repository.logWater(email, amountMl, date).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _hydrationState.update { it.copy(isActionLoading = true) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _hydrationState.update {
-                            it.copy(
-                                isActionLoading = false,
-                                errorMessage = resource.message
-                            )
+                        is Resource.Success -> {
+                            val body = resource.data
+                            _hydrationState.update { current ->
+                                val updatedWeekly = if (current.weeklyHistory.isNotEmpty()) {
+                                    current.weeklyHistory.map { day ->
+                                        if (day.isToday || day.date == date) {
+                                            val ratio = if (body.targetMl > 0) {
+                                                (body.totalConsumedMl.toFloat() / body.targetMl.toFloat()).coerceIn(0f, 1f)
+                                            } else 0f
+                                            day.copy(consumedMl = body.totalConsumedMl, ratio = ratio)
+                                        } else {
+                                            day
+                                        }
+                                    }
+                                } else {
+                                    current.weeklyHistory
+                                }
+
+                                current.copy(
+                                    isActionLoading = false,
+                                    consumedWaterMl = body.totalConsumedMl,
+                                    dailyTargetMl = body.targetMl,
+                                    glassEquivalent = body.glassEquivalent,
+                                    progressPercentage = body.progressPercent,
+                                    weeklyHistory = updatedWeekly,
+                                    errorMessage = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _hydrationState.update {
+                                it.copy(
+                                    isActionLoading = false,
+                                    errorMessage = resource.message
+                                )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _hydrationState.update { it.copy(isActionLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _hydrationState.update { it.copy(isActionLoading = false) }
             }
         }
     }
@@ -312,32 +325,38 @@ class HydrationViewModel(
         }
 
         viewModelScope.launch {
-            repository.resetHydration(email, date).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _hydrationState.update { it.copy(isActionLoading = true) }
-                    }
-                    is Resource.Success -> {
-                        val body = resource.data
-                        _hydrationState.update {
-                            it.copy(
-                                isActionLoading = false,
-                                consumedWaterMl = body.totalConsumedMl,
-                                glassEquivalent = body.glassEquivalent,
-                                progressPercentage = body.progressPercent,
-                                errorMessage = null
-                            )
+            try {
+                repository.resetHydration(email, date).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _hydrationState.update { it.copy(isActionLoading = true) }
                         }
-                    }
-                    is Resource.Error -> {
-                        _hydrationState.update {
-                            it.copy(
-                                isActionLoading = false,
-                                errorMessage = resource.message
-                            )
+                        is Resource.Success -> {
+                            val body = resource.data
+                            _hydrationState.update {
+                                it.copy(
+                                    isActionLoading = false,
+                                    consumedWaterMl = body.totalConsumedMl,
+                                    glassEquivalent = body.glassEquivalent,
+                                    progressPercentage = body.progressPercent,
+                                    errorMessage = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _hydrationState.update {
+                                it.copy(
+                                    isActionLoading = false,
+                                    errorMessage = resource.message
+                                )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                _hydrationState.update { it.copy(isActionLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _hydrationState.update { it.copy(isActionLoading = false) }
             }
         }
     }

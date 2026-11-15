@@ -9,9 +9,14 @@ import java.net.UnknownHostException
 object ApiConstants {
 
     /**
+     * Active Host Machine Wi-Fi IPv4 Base URL (detected from ipconfig):
+     */
+    const val BASE_URL = "http://10.205.196.52/vitalsync-backend/"
+
+    /**
      * Local machine LAN IP (for physical devices connected to same Wi-Fi).
      */
-    const val LAN_BASE_URL = "http://10.18.112.52/vitalsync-backend/"
+    const val LAN_BASE_URL = BASE_URL
 
     /**
      * Android emulator loopback.
@@ -52,15 +57,15 @@ object ApiConstants {
     /**
      * Active Default Base URL:
      * - Uses 10.0.2.2 if running on an Android Emulator
-     * - Uses host LAN IP 10.18.112.52 for physical phones on Wi-Fi
+     * - Uses host LAN IP 10.205.196.52 for physical phones on Wi-Fi
      */
     val DEFAULT_BASE_URL: String
-        get() = if (isRunningOnEmulator) EMULATOR_BASE_URL else LAN_BASE_URL
+        get() = if (isRunningOnEmulator) EMULATOR_BASE_URL else BASE_URL
 
-    // Resilient timeouts supporting both fast API calls and 15-30s+ local Ollama inference
-    const val CONNECT_TIMEOUT_SECONDS = 15L
-    const val READ_TIMEOUT_SECONDS = 60L
-    const val WRITE_TIMEOUT_SECONDS = 30L
+    // Responsive timeouts supporting fast API failover and instant fallback
+    const val CONNECT_TIMEOUT_SECONDS = 6L
+    const val READ_TIMEOUT_SECONDS = 10L
+    const val WRITE_TIMEOUT_SECONDS = 10L
 
     fun resolveNetworkErrorMessage(
         throwable: Throwable?,

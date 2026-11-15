@@ -354,11 +354,12 @@ class MainActivity : ComponentActivity() {
 
                         // Launch secondary optional telemetry in background
                         launch {
+                            val initUid = currentUser?.id ?: profileState.userId.takeIf { it > 0 }
                             profileViewModel.fetchHealthGoals(email = currentEmail)
                             profileViewModel.fetchAppSettings(email = currentEmail)
-                            profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
-                            aiViewModel.loadDailyInsight(userId = currentUser?.id)
-                            aiViewModel.loadWeeklyTrends(email = currentEmail)
+                            profileViewModel.fetchWeeklyHealthReport(userId = initUid, email = currentEmail)
+                            aiViewModel.loadDailyInsight(userId = initUid)
+                            aiViewModel.loadWeeklyTrends(userId = initUid, email = currentEmail)
                             heartRateViewModel.fetchAnalytics(currentEmail)
                             activityViewModel.loadSessions(email = currentEmail)
                         }
@@ -454,20 +455,22 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             ScreenState.MAIN -> {
+                                val screenUid = profileState.userId.takeIf { it > 0 } ?: currentUser?.id
                                 vitalsViewModel.fetchSummary(email = currentEmail)
                                 activityViewModel.loadSummary(email = currentEmail)
-                                profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
-                                aiViewModel.loadWeeklyTrends(email = currentEmail)
+                                profileViewModel.fetchWeeklyHealthReport(userId = screenUid, email = currentEmail)
+                                aiViewModel.loadWeeklyTrends(userId = screenUid, email = currentEmail)
                             }
                             ScreenState.VITAL_SIGNS, ScreenState.START_ACTIVITY -> {
                                 vitalsViewModel.fetchSummary(email = currentEmail)
                                 activityViewModel.loadSummary(email = currentEmail)
                             }
                             ScreenState.WEEKLY_REPORT -> {
+                                val screenUid = profileState.userId.takeIf { it > 0 } ?: currentUser?.id
                                 vitalsViewModel.fetchSummary(email = currentEmail)
                                 activityViewModel.loadSummary(email = currentEmail)
-                                profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
-                                aiViewModel.loadWeeklyTrends(email = currentEmail)
+                                profileViewModel.fetchWeeklyHealthReport(userId = screenUid, email = currentEmail)
+                                aiViewModel.loadWeeklyTrends(userId = screenUid, email = currentEmail)
                             }
                             ScreenState.VIEW_HISTORY -> {
                                 activityViewModel.loadSessions(email = currentEmail)
@@ -1475,9 +1478,10 @@ class MainActivity : ComponentActivity() {
                                     weeklyReport = weeklyReportState.report ?: aiUiState.weeklyReport,
                                     onAiTabSelected = {
                                         if (currentEmail.isNotBlank()) {
-                                            profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
+                                            val resolvedUid = profileState.userId.takeIf { it > 0 } ?: currentUser?.id
+                                            profileViewModel.fetchWeeklyHealthReport(userId = resolvedUid, email = currentEmail)
                                             aiViewModel.loadWeeklyTrends(
-                                                userId = profileState.userId.takeIf { it > 0 },
+                                                userId = resolvedUid,
                                                 email = currentEmail
                                             )
                                         }
@@ -1734,6 +1738,16 @@ class MainActivity : ComponentActivity() {
                                     "No weekly vital logs recorded yet. Log your vitals or daily activity to view clinical observations."
                                 }
 
+                                val effectiveSleepVal = when {
+                                    todaySleepMinutes > 0 && evaluatedSleepScore > 0 -> "$evaluatedSleepScore% - $sleepCategoryLabel"
+                                    todaySleepMinutes > 0 -> "${SleepColorStandards.deriveSleepScore(todaySleepMinutes)}% - $sleepCategoryLabel"
+                                    else -> "--"
+                                }
+                                val effectiveSleepStatus = when {
+                                    todaySleepMinutes > 0 -> "$sleepDurationFormatted avg"
+                                    else -> "No Logs Recorded"
+                                }
+
                                 val breakdown = report?.toVitalPerformanceBreakdown(
                                     fallbackScore = wellnessScoreVal,
                                     fallbackStatus = wellnessStatusVal,
@@ -1743,8 +1757,8 @@ class MainActivity : ComponentActivity() {
                                     fallbackBpStatus = bpStatusFormatted,
                                     fallbackSpo2 = spo2Formatted,
                                     fallbackSpo2Status = spo2StatusFormatted,
-                                    fallbackSleepVal = report?.resolvedBreakdownSleepValue() ?: "--",
-                                    fallbackSleepStatus = report?.resolvedBreakdownSleepStatus() ?: "No Logs Recorded",
+                                    fallbackSleepVal = report?.resolvedBreakdownSleepValue()?.takeIf { it != "--" } ?: effectiveSleepVal,
+                                    fallbackSleepStatus = report?.resolvedBreakdownSleepStatus()?.takeIf { it != "No Logs Recorded" } ?: effectiveSleepStatus,
                                     fallbackHydrationVal = if (hydrationSummary != null && hydrationSummary.consumedMl > 0) "${hydrationSummary.consumedMl} ml" else "-- ml",
                                     fallbackHydrationStatus = if (hydrationSummary != null && hydrationSummary.consumedMl > 0) "${hydrationSummary.progressPercent}% of goal" else "No Data",
                                     fallbackStepsVal = activityStepsFormatted,
@@ -1759,8 +1773,8 @@ class MainActivity : ComponentActivity() {
                                     bpStatus = bpStatusFormatted,
                                     spo2Value = spo2Formatted,
                                     spo2Status = spo2StatusFormatted,
-                                    sleepValue = "--",
-                                    sleepStatus = "No Logs Recorded",
+                                    sleepValue = effectiveSleepVal,
+                                    sleepStatus = effectiveSleepStatus,
                                     hydrationValue = if (hydrationSummary != null && hydrationSummary.consumedMl > 0) "${hydrationSummary.consumedMl} ml" else "-- ml",
                                     hydrationStatus = if (hydrationSummary != null && hydrationSummary.consumedMl > 0) "${hydrationSummary.progressPercent}% of goal" else "No Data",
                                     activityValue = activityStepsFormatted,

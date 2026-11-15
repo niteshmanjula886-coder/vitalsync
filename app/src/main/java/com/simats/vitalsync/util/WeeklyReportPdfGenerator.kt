@@ -25,6 +25,20 @@ object WeeklyReportPdfGenerator {
         userEmail: String,
         breakdown: VitalPerformanceBreakdown
     ): File? {
+        val resolvedSleepAvg = when {
+            breakdown.sleepStatus.contains("h", ignoreCase = true) || breakdown.sleepStatus.contains("m", ignoreCase = true) -> breakdown.sleepStatus
+            breakdown.sleepValue != "--" && breakdown.sleepValue.isNotBlank() -> breakdown.sleepValue
+            else -> "--"
+        }
+        val resolvedSleepStatus = when {
+            breakdown.sleepStatus.contains("h", ignoreCase = true) || breakdown.sleepStatus.contains("m", ignoreCase = true) -> {
+                if (breakdown.sleepValue.contains("•")) breakdown.sleepValue.substringAfter("•").trim()
+                else breakdown.sleepValue.ifBlank { "Optimal" }
+            }
+            breakdown.sleepStatus.isNotBlank() -> breakdown.sleepStatus
+            else -> "No Logs Recorded"
+        }
+
         return generatePdf(
             context = context,
             userName = userName,
@@ -37,8 +51,8 @@ object WeeklyReportPdfGenerator {
             bpStatus = breakdown.bpStatus,
             spo2 = breakdown.spo2Value,
             spo2Status = breakdown.spo2Status,
-            sleep = breakdown.sleepValue,
-            sleepStatus = breakdown.sleepStatus,
+            sleep = resolvedSleepAvg,
+            sleepStatus = resolvedSleepStatus,
             hydration = breakdown.hydrationValue,
             hydrationStatus = breakdown.hydrationStatus,
             steps = breakdown.activityValue,

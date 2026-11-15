@@ -75,7 +75,7 @@ class AiViewModel(
             try {
                 val resolvedUserId = userId ?: repository.getCurrentUserId()
                 val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: repository.getCurrentUserEmail()
-                when (val result = withTimeout(12_000L) { repository.getChatHistory(userId = resolvedUserId, email = resolvedEmail) }) {
+                when (val result = withTimeout(8_000L) { repository.getChatHistory(userId = resolvedUserId, email = resolvedEmail) }) {
                     is Resource.Success -> {
                         val historyMessages = result.data.map { dto ->
                             val timeStr = formatTimestampToTime(dto.createdAt)
@@ -136,7 +136,7 @@ class AiViewModel(
             try {
                 val resolvedUserId = userId ?: repository.getCurrentUserId()
                 val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: repository.getCurrentUserEmail()
-                when (val result = withTimeout(12_000L) { repository.getSessions(userId = resolvedUserId, email = resolvedEmail) }) {
+                when (val result = withTimeout(8_000L) { repository.getSessions(userId = resolvedUserId, email = resolvedEmail) }) {
                     is Resource.Success -> {
                         _uiState.update {
                             it.copy(
@@ -164,7 +164,7 @@ class AiViewModel(
             val resolvedUserId = userId ?: repository.getCurrentUserId()
             val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: repository.getCurrentUserEmail()
             try {
-                when (val sessResult = withTimeout(12_000L) { repository.getSessions(userId = resolvedUserId, email = resolvedEmail) }) {
+                when (val sessResult = withTimeout(8_000L) { repository.getSessions(userId = resolvedUserId, email = resolvedEmail) }) {
                     is Resource.Success -> {
                         val sessions = sessResult.data
                         val activeId = _uiState.value.currentSessionId?.takeIf { id -> sessions.any { it.id == id } }
@@ -195,6 +195,8 @@ class AiViewModel(
                 }
             } catch (_: Exception) {
                 _uiState.update { it.copy(isLoadingSessions = false, isLoadingMessages = false) }
+            } finally {
+                _uiState.update { it.copy(isLoadingSessions = false) }
             }
         }
     }
@@ -209,7 +211,7 @@ class AiViewModel(
             val resolvedUserId = userId ?: repository.getCurrentUserId()
             val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: repository.getCurrentUserEmail()
             try {
-                when (val result = withTimeout(12_000L) { repository.getChatMessages(sessionId = sessionId, userId = resolvedUserId, email = resolvedEmail) }) {
+                when (val result = withTimeout(8_000L) { repository.getChatMessages(sessionId = sessionId, userId = resolvedUserId, email = resolvedEmail) }) {
                     is Resource.Success -> {
                         val resp = result.data
                         val dtoList = resp.messages
@@ -241,6 +243,8 @@ class AiViewModel(
                     is Resource.Loading -> {}
                 }
             } catch (_: Exception) {
+                _uiState.update { it.copy(isLoadingMessages = false) }
+            } finally {
                 _uiState.update { it.copy(isLoadingMessages = false) }
             }
         }
@@ -408,7 +412,7 @@ class AiViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isInsightLoading = true) }
             try {
-                when (val result = withTimeout(12_000L) { repository.getDailyInsight(userId = userId, refresh = forceRefresh) }) {
+                when (val result = withTimeout(6_000L) { repository.getDailyInsight(userId = userId, refresh = forceRefresh) }) {
                     is Resource.Success -> {
                         _uiState.update {
                             it.copy(
@@ -424,6 +428,8 @@ class AiViewModel(
                 }
             } catch (_: Exception) {
                 _uiState.update { it.copy(isInsightLoading = false) }
+            } finally {
+                _uiState.update { it.copy(isInsightLoading = false) }
             }
         }
     }
@@ -435,7 +441,7 @@ class AiViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isWeeklyTrendsLoading = true) }
             try {
-                when (val result = withTimeout(12_000L) { repository.getWeeklyReport(userId = userId, email = email) }) {
+                when (val result = withTimeout(6_000L) { repository.getWeeklyReport(userId = userId, email = email) }) {
                     is Resource.Success -> {
                         _uiState.update {
                             it.copy(
@@ -450,6 +456,8 @@ class AiViewModel(
                     is Resource.Loading -> {}
                 }
             } catch (_: Exception) {
+                _uiState.update { it.copy(isWeeklyTrendsLoading = false) }
+            } finally {
                 _uiState.update { it.copy(isWeeklyTrendsLoading = false) }
             }
         }
@@ -468,7 +476,7 @@ class AiViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isInsightLoading = true) }
             try {
-                when (val result = withTimeout(12_000L) {
+                when (val result = withTimeout(6_000L) {
                     repository.getAiInsight(
                         userId = userId,
                         isBtConnected = isBtConnected,
@@ -495,6 +503,8 @@ class AiViewModel(
                     is Resource.Loading -> {}
                 }
             } catch (_: Exception) {
+                _uiState.update { it.copy(isInsightLoading = false) }
+            } finally {
                 _uiState.update { it.copy(isInsightLoading = false) }
             }
         }

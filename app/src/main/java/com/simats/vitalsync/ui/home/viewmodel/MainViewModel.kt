@@ -62,7 +62,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
-                val response = withTimeout(15_000L) {
+                val response = withTimeout(6_000L) {
                     RetrofitClient.aiApiService.getAiInsight(
                         userId = userId,
                         isBtConnected = false,
