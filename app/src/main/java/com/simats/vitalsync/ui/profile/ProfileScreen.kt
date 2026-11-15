@@ -218,9 +218,6 @@ fun ProfileScreen(
                 ProfileMenuItem(title = "Health Goals", iconType = ProfileMenuIcon.GOALS, onClick = onHealthGoalsClick)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 16.dp))
 
-                ProfileMenuItem(title = "Log Vitals", iconType = ProfileMenuIcon.DEVICES, onClick = onLogVitalsClick)
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 16.dp))
-
                 ProfileMenuItem(title = "Notifications", iconType = ProfileMenuIcon.BELL, onClick = onNotificationsClick)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 16.dp))
 

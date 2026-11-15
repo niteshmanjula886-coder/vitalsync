@@ -43,7 +43,10 @@ data class WorkoutSession(
     val exercises: List<WorkoutExercise>,
     val totalVolumeKg: Float,
     val estimatedCaloriesBurned: Int
-)
+) {
+    val totalSets: Int
+        get() = exercises.sumOf { it.sets.size }
+}
 
 enum class FoodCategory {
     VEG,

@@ -1563,7 +1563,7 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onAddExerciseClick = { currentScreen = ScreenState.EXERCISE_LIBRARY },
                                     onFinishSession = { session ->
-                                        gymViewModel.saveWorkoutSession(currentEmail, session)
+                                        gymViewModel.saveWorkoutSession(session, currentEmail)
                                         repository.saveWorkoutSession(session)
                                         homeInitialTab = 4
                                         currentScreen = ScreenState.MAIN

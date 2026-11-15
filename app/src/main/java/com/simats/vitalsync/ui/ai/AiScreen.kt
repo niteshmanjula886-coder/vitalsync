@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
@@ -68,9 +69,12 @@ fun AiScreen(
     onRefreshWeekly: () -> Unit = {},
     onAskAiClick: () -> Unit = {}
 ) {
-    // Refresh weekly aggregated trends whenever the AI screen is viewed
+    // Refresh weekly aggregated trends whenever the AI screen is viewed (skip in Compose Previews)
+    val inspectionMode = LocalInspectionMode.current
     LaunchedEffect(Unit) {
-        onRefreshWeekly()
+        if (!inspectionMode) {
+            onRefreshWeekly()
+        }
     }
 
     val trends = weeklyReport?.weeklyTrends

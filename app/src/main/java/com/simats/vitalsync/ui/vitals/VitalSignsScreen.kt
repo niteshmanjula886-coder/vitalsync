@@ -66,8 +66,6 @@ fun VitalSignsScreen(
     spo2Value: String = "--%",
     spo2Status: String = "Tap to log",
     spo2Updated: String = "No readings",
-    tempValue: String = "--",
-    tempStatus: String = "No data available",
     weightValue: String = "--",
     bmiValue: String = "--",
     bmiStatus: String = "Not set",
@@ -166,30 +164,16 @@ fun VitalSignsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Row 2: SpO2 & Temperature
-            Row(
+            // Row 2: SpO2
+            VitalTileCard(
+                title = "Blood Oxygen (SpO₂)",
+                value = spo2Value,
+                status = spo2Status,
+                updatedAt = spo2Updated,
+                iconType = VitalTileIcon.SPO2,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                VitalTileCard(
-                    title = "SpO₂",
-                    value = spo2Value,
-                    status = spo2Status,
-                    updatedAt = spo2Updated,
-                    iconType = VitalTileIcon.SPO2,
-                    modifier = Modifier.weight(1f),
-                    onClick = onSpO2Click
-                )
-
-                VitalTileCard(
-                    title = "Temperature",
-                    value = tempValue,
-                    status = tempStatus,
-                    updatedAt = "Normal range",
-                    iconType = VitalTileIcon.TEMP,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+                onClick = onSpO2Click
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -247,7 +231,6 @@ enum class VitalTileIcon {
     HEART,
     BP,
     SPO2,
-    TEMP,
     WEIGHT,
     BMI
 }
@@ -289,7 +272,6 @@ private fun VitalTileCard(
                     VitalTileIcon.HEART -> HeartIconSmall(modifier = Modifier.size(16.dp), color = statusColor)
                     VitalTileIcon.BP -> BpIconSmall(modifier = Modifier.size(16.dp), color = statusColor)
                     VitalTileIcon.SPO2 -> WaterDropIconSmall(modifier = Modifier.size(16.dp), color = statusColor)
-                    VitalTileIcon.TEMP -> TempIconSmall(modifier = Modifier.size(16.dp), color = statusColor)
                     VitalTileIcon.WEIGHT -> WeightIconSmall(modifier = Modifier.size(16.dp), color = statusColor)
                     VitalTileIcon.BMI -> BmiIconSmall(modifier = Modifier.size(16.dp), color = statusColor)
                 }
@@ -461,20 +443,6 @@ private fun WaterDropIconSmall(
             close()
         }
         drawPath(path = path, color = color, style = Stroke(width = 1.6.dp.toPx()))
-    }
-}
-
-@Composable
-private fun TempIconSmall(
-    modifier: Modifier = Modifier,
-    color: Color = VitalPrimaryMint
-) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        drawCircle(color = color, radius = w * 0.22f, center = Offset(w * 0.5f, h * 0.7f), style = Stroke(width = 1.6.dp.toPx()))
-        drawLine(color = color, start = Offset(w * 0.5f, h * 0.1f), end = Offset(w * 0.5f, h * 0.5f), strokeWidth = 1.6.dp.toPx())
     }
 }
 

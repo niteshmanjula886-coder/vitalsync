@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -75,6 +76,21 @@ fun AddCustomExerciseScreen(
 
     var isMuscleDropdownExpanded by remember { mutableStateOf(false) }
     val muscleGroups = listOf("Chest", "Back", "Shoulders", "Arms", "Legs", "Abs", "Cardio")
+
+    LaunchedEffect(addExerciseState.isSuccess) {
+        if (addExerciseState.isSuccess) {
+            val created = addExerciseState.createdExercise
+            val ex = created?.toExercise() ?: Exercise(
+                id = "custom_" + System.currentTimeMillis(),
+                name = exerciseNameInput.ifBlank { "My Custom Movement" },
+                targetMuscle = selectedMuscleGroup,
+                defaultWeightKg = weightInput.toFloatOrNull() ?: 20f,
+                defaultReps = repsInput.toIntOrNull() ?: 10,
+                notes = notesInput.trim()
+            )
+            onSaveCustomExerciseSuccess(ex)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -293,10 +309,7 @@ fun AddCustomExerciseScreen(
                             targetMuscle = selectedMuscleGroup,
                             defaultWeightKg = finalWeight,
                             defaultReps = finalReps,
-                            notes = finalNotes,
-                            onSuccess = { savedEx ->
-                                onSaveCustomExerciseSuccess(savedEx)
-                            }
+                            notes = finalNotes
                         )
                     } else {
                         val customEx = Exercise(
