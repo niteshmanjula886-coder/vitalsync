@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+private val EMAIL_REGEX = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+
 /**
  * ViewModel governing all authentication interactions in the VitalSync app.
  * Follows the Android MVVM architecture pattern.
@@ -161,12 +163,12 @@ class AuthViewModel(
         activityLevel: String? = null,
         primaryGoal: String? = "Fitness"
     ) {
-        if (name.isBlank()) {
+        if (name.trim().isBlank()) {
             _signUpState.update { it.copy(errorMessage = "Please enter your full name") }
             return
         }
-        if (email.isBlank() || !email.contains("@")) {
-            _signUpState.update { it.copy(errorMessage = "Please enter a valid email address") }
+        if (email.trim().isBlank() || !EMAIL_REGEX.matches(email.trim())) {
+            _signUpState.update { it.copy(errorMessage = "Please enter a valid email address (e.g., name@example.com)") }
             return
         }
         if (password.length < 6) {

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.simats.vitalsync.data.model.auth.User
+import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.RetrofitClient
 
 /**
@@ -38,6 +39,14 @@ class SessionManager(context: Context) {
         private const val KEY_DARK_MODE_ENABLED = "key_dark_mode_enabled"
         private const val KEY_DAILY_STEP_GOAL = "key_daily_step_goal"
 
+        // Hydration & Steps Reminders Keys
+        private const val KEY_HYDRATION_REMINDER_ENABLED = "key_hydration_reminder_enabled"
+        private const val KEY_HYDRATION_REMINDER_MODE = "key_hydration_reminder_mode"
+        private const val KEY_HYDRATION_REMINDER_TIME = "key_hydration_reminder_time"
+        private const val KEY_STEPS_REMINDER_ENABLED = "key_steps_reminder_enabled"
+        private const val KEY_STEPS_REMINDER_MODE = "key_steps_reminder_mode"
+        private const val KEY_STEPS_REMINDER_TIME = "key_steps_reminder_time"
+
         @Volatile
         private var INSTANCE: SessionManager? = null
 
@@ -50,9 +59,12 @@ class SessionManager(context: Context) {
                         val u = it.getUser()
                         if (u != null && u.id > 0) u.id.toString() else it.getUserEmail().ifBlank { null }
                     }
-                    // Sync custom base URL if configured previously
+                    // Sync base URL: Always ensure active ApiConstants.DEFAULT_BASE_URL is utilized,
+                    // resetting any stale cached IP across app launches
                     val savedUrl = it.getCustomBaseUrl()
-                    if (!savedUrl.isNullOrBlank()) {
+                    if (savedUrl.isNullOrBlank() || savedUrl != ApiConstants.DEFAULT_BASE_URL) {
+                        it.setCustomBaseUrl(ApiConstants.DEFAULT_BASE_URL)
+                    } else {
                         RetrofitClient.updateBaseUrl(savedUrl)
                     }
                 }
@@ -245,5 +257,75 @@ class SessionManager(context: Context) {
 
     fun getCustomBaseUrl(): String? {
         return prefs.getString(KEY_CUSTOM_BASE_URL, null)
+    }
+
+    fun setHydrationReminderEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_HYDRATION_REMINDER_ENABLED, enabled).apply()
+    }
+
+    fun setHydrationReminderMode(mode: String) {
+        prefs.edit().putString(KEY_HYDRATION_REMINDER_MODE, mode).apply()
+    }
+
+    fun getHydrationReminderMode(): String {
+        return prefs.getString(KEY_HYDRATION_REMINDER_MODE, "HOURLY") ?: "HOURLY"
+    }
+
+    fun setHydrationReminder(enabled: Boolean, time: String = "09:00 AM") {
+        prefs.edit()
+            .putBoolean(KEY_HYDRATION_REMINDER_ENABLED, enabled)
+            .putString(KEY_HYDRATION_REMINDER_TIME, time)
+            .apply()
+    }
+
+    fun setHydrationReminderSettings(enabled: Boolean, mode: String = "HOURLY", time: String = "09:00 AM") {
+        prefs.edit()
+            .putBoolean(KEY_HYDRATION_REMINDER_ENABLED, enabled)
+            .putString(KEY_HYDRATION_REMINDER_MODE, mode)
+            .putString(KEY_HYDRATION_REMINDER_TIME, time)
+            .apply()
+    }
+
+    fun isHydrationReminderEnabled(): Boolean {
+        return prefs.getBoolean(KEY_HYDRATION_REMINDER_ENABLED, true)
+    }
+
+    fun getHydrationReminderTime(): String {
+        return prefs.getString(KEY_HYDRATION_REMINDER_TIME, "09:00 AM") ?: "09:00 AM"
+    }
+
+    fun setStepsReminderEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_STEPS_REMINDER_ENABLED, enabled).apply()
+    }
+
+    fun setStepsReminderMode(mode: String) {
+        prefs.edit().putString(KEY_STEPS_REMINDER_MODE, mode).apply()
+    }
+
+    fun getStepsReminderMode(): String {
+        return prefs.getString(KEY_STEPS_REMINDER_MODE, "HOURLY") ?: "HOURLY"
+    }
+
+    fun setStepsReminder(enabled: Boolean, time: String = "07:00 PM") {
+        prefs.edit()
+            .putBoolean(KEY_STEPS_REMINDER_ENABLED, enabled)
+            .putString(KEY_STEPS_REMINDER_TIME, time)
+            .apply()
+    }
+
+    fun setStepsReminderSettings(enabled: Boolean, mode: String = "HOURLY", time: String = "07:00 PM") {
+        prefs.edit()
+            .putBoolean(KEY_STEPS_REMINDER_ENABLED, enabled)
+            .putString(KEY_STEPS_REMINDER_MODE, mode)
+            .putString(KEY_STEPS_REMINDER_TIME, time)
+            .apply()
+    }
+
+    fun isStepsReminderEnabled(): Boolean {
+        return prefs.getBoolean(KEY_STEPS_REMINDER_ENABLED, true)
+    }
+
+    fun getStepsReminderTime(): String {
+        return prefs.getString(KEY_STEPS_REMINDER_TIME, "07:00 PM") ?: "07:00 PM"
     }
 }

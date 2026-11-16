@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "631776485721",
+    "project_id": "vitalsync-d7221",
+    "storage_bucket": "vitalsync-d7221.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:631776485721:android:13d4f8682bad6de9d3ec48",
+        "android_client_info": {
+          "package_name": "com.simats.vitalsync"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6aE84Q_xio6haHtAodbiRyi6clUWhvAs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

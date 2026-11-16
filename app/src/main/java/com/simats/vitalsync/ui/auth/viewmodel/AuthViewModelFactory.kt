@@ -16,7 +16,7 @@ class AuthViewModelFactory(
         if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
             val sessionManager = SessionManager.getInstance(context)
             val authRepository = AuthRepository(
-                apiService = RetrofitClient.authApiService,
+                fallbackApiService = null,
                 sessionManager = sessionManager
             )
             return AuthViewModel(authRepository) as T

@@ -469,7 +469,7 @@ class GymViewModel(
                     exercises = completedExercises
                 )
 
-                withTimeoutOrNull(10_000L) {
+                withTimeoutOrNull(60_000L) {
                     repository.saveGymWorkout(req).collect { res ->
                         when (res) {
                             is Resource.Loading -> _uiState.update { it.copy(isSavingWorkout = true) }
@@ -523,7 +523,7 @@ class GymViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isWorkoutsLoading = true) }
             try {
-                withTimeoutOrNull(10_000L) {
+                withTimeoutOrNull(30_000L) {
                     repository.getGymWorkouts(userId = userId, email = email, date = date).collect { res ->
                         when (res) {
                             is Resource.Loading -> _uiState.update { it.copy(isWorkoutsLoading = true) }
@@ -556,7 +556,7 @@ class GymViewModel(
     fun deleteGymWorkout(workoutId: Int, userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
             try {
-                withTimeoutOrNull(10_000L) {
+                withTimeoutOrNull(30_000L) {
                     repository.deleteGymWorkout(id = workoutId, userId = userId, email = email).collect { res ->
                         when (res) {
                             is Resource.Loading -> {}
@@ -665,7 +665,7 @@ class GymViewModel(
                     saveManually = saveManually
                 )
 
-                withTimeoutOrNull(10_000L) {
+                withTimeoutOrNull(60_000L) {
                     repository.analyzeAndLogNutrition(req).collect { res ->
                         when (res) {
                             is Resource.Loading -> _uiState.update { it.copy(isAnalyzingNutrition = true) }
@@ -716,7 +716,7 @@ class GymViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isNutritionLoading = true) }
             try {
-                withTimeoutOrNull(10_000L) {
+                withTimeoutOrNull(30_000L) {
                     repository.getGymNutrition(userId = userId, email = email, date = date).collect { res ->
                         when (res) {
                             is Resource.Loading -> _uiState.update { it.copy(isNutritionLoading = true) }
@@ -756,7 +756,7 @@ class GymViewModel(
     fun deleteGymNutrition(mealId: Int, userId: Int? = null, email: String? = null) {
         viewModelScope.launch {
             try {
-                withTimeoutOrNull(10_000L) {
+                withTimeoutOrNull(30_000L) {
                     repository.deleteGymNutrition(id = mealId, userId = userId, email = email).collect { res ->
                         when (res) {
                             is Resource.Loading -> {}
@@ -807,7 +807,7 @@ class GymViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isAnalyticsLoading = true) }
             try {
-                withTimeoutOrNull(10_000L) {
+                withTimeoutOrNull(30_000L) {
                     repository.getGymAnalytics(userId = userId, email = email, date = targetDate).collect { res ->
                         when (res) {
                             is Resource.Loading -> _uiState.update { it.copy(isAnalyticsLoading = true) }

@@ -177,20 +177,6 @@ fun GymScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFE8F6F0))
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = "Live Mode",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = VitalPrimaryMint
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

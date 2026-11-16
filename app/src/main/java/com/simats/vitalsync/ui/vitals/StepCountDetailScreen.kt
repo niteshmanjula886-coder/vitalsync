@@ -1,5 +1,7 @@
 package com.simats.vitalsync.ui.vitals
 
+import android.app.TimePickerDialog
+import android.widget.Toast
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -29,9 +31,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -47,13 +52,17 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import com.simats.vitalsync.ui.vitals.viewmodel.StepsViewModel
+import com.simats.vitalsync.util.NotificationReminderEngine
 
 @Composable
 fun StepCountDetailScreen(
@@ -63,9 +72,22 @@ fun StepCountDetailScreen(
     distanceKm: Float = 0f,
     caloriesBurned: Int = 0,
     activeMinutes: Int = 0,
+    viewModel: StepsViewModel? = null,
     onBackClick: () -> Unit = {},
     onEditGoalClick: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val effectiveViewModel = viewModel ?: viewModel<StepsViewModel>()
+    val stepsState by effectiveViewModel.stepsState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        effectiveViewModel.initReminder(context)
+    }
+
+    val isReminderEnabled = stepsState.isReminderEnabled
+    val reminderMode = stepsState.reminderMode
+    val reminderTime = stepsState.reminderTime
+
     val progressPercent = if (stepsGoal > 0 && stepsCurrent > 0) ((stepsCurrent.toFloat() / stepsGoal) * 100).toInt() else 0
     val targetGaugeAngle = (progressPercent.coerceIn(0, 100) / 100f) * 360f
     val remainingSteps = (stepsGoal - stepsCurrent).coerceAtLeast(0)
@@ -277,6 +299,158 @@ fun StepCountDetailScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF111827)
                             )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Steps Reminder Toggle & Mode Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Steps Reminder",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
+                            Text(
+                                text = if (isReminderEnabled) {
+                                    if (reminderMode.equals("MANUAL", ignoreCase = true)) "Daily reminder at $reminderTime" else "Hourly reminder every 60 minutes"
+                                } else "Reminders currently turned off",
+                                fontSize = 12.sp,
+                                color = Color(0xFF6B7280),
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
+
+                        Switch(
+                            checked = isReminderEnabled,
+                            onCheckedChange = { checked ->
+                                effectiveViewModel.updateReminderSettings(context, checked, reminderMode, reminderTime)
+                                val toastMsg = if (checked) "Steps reminder enabled" else "Steps reminder disabled"
+                                Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF0F9F7A)
+                            )
+                        )
+                    }
+
+                    if (isReminderEnabled) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Text(
+                            text = "Reminder Mode",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF6B7280)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val isHourly = !reminderMode.equals("MANUAL", ignoreCase = true)
+                            // Every 1 Hour Pill
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isHourly) Color(0xFF0F9F7A) else Color(0xFFF1F5F9))
+                                    .clickable {
+                                        effectiveViewModel.updateReminderSettings(context, true, "HOURLY", reminderTime)
+                                    }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Every 1 Hour",
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isHourly) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isHourly) Color.White else Color(0xFF475569)
+                                )
+                            }
+
+                            // Manual Time Pill
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (!isHourly) Color(0xFF0F9F7A) else Color(0xFFF1F5F9))
+                                    .clickable {
+                                        effectiveViewModel.updateReminderSettings(context, true, "MANUAL", reminderTime)
+                                    }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Manual Time",
+                                    fontSize = 13.sp,
+                                    fontWeight = if (!isHourly) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (!isHourly) Color.White else Color(0xFF475569)
+                                )
+                            }
+                        }
+
+                        if (reminderMode.equals("MANUAL", ignoreCase = true)) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFE8F6F0))
+                                    .clickable {
+                                        val (initialHour, initialMinute) = NotificationReminderEngine.parseHourMinute(reminderTime)
+                                        android.app.TimePickerDialog(
+                                            context,
+                                            { _, hourOfDay, minute ->
+                                                val formattedTime = NotificationReminderEngine.formatHourMinute(hourOfDay, minute)
+                                                effectiveViewModel.updateReminderSettings(context, true, "MANUAL", formattedTime)
+                                                Toast.makeText(context, "Steps reminder set for $formattedTime", Toast.LENGTH_SHORT).show()
+                                            },
+                                            initialHour,
+                                            initialMinute,
+                                            false
+                                        ).show()
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(text = "⏰", fontSize = 16.sp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Scheduled at $reminderTime",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0F9F7A)
+                                    )
+                                }
+                                Text(
+                                    text = "Change",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F9F7A)
+                                )
+                            }
                         }
                     }
                 }

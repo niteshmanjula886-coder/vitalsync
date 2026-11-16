@@ -147,6 +147,8 @@ import com.simats.vitalsync.data.model.ai.AiInsightResponse
 import com.simats.vitalsync.data.model.ai.MetricEvaluationDto
 import com.simats.vitalsync.data.model.vitals.evaluateBloodPressure
 import com.simats.vitalsync.ui.theme.SleepColorStandards
+import android.util.Log
+import com.google.firebase.messaging.FirebaseMessaging
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -288,6 +290,12 @@ class MainActivity : ComponentActivity() {
                     stepSensorManager.startTracking()
                 }
 
+                val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission()
+                ) { isGranted ->
+                    Log.d("FCM", "Notification permission granted: $isGranted")
+                }
+
                 LaunchedEffect(Unit) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
@@ -297,6 +305,21 @@ class MainActivity : ComponentActivity() {
                         }
                     } else {
                         stepSensorManager.startTracking()
+                    }
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+
+                    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                        if (!task.isSuccessful) {
+                            Log.w("FCM", "Fetching FCM registration token failed", task.exception)
+                            return@addOnCompleteListener
+                        }
+                        val token = task.result
+                        Log.d("FCM", "Token: $token")
                     }
                 }
                 val hrUiState by heartRateViewModel.uiState.collectAsState()
@@ -509,6 +532,18 @@ class MainActivity : ComponentActivity() {
                         waterIntervalMinutes = appSettingsState.reminderWaterInterval,
                         workoutReminderEnabled = appSettingsState.reminderWorkoutEnabled,
                         sleepReminderEnabled = appSettingsState.reminderSleepEnabled
+                    )
+                    NotificationReminderEngine.syncHydrationReminder(
+                        context = context,
+                        enabled = sessionManager.isHydrationReminderEnabled(),
+                        mode = sessionManager.getHydrationReminderMode(),
+                        timeStr = sessionManager.getHydrationReminderTime()
+                    )
+                    NotificationReminderEngine.syncStepsReminder(
+                        context = context,
+                        enabled = sessionManager.isStepsReminderEnabled(),
+                        mode = sessionManager.getStepsReminderMode(),
+                        timeStr = sessionManager.getStepsReminderTime()
                     )
                 }
 

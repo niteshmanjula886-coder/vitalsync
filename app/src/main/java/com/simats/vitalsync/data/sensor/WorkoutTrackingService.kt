@@ -112,11 +112,7 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         activeUserWeightKg = if (userWeightKg > 20f) userWeightKg else 70.0f
 
         val isCycling = activityType.equals("Cycling", ignoreCase = true)
-        val defaultPace = when {
-            isCycling -> "0.0 km/h"
-            activityType.equals("Running", ignoreCase = true) -> "05:40 /km"
-            else -> "11:45 /km"
-        }
+        val defaultPace = if (isCycling) "0.0 km/h" else "--:-- /km"
 
         _telemetry.value = WorkoutTelemetry(
             activityType = activityType,
@@ -278,23 +274,21 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         val distKm = if (accumulatedDistanceMeters > 0.0) {
             (accumulatedDistanceMeters / 1000.0).toFloat()
         } else {
-            // Indoor simulation fallback (~20.5 km/h) if GPS is stationary
-            (seconds * (20.5f / 3600f))
+            0.0f
         }
 
         val durationHours = seconds / 3600f
-        val avgSpeedKmh = if (durationHours > 0f) (distKm / durationHours) else 0.0f
+        val avgSpeedKmh = if (durationHours > 0f && distKm > 0.005f) (distKm / durationHours) else 0.0f
 
-        val effectiveCurrentSpeed = if (currentSpeedKmh > 0f) {
-            currentSpeedKmh
-        } else if (accumulatedDistanceMeters > 0.0) {
-            0.0f
+        val effectiveCurrentSpeed = if (currentSpeedKmh > 0f) currentSpeedKmh else 0.0f
+
+        // Calories calculated strictly from live cycling MET formula when movement or distance has occurred
+        val caloriesBurned = if (distKm > 0.005f || effectiveCurrentSpeed > 0f) {
+            val met = 6.8f // Cycling MET multiplier
+            ((met * 3.5f * activeUserWeightKg / 200f) * (seconds / 60f)).toInt()
         } else {
-            (20.5f + (sin(seconds * 0.1) * 2.2f).toFloat()).coerceAtLeast(0f)
+            0
         }
-
-        val met = 6.8f // Cycling MET multiplier
-        val caloriesBurned = ((met * 3.5f * activeUserWeightKg / 200f) * (seconds / 60f)).toInt()
 
         val targetDist = current.targetDistanceKm
         val targetMin = current.targetMinutes
@@ -320,7 +314,7 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
                 steps = 0, // Steps deactivated for Cycling
                 distanceKm = distKm,
                 caloriesBurned = caloriesBurned,
-                avgPace = String.format(Locale.US, "%.1f km/h", avgSpeedKmh),
+                avgPace = if (avgSpeedKmh > 0.5f) String.format(Locale.US, "%.1f km/h", avgSpeedKmh) else "--.- km/h",
                 currentSpeedKmH = effectiveCurrentSpeed,
                 avgSpeedKmH = avgSpeedKmh,
                 progressRatio = progressRatio,
@@ -359,17 +353,25 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         val current = _telemetry.value
         val isRunning = current.activityType.equals("Running", ignoreCase = true)
 
-        val distKm = if (isRunning) (rawSteps * 1.05f) / 1000.0f else (rawSteps * 0.76f) / 1000.0f
-        val met = if (isRunning) 8.0f else 3.5f
-        val calBurned = ((met * 3.5f * activeUserWeightKg / 200f) * (seconds / 60f)).toInt()
+        val distKm = if (rawSteps > 0) {
+            if (isRunning) (rawSteps * 1.05f) / 1000.0f else (rawSteps * 0.76f) / 1000.0f
+        } else {
+            0.0f
+        }
+        val calBurned = if (rawSteps > 0) {
+            val calPerStep = 0.04f * (activeUserWeightKg / 70.0f).coerceIn(0.7f, 1.6f)
+            (rawSteps * calPerStep).toInt().coerceAtLeast(1)
+        } else {
+            0
+        }
 
-        val paceStr = if (distKm > 0.005f) {
+        val paceStr = if (distKm > 0.005f && seconds > 0) {
             val secPerKm = (seconds / distKm).toInt()
             val m = secPerKm / 60
             val s = secPerKm % 60
             String.format(Locale.US, "%02d:%02d /km", m, s)
         } else {
-            if (isRunning) "05:40 /km" else "11:45 /km"
+            "--:-- /km"
         }
 
         val targetType = current.targetType

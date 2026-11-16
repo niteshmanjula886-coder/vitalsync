@@ -17,6 +17,7 @@ import com.simats.vitalsync.data.model.gym.WorkoutSessionDto
 import com.simats.vitalsync.data.model.gym.WorkoutSplitDto
 import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.GymApiService
+import com.simats.vitalsync.data.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -24,8 +25,14 @@ import kotlinx.coroutines.flow.flowOn
 import org.json.JSONObject
 
 class GymRepository(
-    private val apiService: GymApiService
+    private val fallbackApiService: GymApiService? = null
 ) {
+    private val apiService: GymApiService
+        get() = try {
+            RetrofitClient.gymApiService
+        } catch (_: Exception) {
+            fallbackApiService ?: RetrofitClient.gymApiService
+        }
 
     fun getSplits(): Flow<Resource<List<WorkoutSplitDto>>> = flow {
         emit(Resource.Loading)

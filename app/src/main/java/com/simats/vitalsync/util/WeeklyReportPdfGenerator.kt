@@ -223,17 +223,18 @@ object WeeklyReportPdfGenerator {
             paint.strokeWidth = 1f
             canvas.drawRoundRect(tableRect, 8f, 8f, paint)
 
-            // Table Column Positions
-            val col1X = leftMargin + 16f // 52f
-            val col2X = leftMargin + 154f // 190f
-            val col3X = leftMargin + 294f // 330f
-            val maxStatusWidth = (rightMargin - 16f) - col3X // 543f - 330f = 213f
+            // Table Column Positions (Re-allocated to grant 258f width to Column 2 and eliminate collisions)
+            val col1X = leftMargin + 14f // 50f
+            val col2X = leftMargin + 130f // 166f
+            val col3X = leftMargin + 388f // 424f
+            val maxCol2Width = (col3X - 10f) - col2X // 248f
+            val maxStatusWidth = (rightMargin - 14f) - col3X // 121f
 
             // Table Header
             val headerY = tableTop + 19f
             paint.style = Paint.Style.FILL
             paint.color = darkTextColor
-            paint.textSize = 10.5f
+            paint.textSize = 10f
             paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             canvas.drawText("METRIC", col1X, headerY, paint)
             canvas.drawText("WEEKLY AVERAGE / TOTAL", col2X, headerY, paint)
@@ -253,14 +254,30 @@ object WeeklyReportPdfGenerator {
                 // Metric Name
                 paint.style = Paint.Style.FILL
                 paint.color = darkTextColor
-                paint.textSize = 11f
+                paint.textSize = 10.5f
                 paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 canvas.drawText(metricName, col1X, currentMetricY, paint)
 
-                // Metric Value
-                paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-                paint.color = darkTextColor
-                canvas.drawText(avgVal, col2X, currentMetricY, paint)
+                // Metric Value (with auto-scaling & bounds checking to eliminate column bleeding)
+                val valPaint = Paint().apply {
+                    isAntiAlias = true
+                    color = darkTextColor
+                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+                    textSize = 10f
+                }
+                while (valPaint.measureText(avgVal) > maxCol2Width && valPaint.textSize > 7.5f) {
+                    valPaint.textSize -= 0.5f
+                }
+                val displayVal = if (valPaint.measureText(avgVal) > maxCol2Width) {
+                    var truncated = avgVal
+                    while (truncated.isNotEmpty() && valPaint.measureText("$truncated...") > maxCol2Width) {
+                        truncated = truncated.dropLast(1)
+                    }
+                    "$truncated..."
+                } else {
+                    avgVal
+                }
+                canvas.drawText(displayVal, col2X, currentMetricY, valPaint)
 
                 // Status Label with dynamic fitting and clinical colors
                 val statusColor = when {
@@ -295,11 +312,11 @@ object WeeklyReportPdfGenerator {
                     isAntiAlias = true
                     color = statusColor
                     typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                    textSize = 10.5f
+                    textSize = 10f
                 }
 
                 // Auto-scale font size if needed so any long clinical label fits cleanly
-                while (statusPaint.measureText(statusVal) > maxStatusWidth && statusPaint.textSize > 8f) {
+                while (statusPaint.measureText(statusVal) > maxStatusWidth && statusPaint.textSize > 7.5f) {
                     statusPaint.textSize -= 0.5f
                 }
 

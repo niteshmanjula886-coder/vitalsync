@@ -204,26 +204,6 @@ fun VitalSignsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
-
-        // Add Reading Button
-        Button(
-            onClick = onAddReadingClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp)
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = VitalTealDark,
-                contentColor = Color.White
-            )
-        ) {
-            Text(
-                text = "+ Add Reading",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
     }
 }
 

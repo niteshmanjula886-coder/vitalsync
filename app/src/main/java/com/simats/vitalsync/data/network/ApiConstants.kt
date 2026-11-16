@@ -14,9 +14,11 @@ object ApiConstants {
     const val BASE_URL = "http://10.205.196.52/vitalsync-backend/"
 
     /**
-     * Local machine LAN IP (for physical devices connected to same Wi-Fi).
+     * Local machine LAN IP (for physical devices connected to same Wi-Fi / Hotspot).
      */
     const val LAN_BASE_URL = BASE_URL
+    const val LAN_HOTSPOT_BASE_URL = "http://10.205.196.52/vitalsync-backend/"
+    const val LAN_WIFI_BASE_URL = "http://192.168.1.5/vitalsync-backend/"
 
     /**
      * Android emulator loopback.
@@ -57,22 +59,28 @@ object ApiConstants {
     /**
      * Active Default Base URL:
      * - Uses 10.0.2.2 if running on an Android Emulator
-     * - Uses host LAN IP 10.205.196.52 for physical phones on Wi-Fi
+     * - Uses host LAN IP 10.205.196.52 for physical phones on Wi-Fi/Hotspot
      */
     val DEFAULT_BASE_URL: String
         get() = if (isRunningOnEmulator) EMULATOR_BASE_URL else BASE_URL
 
-    // Responsive timeouts supporting fast API failover and instant fallback
+    // Resilient timeouts supporting fast connect failover and up to 60s for local Ollama / AI inference
     const val CONNECT_TIMEOUT_SECONDS = 6L
-    const val READ_TIMEOUT_SECONDS = 10L
-    const val WRITE_TIMEOUT_SECONDS = 10L
+    const val READ_TIMEOUT_SECONDS = 60L
+    const val WRITE_TIMEOUT_SECONDS = 30L
 
     fun resolveNetworkErrorMessage(
         throwable: Throwable?,
         defaultMessage: String = SERVER_UNREACHABLE_MESSAGE
     ): String {
         return when (throwable) {
-            is SocketTimeoutException,
+            is SocketTimeoutException -> {
+                if (throwable.message?.contains("connect", ignoreCase = true) == true) {
+                    SERVER_UNREACHABLE_MESSAGE
+                } else {
+                    "Request timed out while analyzing. Please try again."
+                }
+            }
             is ConnectException,
             is UnknownHostException,
             is IOException -> SERVER_UNREACHABLE_MESSAGE

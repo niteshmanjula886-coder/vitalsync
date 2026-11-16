@@ -1,5 +1,7 @@
 package com.simats.vitalsync.ui.vitals
 
+import android.app.TimePickerDialog
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -38,6 +40,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -57,6 +60,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -77,6 +81,7 @@ import com.simats.vitalsync.data.model.hydration.WeeklyHydrationDayDto
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import com.simats.vitalsync.util.NotificationReminderEngine
 import com.simats.vitalsync.ui.vitals.viewmodel.HydrationUiState
 import com.simats.vitalsync.ui.vitals.viewmodel.HydrationViewModel
 import kotlinx.coroutines.delay
@@ -101,7 +106,12 @@ fun HydrationDetailScreen(
         )
     }
 
+    val context = LocalContext.current
     val state by viewModel?.hydrationState?.collectAsState() ?: remember { mutableStateOf(HydrationUiState()) }
+
+    LaunchedEffect(Unit) {
+        viewModel?.initReminder(context)
+    }
 
     LaunchedEffect(userEmail, rawDate) {
         viewModel?.loadHydration(userEmail, rawDate)
@@ -110,12 +120,16 @@ fun HydrationDetailScreen(
     var localConsumedMl by remember { mutableIntStateOf(1250) }
     var localDailyTargetMl by remember { mutableIntStateOf(2000) }
     var localIsReminderEnabled by remember { mutableStateOf(true) }
+    var localReminderMode by remember { mutableStateOf("HOURLY") }
+    var localReminderTime by remember { mutableStateOf("09:00 AM") }
     var localLastLoggedAmountMl by remember { mutableIntStateOf(0) }
     var localShowToast by remember { mutableStateOf(false) }
 
     val consumedWaterMl = if (viewModel != null) state.consumedWaterMl else localConsumedMl
     val dailyTargetMl = if (viewModel != null) state.dailyTargetMl else localDailyTargetMl
     val isReminderEnabled = if (viewModel != null) state.isReminderEnabled else localIsReminderEnabled
+    val reminderMode = if (viewModel != null) state.reminderMode else localReminderMode
+    val reminderTime = if (viewModel != null) state.reminderTime else localReminderTime
     val lastLoggedAmountMl = if (viewModel != null) state.lastLoggedAmountMl else localLastLoggedAmountMl
     val showLoggedToast = if (viewModel != null) state.showToast else localShowToast
 
@@ -682,49 +696,173 @@ fun HydrationDetailScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Smart Reminder Toggle Card
+        // Hydration Reminder Toggle & Mode Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(18.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Smart reminder",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
-                    )
-                    Text(
-                        text = "A gentle nudge every 2 hours",
-                        fontSize = 12.sp,
-                        color = Color(0xFF6B7280),
-                        modifier = Modifier.padding(top = 2.dp)
+            Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Hydration Reminder",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF111827)
+                        )
+                        Text(
+                            text = if (isReminderEnabled) {
+                                if (reminderMode.equals("MANUAL", ignoreCase = true)) "Daily reminder at $reminderTime" else "Hourly reminder every 60 minutes"
+                            } else "Reminders currently turned off",
+                            fontSize = 12.sp,
+                            color = Color(0xFF6B7280),
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+
+                    Switch(
+                        checked = isReminderEnabled,
+                        onCheckedChange = { checked ->
+                            if (viewModel != null) {
+                                viewModel.updateReminderSettings(context, userEmail, checked, reminderMode, reminderTime)
+                            } else {
+                                localIsReminderEnabled = checked
+                                NotificationReminderEngine.syncHydrationReminder(context, checked, reminderMode, reminderTime)
+                            }
+                            val toastMsg = if (checked) "Hydration reminder enabled" else "Hydration reminder disabled"
+                            Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = VitalTealPrimary
+                        )
                     )
                 }
 
-                Switch(
-                    checked = isReminderEnabled,
-                    onCheckedChange = { checked ->
-                        if (viewModel != null) {
-                            viewModel.updateReminder(userEmail, checked)
-                        } else {
-                            localIsReminderEnabled = checked
-                        }
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = VitalTealPrimary
+                if (isReminderEnabled) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "Reminder Mode",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF6B7280)
                     )
-                )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val isHourly = !reminderMode.equals("MANUAL", ignoreCase = true)
+                        // Every 1 Hour Pill
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isHourly) VitalTealPrimary else Color(0xFFF1F5F9))
+                                .clickable {
+                                    if (viewModel != null) {
+                                        viewModel.updateReminderSettings(context, userEmail, true, "HOURLY", reminderTime)
+                                    } else {
+                                        localReminderMode = "HOURLY"
+                                        NotificationReminderEngine.syncHydrationReminder(context, true, "HOURLY", reminderTime)
+                                    }
+                                }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Every 1 Hour",
+                                fontSize = 13.sp,
+                                fontWeight = if (isHourly) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isHourly) Color.White else Color(0xFF475569)
+                            )
+                        }
+
+                        // Manual Time Pill
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (!isHourly) VitalTealPrimary else Color(0xFFF1F5F9))
+                                .clickable {
+                                    if (viewModel != null) {
+                                        viewModel.updateReminderSettings(context, userEmail, true, "MANUAL", reminderTime)
+                                    } else {
+                                        localReminderMode = "MANUAL"
+                                        NotificationReminderEngine.syncHydrationReminder(context, true, "MANUAL", reminderTime)
+                                    }
+                                }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Manual Time",
+                                fontSize = 13.sp,
+                                fontWeight = if (!isHourly) FontWeight.Bold else FontWeight.Medium,
+                                color = if (!isHourly) Color.White else Color(0xFF475569)
+                            )
+                        }
+                    }
+
+                    if (reminderMode.equals("MANUAL", ignoreCase = true)) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFE8F6F0))
+                                .clickable {
+                                    val (initialHour, initialMinute) = NotificationReminderEngine.parseHourMinute(reminderTime)
+                                    android.app.TimePickerDialog(
+                                        context,
+                                        { _, hourOfDay, minute ->
+                                            val formattedTime = NotificationReminderEngine.formatHourMinute(hourOfDay, minute)
+                                            if (viewModel != null) {
+                                                viewModel.updateReminderSettings(context, userEmail, true, "MANUAL", formattedTime)
+                                            } else {
+                                                localReminderTime = formattedTime
+                                                NotificationReminderEngine.syncHydrationReminder(context, true, "MANUAL", formattedTime)
+                                            }
+                                            Toast.makeText(context, "Hydration reminder set for $formattedTime", Toast.LENGTH_SHORT).show()
+                                        },
+                                        initialHour,
+                                        initialMinute,
+                                        false
+                                    ).show()
+                                }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = "⏰", fontSize = 16.sp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Scheduled at $reminderTime",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F9F7A)
+                                )
+                            }
+                            Text(
+                                text = "Change",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = VitalTealPrimary
+                            )
+                        }
+                    }
+                }
             }
         }
 

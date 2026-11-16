@@ -134,16 +134,20 @@ object RetrofitClient {
                         ApiConstants.ADB_LOCALHOST_BASE_URL,
                         ApiConstants.LOCALHOST_BASE_URL,
                         ApiConstants.LAN_BASE_URL,
+                        ApiConstants.LAN_HOTSPOT_BASE_URL,
+                        ApiConstants.LAN_WIFI_BASE_URL,
                         ApiConstants.REMOTE_DEVTUNNEL_URL
                     )
                 } else {
                     listOf(
                         ApiConstants.LAN_BASE_URL,
+                        ApiConstants.LAN_HOTSPOT_BASE_URL,
+                        ApiConstants.LAN_WIFI_BASE_URL,
                         ApiConstants.ADB_LOCALHOST_BASE_URL,
                         ApiConstants.LOCALHOST_BASE_URL,
                         ApiConstants.REMOTE_DEVTUNNEL_URL
                     )
-                }
+                }.distinct()
 
                 for (fallbackBase in candidateUrls) {
                     if (!effectiveUrl.startsWith(fallbackBase)) {
@@ -155,8 +159,8 @@ object RetrofitClient {
                             .build()
                         try {
                             val altResponse = chain
-                                .withConnectTimeout(2, TimeUnit.SECONDS)
-                                .withReadTimeout(4, TimeUnit.SECONDS)
+                                .withConnectTimeout(ApiConstants.CONNECT_TIMEOUT_SECONDS.toInt(), TimeUnit.SECONDS)
+                                .withReadTimeout(ApiConstants.READ_TIMEOUT_SECONDS.toInt(), TimeUnit.SECONDS)
                                 .proceed(altRequest)
                             verifiedBaseUrlPrefix = fallbackBase
                             Log.i(TAG, "Connected via fallback host: $fallbackBase")
@@ -193,18 +197,25 @@ object RetrofitClient {
     }
 
     private fun replaceBasePrefix(url: String, targetBase: String): String {
-        val currentBasePrefix = when {
-            url.startsWith(ApiConstants.EMULATOR_BASE_URL) -> ApiConstants.EMULATOR_BASE_URL
-            url.startsWith(ApiConstants.LAN_BASE_URL) -> ApiConstants.LAN_BASE_URL
-            url.startsWith(ApiConstants.ADB_LOCALHOST_BASE_URL) -> ApiConstants.ADB_LOCALHOST_BASE_URL
-            url.startsWith(ApiConstants.LOCALHOST_BASE_URL) -> ApiConstants.LOCALHOST_BASE_URL
-            url.startsWith(ApiConstants.REMOTE_DEVTUNNEL_URL) -> ApiConstants.REMOTE_DEVTUNNEL_URL
-            else -> currentBaseUrl
-        }
-        return if (url.startsWith(currentBasePrefix)) {
-            url.replaceFirst(currentBasePrefix, targetBase)
+        val regex = Regex("^https?://[^/]+/vitalsync-backend/")
+        return if (regex.containsMatchIn(url)) {
+            url.replaceFirst(regex, targetBase)
         } else {
-            url
+            val currentBasePrefix = when {
+                url.startsWith(ApiConstants.EMULATOR_BASE_URL) -> ApiConstants.EMULATOR_BASE_URL
+                url.startsWith(ApiConstants.LAN_HOTSPOT_BASE_URL) -> ApiConstants.LAN_HOTSPOT_BASE_URL
+                url.startsWith(ApiConstants.LAN_WIFI_BASE_URL) -> ApiConstants.LAN_WIFI_BASE_URL
+                url.startsWith(ApiConstants.LAN_BASE_URL) -> ApiConstants.LAN_BASE_URL
+                url.startsWith(ApiConstants.ADB_LOCALHOST_BASE_URL) -> ApiConstants.ADB_LOCALHOST_BASE_URL
+                url.startsWith(ApiConstants.LOCALHOST_BASE_URL) -> ApiConstants.LOCALHOST_BASE_URL
+                url.startsWith(ApiConstants.REMOTE_DEVTUNNEL_URL) -> ApiConstants.REMOTE_DEVTUNNEL_URL
+                else -> currentBaseUrl
+            }
+            if (url.startsWith(currentBasePrefix)) {
+                url.replaceFirst(currentBasePrefix, targetBase)
+            } else {
+                url
+            }
         }
     }
 

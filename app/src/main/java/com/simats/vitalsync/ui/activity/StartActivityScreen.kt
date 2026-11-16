@@ -78,9 +78,6 @@ fun StartActivityScreen(
     var targetDurationMinutes by remember { mutableIntStateOf(30) }
     var targetDistanceKm by remember { mutableFloatStateOf(5.0f) }
 
-    // Interactive Track with Phone Sensor State
-    var isPhoneTrackingConnected by remember { mutableStateOf(true) }
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -456,56 +453,7 @@ fun StartActivityScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // BEFORE YOU START Section - Interactive Phone Sensor Connection
-            SectionHeader("BEFORE YOU START")
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "📱", fontSize = 20.sp)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(text = "Track with your phone", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                                Text(
-                                    text = if (isPhoneTrackingConnected) "Phone motion & step sensors active" else "Connect phone sensors to track session",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF6B7280)
-                                )
-                            }
-                        }
-
-                        // Interactive Connect / Enabled Phone Button Badge
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isPhoneTrackingConnected) Color(0xFFE6F4EA) else Color(0xFFE0F2FE))
-                                .clickable { isPhoneTrackingConnected = !isPhoneTrackingConnected }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = if (isPhoneTrackingConnected) "Connected ✓" else "Connect Phone 🔌",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isPhoneTrackingConnected) Color(0xFF0F9F7A) else Color(0xFF0284C7)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         // Start Activity Button
@@ -517,36 +465,22 @@ fun StartActivityScreen(
         ) {
             Button(
                 onClick = {
-                    if (isPhoneTrackingConnected) {
-                        onStartTracking(selectedType, selectedGoalTab, targetDurationMinutes, targetDistanceKm)
-                    }
+                    onStartTracking(selectedType, selectedGoalTab, targetDurationMinutes, targetDistanceKm)
                 },
-                enabled = isPhoneTrackingConnected,
+                enabled = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = VitalTealDark,
-                    contentColor = Color.White,
-                    disabledContainerColor = Color(0xFFE2E8F0),
-                    disabledContentColor = Color(0xFF94A3B8)
+                    contentColor = Color.White
                 )
             ) {
                 Text(
                     text = "Start ${selectedType.name.lowercase().replaceFirstChar { it.uppercase() }}",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
-                )
-            }
-
-            if (!isPhoneTrackingConnected) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Connect phone tracking above to enable activity recording",
-                    fontSize = 11.sp,
-                    color = Color(0xFFEF4444),
-                    textAlign = TextAlign.Center
                 )
             }
         }

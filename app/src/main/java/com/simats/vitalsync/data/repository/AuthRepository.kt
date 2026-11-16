@@ -19,9 +19,11 @@ import okhttp3.ResponseBody
 import java.io.IOException
 
 class AuthRepository(
-    private val apiService: AuthApiService = RetrofitClient.authApiService,
+    private val fallbackApiService: AuthApiService? = null,
     private val sessionManager: SessionManager? = null
 ) {
+    private val apiService: AuthApiService
+        get() = fallbackApiService ?: RetrofitClient.authApiService
 
     private val gson = Gson()
 

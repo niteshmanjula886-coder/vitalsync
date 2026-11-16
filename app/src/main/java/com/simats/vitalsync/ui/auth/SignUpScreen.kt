@@ -61,6 +61,8 @@ import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
+private val EMAIL_REGEX = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+
 @Composable
 fun SignUpScreen(
     modifier: Modifier = Modifier,
@@ -327,17 +329,19 @@ fun SignUpScreen(
             // Create Account Button (with Loading Spinner support)
             Button(
                 onClick = {
+                    val trimmedName = name.trim()
+                    val trimmedEmail = email.trim()
                     when {
-                        name.isBlank() -> validationError = "Please enter your full name"
-                        email.isBlank() || !email.contains("@") -> validationError = "Please enter a valid email address"
+                        trimmedName.isBlank() -> validationError = "Please enter your full name"
+                        trimmedEmail.isBlank() || !EMAIL_REGEX.matches(trimmedEmail) -> validationError = "Please enter a valid email address (e.g., name@example.com)"
                         password.length < 6 -> validationError = "Password must be at least 6 characters"
                         !isTermsAccepted -> validationError = "Please accept the Terms of Service to continue"
                         else -> {
                             validationError = null
                             if (viewModel != null) {
-                                viewModel.signUp(name = name, email = email, password = password, confirmPassword = password)
+                                viewModel.signUp(name = trimmedName, email = trimmedEmail, password = password, confirmPassword = password)
                             } else {
-                                onSignUpSuccess(name)
+                                onSignUpSuccess(trimmedName)
                             }
                         }
                     }

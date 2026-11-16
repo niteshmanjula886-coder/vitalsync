@@ -1,7 +1,9 @@
 package com.simats.vitalsync.ui.vitals.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
 import com.simats.vitalsync.data.model.hydration.HydrationAiInsightDto
 import com.simats.vitalsync.data.model.hydration.HydrationLogDto
@@ -12,6 +14,7 @@ import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.RetrofitClient
 import com.simats.vitalsync.data.repository.HydrationRepository
 import com.simats.vitalsync.data.repository.Resource
+import com.simats.vitalsync.util.NotificationReminderEngine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +29,8 @@ data class HydrationUiState(
     val glassEquivalent: Float = 0f,
     val progressPercentage: Int = 0,
     val isReminderEnabled: Boolean = true,
+    val reminderMode: String = "HOURLY",
+    val reminderTime: String = "09:00 AM",
     val logs: List<HydrationLogDto> = emptyList(),
     val weeklyHistory: List<WeeklyHydrationDayDto> = emptyList(),
     val weeklyAggregations: List<WeeklyHistoryItemDto> = emptyList(),
@@ -234,11 +239,78 @@ class HydrationViewModel(
         }
     }
 
+    fun initReminder(context: Context) {
+        val sessionManager = SessionManager.getInstance(context)
+        val enabled = sessionManager.isHydrationReminderEnabled()
+        val mode = sessionManager.getHydrationReminderMode()
+        val time = sessionManager.getHydrationReminderTime()
+        _hydrationState.update {
+            it.copy(
+                isReminderEnabled = enabled,
+                reminderMode = mode,
+                reminderTime = time
+            )
+        }
+        // Ensure scheduler matches active mode and time
+        NotificationReminderEngine.syncHydrationReminder(context, enabled, mode, time)
+    }
+
+    fun updateReminderSettings(
+        context: Context,
+        email: String,
+        enabled: Boolean,
+        mode: String,
+        time: String
+    ) {
+        // 1. Optimistic UI update
+        _hydrationState.update {
+            it.copy(
+                isReminderEnabled = enabled,
+                reminderMode = mode,
+                reminderTime = time
+            )
+        }
+
+        // 2. Persist in SharedPreferences / SessionManager
+        val sessionManager = SessionManager.getInstance(context)
+        sessionManager.setHydrationReminderSettings(enabled, mode, time)
+
+        // 3. Reschedule alarm with active mode
+        NotificationReminderEngine.syncHydrationReminder(context, enabled, mode, time)
+
+        // 4. Synchronize with backend
+        viewModelScope.launch {
+            val target = _hydrationState.value.dailyTargetMl
+            repository.updateSettings(email, target, enabled).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> {}
+                    is Resource.Success -> {
+                        _hydrationState.update {
+                            it.copy(
+                                isReminderEnabled = resource.data.remindersEnabled,
+                                dailyTargetMl = resource.data.dailyTargetMl
+                            )
+                        }
+                    }
+                    is Resource.Error -> {}
+                }
+            }
+        }
+    }
+
+    fun toggleReminder(
+        context: Context,
+        email: String,
+        enabled: Boolean
+    ) {
+        val current = _hydrationState.value
+        updateReminderSettings(context, email, enabled, current.reminderMode, current.reminderTime)
+    }
+
     fun updateReminder(
         email: String,
         enabled: Boolean
     ) {
-        // Optimistic update
         _hydrationState.update { it.copy(isReminderEnabled = enabled) }
 
         viewModelScope.launch {
@@ -262,6 +334,15 @@ class HydrationViewModel(
                 }
             }
         }
+    }
+
+    fun updateReminderSettings(
+        context: Context,
+        email: String,
+        enabled: Boolean,
+        time: String = ""
+    ) {
+        toggleReminder(context, email, enabled)
     }
 
     fun updateDailyTarget(
