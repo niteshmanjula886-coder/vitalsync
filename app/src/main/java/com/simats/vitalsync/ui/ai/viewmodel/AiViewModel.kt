@@ -14,7 +14,9 @@ import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.repository.AiRepository
 import com.simats.vitalsync.data.repository.Resource
 import com.simats.vitalsync.ui.ai.ChatMessage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,6 +39,7 @@ data class AiUiState(
     val isLoadingSessions: Boolean = false,
     val isSending: Boolean = false,
     val isAiThinking: Boolean = false,
+    val isGenerating: Boolean = false,
     val dailyInsight: AiDailyInsightDto? = null,
     val aiInsight: AiInsightResponse? = null,
     val isInsightLoading: Boolean = false,
@@ -56,6 +59,8 @@ class AiViewModel(
 
     private val _isAiThinking = MutableStateFlow(false)
     val isAiThinking: StateFlow<Boolean> = _isAiThinking.asStateFlow()
+
+    private var generationJob: Job? = null
 
     init {
         if (SessionManager.getInstance(application).isLoggedIn()) {
@@ -320,6 +325,7 @@ class AiViewModel(
                 messages = it.messages + optimisticUserMsg,
                 isSending = true,
                 isAiThinking = true,
+                isGenerating = true,
                 errorMessage = null
             )
         }
@@ -346,9 +352,9 @@ class AiViewModel(
             }
         }
 
-        viewModelScope.launch(Dispatchers.IO) {
+        generationJob = viewModelScope.launch(Dispatchers.IO) {
             try {
-                when (val result = withTimeout(25_000L) {
+                when (val result = withTimeout(180_000L) {
                     repository.sendAiChatMessage(
                         userId = resolvedUserId,
                         message = trimmed,
@@ -389,18 +395,61 @@ class AiViewModel(
                     }
                     is Resource.Loading -> {}
                 }
+            } catch (ce: CancellationException) {
+                val stoppedNotice = ChatMessage(
+                    id = UUID.randomUUID().toString(),
+                    sender = "AI",
+                    text = "Generation stopped.",
+                    timeText = getCurrentTimeText()
+                )
+                _uiState.update {
+                    it.copy(
+                        messages = it.messages + stoppedNotice,
+                        errorMessage = null
+                    )
+                }
             } catch (e: Exception) {
                 appendErrorBubble(ApiConstants.resolveNetworkErrorMessage(e))
             } finally {
                 _isAiThinking.value = false
+                generationJob = null
                 _uiState.update {
                     it.copy(
                         isSending = false,
-                        isAiThinking = false
+                        isAiThinking = false,
+                        isGenerating = false
                     )
                 }
             }
         }
+    }
+
+    fun stopGeneration() {
+        generationJob?.cancel()
+        generationJob = null
+        _isAiThinking.value = false
+        _uiState.update {
+            it.copy(
+                isSending = false,
+                isAiThinking = false,
+                isGenerating = false
+            )
+        }
+    }
+
+    fun editMessageAndResend(
+        targetMessageIndex: Int,
+        newText: String,
+        explicitUserId: Int? = null,
+        explicitEmail: String? = null
+    ) {
+        val currentMessages = _uiState.value.messages
+        if (targetMessageIndex in currentMessages.indices) {
+            val truncatedList = currentMessages.take(targetMessageIndex)
+            _uiState.update { it.copy(messages = truncatedList) }
+        }
+        val resolvedUserId = explicitUserId?.takeIf { it > 0 } ?: repository.getCurrentUserId() ?: 0
+        sendMessage(userId = resolvedUserId, prompt = newText, email = explicitEmail)
     }
 
     fun sendMessage(messageText: String, explicitUserId: Int? = null, explicitEmail: String? = null) {

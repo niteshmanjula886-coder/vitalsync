@@ -41,7 +41,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.MaterialTheme
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
+import com.simats.vitalsync.ui.theme.CarbonDarkActivityBg
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkBorder
+import com.simats.vitalsync.ui.theme.CarbonDarkCriticalBg
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
+import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
+import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
+import com.simats.vitalsync.ui.theme.CarbonDarkWarningBg
 import com.simats.vitalsync.ui.theme.VitalCardBg
 import com.simats.vitalsync.ui.theme.VitalMainBackground
 import com.simats.vitalsync.ui.theme.VitalNavSelectedBg
@@ -77,10 +87,12 @@ fun VitalSignsScreen(
     onBmiClick: () -> Unit = {},
     onAddReadingClick: () -> Unit = {}
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(VitalMainBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp),
@@ -108,7 +120,7 @@ fun VitalSignsScreen(
                     ) {
                         BackArrowIcon(
                             modifier = Modifier.size(20.dp),
-                            color = VitalTextPrimary
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
 
@@ -118,7 +130,7 @@ fun VitalSignsScreen(
                         text = "Vital Signs",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = VitalTextPrimary
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -126,7 +138,7 @@ fun VitalSignsScreen(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF1F5F9)),
+                        .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)),
                     contentAlignment = Alignment.Center
                 ) {
                     CalendarIcon(modifier = Modifier.size(18.dp))
@@ -225,23 +237,25 @@ private fun VitalTileCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+
     // Dynamic Classification Color Mapping based on Status / Trend
     val (statusColor, statusBgColor) = when {
         status.contains("No ", ignoreCase = true) || status.contains("Connect", ignoreCase = true) || status.contains("Not ", ignoreCase = true) || status.contains("Tap to log", ignoreCase = true) ->
-            Pair(Color(0xFF6B7280), Color(0xFFF1F5F9)) // Neutral Slate when disconnected/no data
+            if (isDark) Pair(CarbonDarkTextSecondary, CarbonDarkSurfaceVariant) else Pair(Color(0xFF6B7280), Color(0xFFF1F5F9))
         status.contains("Low", ignoreCase = true) || status.contains("Hypotension", ignoreCase = true) || status.contains("High", ignoreCase = true) || status.contains("Critical", ignoreCase = true) || status.contains("Crisis", ignoreCase = true) || status.contains("Stage 2", ignoreCase = true) ->
-            Pair(Color(0xFFDC2626), Color(0xFFFEE2E2)) // Red
+            if (isDark) Pair(Color(0xFFF87171), CarbonDarkCriticalBg) else Pair(Color(0xFFDC2626), Color(0xFFFEE2E2))
         status.contains("Warning", ignoreCase = true) || status.contains("Elevated", ignoreCase = true) || status.contains("Stage 1", ignoreCase = true) || status.contains("Hypertension", ignoreCase = true) ->
-            Pair(Color(0xFFD97706), Color(0xFFFEF3C7)) // Amber/Orange
+            if (isDark) Pair(Color(0xFFFBBF24), CarbonDarkWarningBg) else Pair(Color(0xFFD97706), Color(0xFFFEF3C7))
         else ->
-            Pair(VitalPrimaryMint, VitalNavSelectedBg) // Green
+            if (isDark) Pair(Color(0xFF34D399), CarbonDarkActivityBg) else Pair(VitalPrimaryMint, VitalNavSelectedBg)
     }
 
     Card(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = VitalCardBg),
-        border = BorderStroke(1.dp, VitalSoftBorder),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -259,7 +273,7 @@ private fun VitalTileCard(
                 Text(
                     text = title,
                     fontSize = 12.sp,
-                    color = VitalTextSecondary
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -269,7 +283,7 @@ private fun VitalTileCard(
                 text = value,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = VitalTextPrimary
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -297,7 +311,7 @@ private fun VitalTileCard(
                 Text(
                     text = updatedAt,
                     fontSize = 10.sp,
-                    color = VitalTextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     softWrap = false
                 )

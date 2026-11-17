@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.common
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -30,6 +32,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
 import com.simats.vitalsync.data.model.ai.MetricEvaluationDto
+import com.simats.vitalsync.ui.theme.CarbonDarkAccent
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkBorder
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
+import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
+import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
 
 @Composable
 fun AiInsightCard(
@@ -41,14 +50,15 @@ fun AiInsightCard(
     onLogVitalsClick: () -> Unit = {},
     onClick: () -> Unit = {}
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
     val effectiveTier = (insight?.overallTier?.ifBlank { null }
         ?: insight?.insight?.overallTier?.ifBlank { null }
         ?: "NEEDS_ATTENTION").uppercase()
 
     val (tierLabel, tierBg, tierTextColor) = when (effectiveTier) {
-        "OPTIMAL" -> Triple("Optimal", Color(0xFFE8F6F0), Color(0xFF0F9F7A))
-        "ALERT" -> Triple("Alert", Color(0xFFFEE2E2), Color(0xFFDC2626))
-        else -> Triple("Needs Focus", Color(0xFFFEF3C7), Color(0xFFD97706))
+        "OPTIMAL" -> Triple("Optimal", if (isDark) Color(0xFF142923) else Color(0xFFE8F6F0), if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A))
+        "ALERT" -> Triple("Alert", if (isDark) Color(0xFF2E1A1A) else Color(0xFFFEE2E2), if (isDark) Color(0xFFF87171) else Color(0xFFDC2626))
+        else -> Triple("Needs Focus", if (isDark) Color(0xFF292314) else Color(0xFFFEF3C7), if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706))
     }
 
     val evaluations = (insight?.metricEvaluations?.takeIf { it.isNotEmpty() }
@@ -59,8 +69,9 @@ fun AiInsightCard(
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        colors = CardDefaults.cardColors(containerColor = if (isDark) CarbonDarkSurface else Color.White),
+        border = if (isDark) BorderStroke(1.dp, CarbonDarkBorder) else null,
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.dp)
     ) {
         Column(
             modifier = Modifier.padding(18.dp)
@@ -81,7 +92,7 @@ fun AiInsightCard(
                         text = "AI Health Insight",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827),
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -201,7 +212,7 @@ fun AiInsightCard(
                 text = summaryText,
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
-                color = Color(0xFF374151)
+                color = if (isDark) CarbonDarkTextSecondary else Color(0xFF374151)
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -212,9 +223,9 @@ fun AiInsightCard(
                 ?: "Keep building consistent movement, sleep, and hydration habits today."
 
             val (tipBg, tipTextColor, tipIcon) = when (effectiveTier) {
-                "ALERT" -> Triple(Color(0xFFFEF2F2), Color(0xFF991B1B), "⚠️")
-                "NEEDS_ATTENTION" -> Triple(Color(0xFFFFFBEB), Color(0xFF92400E), "💡")
-                else -> Triple(Color(0xFFF0FDF4), Color(0xFF166534), "🎯")
+                "ALERT" -> Triple(if (isDark) Color(0xFF2E1A1A) else Color(0xFFFEF2F2), if (isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B), "⚠️")
+                "NEEDS_ATTENTION" -> Triple(if (isDark) Color(0xFF292314) else Color(0xFFFFFBEB), if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E), "💡")
+                else -> Triple(if (isDark) Color(0xFF142923) else Color(0xFFF0FDF4), if (isDark) Color(0xFFA7F3D0) else Color(0xFF166534), "🎯")
             }
 
             Box(
@@ -288,16 +299,17 @@ private fun MetricStateChip(
     evaluation: MetricEvaluationDto,
     modifier: Modifier = Modifier
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
     val tierUpper = evaluation.tier.uppercase()
     val (chipBg, badgeColor, labelColor) = when {
         evaluation.tier.equals("Not Logged", ignoreCase = true) ->
-            Triple(Color(0xFFF3F4F6), Color(0xFF6B7280), Color(0xFF4B5563))
+            Triple(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF3F4F6), Color(0xFF6B7280), if (isDark) CarbonDarkTextSecondary else Color(0xFF4B5563))
         evaluation.severity >= 2 || tierUpper.contains("ALERT") || tierUpper == "LOW" ->
-            Triple(Color(0xFFFEF2F2), Color(0xFFDC2626), Color(0xFF991B1B))
+            Triple(if (isDark) Color(0xFF2E1A1A) else Color(0xFFFEF2F2), Color(0xFFEF4444), if (isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B))
         evaluation.severity == 1 || tierUpper.contains("NEEDS") ->
-            Triple(Color(0xFFFFFBEB), Color(0xFFD97706), Color(0xFF92400E))
+            Triple(if (isDark) Color(0xFF292314) else Color(0xFFFFFBEB), Color(0xFFF59E0B), if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E))
         else ->
-            Triple(Color(0xFFECFDF5), Color(0xFF059669), Color(0xFF065F46))
+            Triple(if (isDark) Color(0xFF142923) else Color(0xFFECFDF5), Color(0xFF10A37F), if (isDark) Color(0xFFA7F3D0) else Color(0xFF065F46))
     }
 
     val displayValue = if (evaluation.value.isNotBlank() && !evaluation.value.equals("Not logged", ignoreCase = true)) {
@@ -326,7 +338,7 @@ private fun MetricStateChip(
                     text = evaluation.metric,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF374151),
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF374151),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -338,7 +350,7 @@ private fun MetricStateChip(
                 text = displayValue,
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (displayValue == "Not logged") Color(0xFF6B7280) else Color(0xFF111827),
+                color = if (displayValue == "Not logged") (if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)) else (if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

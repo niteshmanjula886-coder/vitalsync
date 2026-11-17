@@ -3,6 +3,7 @@ package com.simats.vitalsync.ui.ai
 import androidx.activity.compose.BackHandler
 
 import android.app.Application
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -14,6 +15,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,6 +43,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -49,7 +55,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
@@ -68,6 +76,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -75,6 +85,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -93,6 +104,13 @@ import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.ai.AiChatSessionDto
 import com.simats.vitalsync.ui.ai.viewmodel.AiViewModel
 import com.simats.vitalsync.ui.ai.viewmodel.AiViewModelFactory
+import com.simats.vitalsync.ui.theme.CarbonDarkAccent
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkBorder
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
+import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
+import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -120,6 +138,8 @@ fun AiChatScreen(
     onChatHistoryClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val focusRequester = remember { FocusRequester() }
     val sessionManager = remember { SessionManager.getInstance(context) }
     val resolvedUserId = remember(userId) {
         userId?.takeIf { it > 0 } ?: sessionManager.getUser()?.id?.takeIf { it > 0 }
@@ -129,8 +149,9 @@ fun AiChatScreen(
     }
 
     val uiState by viewModel.uiState.collectAsState()
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
     var messageInput by remember { mutableStateOf("") }
-    var isListeningForVoice by remember { mutableStateOf(false) }
+    var editingMessageIndex by remember { mutableStateOf<Int?>(null) }
     var showMenu by remember { mutableStateOf(false) }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -162,20 +183,23 @@ fun AiChatScreen(
         val trimmed = textToSend.trim()
         if (trimmed.isEmpty()) return
         messageInput = ""
-        isListeningForVoice = false
-        viewModel.sendMessage(
-            messageText = trimmed,
-            explicitUserId = resolvedUserId,
-            explicitEmail = resolvedEmail.ifBlank { null }
-        )
+        val targetEditIndex = editingMessageIndex
+        editingMessageIndex = null
+        if (targetEditIndex != null) {
+            viewModel.editMessageAndResend(
+                targetMessageIndex = targetEditIndex,
+                newText = trimmed,
+                explicitUserId = resolvedUserId,
+                explicitEmail = resolvedEmail.ifBlank { null }
+            )
+        } else {
+            viewModel.sendMessage(
+                messageText = trimmed,
+                explicitUserId = resolvedUserId,
+                explicitEmail = resolvedEmail.ifBlank { null }
+            )
+        }
     }
-
-    // Smooth Animated Blur Dp
-    val chatBlurDp by animateDpAsState(
-        targetValue = if (isListeningForVoice) 18.dp else 0.dp,
-        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-        label = "ChatBlurAnimation"
-    )
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -184,13 +208,14 @@ fun AiChatScreen(
                 modifier = Modifier
                     .width(310.dp)
                     .fillMaxHeight(),
-                drawerContainerColor = Color(0xFFFAFCFB),
+                drawerContainerColor = if (isDark) CarbonDarkSurface else Color(0xFFFAFCFB),
                 drawerShape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp)
             ) {
                 ChatSessionsDrawerContent(
                     sessions = uiState.sessions,
                     currentSessionId = uiState.currentSessionId,
                     isLoading = uiState.isLoadingSessions,
+                    isDark = isDark,
                     onNewChatClick = {
                         coroutineScope.launch { drawerState.close() }
                         viewModel.startNewChat()
@@ -220,16 +245,15 @@ fun AiChatScreen(
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .background(Color(0xFFFAFCFB))
+                .background(if (isDark) CarbonDarkBackground else Color(0xFFFAFCFB))
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .imePadding()
         ) {
-            // Main Chat Conversation Content (Blurred when AI Voice Animation is Active)
+            // Main Chat Conversation Content
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(chatBlurDp)
                     .padding(horizontal = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
@@ -258,7 +282,7 @@ fun AiChatScreen(
                             ) {
                                 BackArrowIcon(
                                     modifier = Modifier.size(20.dp),
-                                    color = Color(0xFF111827)
+                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                                 )
                             }
 
@@ -275,7 +299,7 @@ fun AiChatScreen(
                                 Text(
                                     text = "☰",
                                     fontSize = 20.sp,
-                                    color = Color(0xFF111827),
+                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -286,7 +310,7 @@ fun AiChatScreen(
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFEDE9FE)),
+                                    .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFEDE9FE)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(text = "🩺", fontSize = 17.sp)
@@ -299,7 +323,7 @@ fun AiChatScreen(
                                     text = "VitalSync AI ✨",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF111827),
+                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -308,7 +332,7 @@ fun AiChatScreen(
                                         modifier = Modifier
                                             .size(6.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFF10B981))
+                                            .background(if (isDark) CarbonDarkAccent else Color(0xFF10B981))
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
@@ -318,7 +342,7 @@ fun AiChatScreen(
                                             uiState.activeModelLabel
                                         },
                                         fontSize = 11.sp,
-                                        color = Color(0xFF059669),
+                                        color = if (isDark) CarbonDarkAccent else Color(0xFF059669),
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -348,7 +372,7 @@ fun AiChatScreen(
                                         text = "•••",
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF6B7280)
+                                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
                                     )
                                 }
 
@@ -396,8 +420,9 @@ fun AiChatScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        colors = CardDefaults.cardColors(containerColor = if (isDark) CarbonDarkSurface else Color.White),
+                        border = if (isDark) BorderStroke(1.dp, CarbonDarkBorder) else null,
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.dp)
                     ) {
                         Column(
                             modifier = Modifier
@@ -411,14 +436,14 @@ fun AiChatScreen(
                                 text = "How can I help today?",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827),
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
                                 textAlign = TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Ask about your heart rate, sleep recovery, hydration goals, workout readiness, or any wellness question.",
                                 fontSize = 13.sp,
-                                color = Color(0xFF6B7280),
+                                color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
                                 lineHeight = 19.sp,
                                 textAlign = TextAlign.Center
                             )
@@ -428,7 +453,7 @@ fun AiChatScreen(
                 }
 
                 // Dynamic Chat Messages List
-                uiState.messages.forEach { msg ->
+                uiState.messages.forEachIndexed { index, msg ->
                     if (msg.sender == "USER") {
                         Column(
                             modifier = Modifier
@@ -439,7 +464,7 @@ fun AiChatScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(18.dp))
-                                    .background(VitalTealDark)
+                                    .background(if (isDark) Color(0xFF2F2F2F) else VitalTealDark)
                                     .padding(horizontal = 16.dp, vertical = 12.dp)
                             ) {
                                 Text(
@@ -450,13 +475,75 @@ fun AiChatScreen(
                                     lineHeight = 20.sp
                                 )
                             }
-                            if (msg.timeText.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(3.dp))
-                                Text(
-                                    text = msg.timeText,
-                                    fontSize = 10.sp,
-                                    color = Color(0xFF9CA3AF)
-                                )
+                            // Bottom Action Row: Timestamp, Copy & Edit
+                            Row(
+                                modifier = Modifier.padding(top = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                if (msg.timeText.isNotBlank()) {
+                                    Text(
+                                        text = msg.timeText,
+                                        fontSize = 10.sp,
+                                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+
+                                // Copy Button
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .clickable {
+                                            clipboardManager.setText(AnnotatedString(msg.text))
+                                            Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                                        }
+                                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Copy message",
+                                        tint = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "Copy",
+                                        fontSize = 11.sp,
+                                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(6.dp))
+
+                                // Edit Button
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .clickable {
+                                            editingMessageIndex = index
+                                            messageInput = msg.text
+                                            focusRequester.requestFocus()
+                                        }
+                                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Edit message",
+                                        tint = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "Edit",
+                                        fontSize = 11.sp,
+                                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                             }
                         }
                     } else {
@@ -469,7 +556,8 @@ fun AiChatScreen(
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
+                                colors = CardDefaults.cardColors(containerColor = if (isDark) CarbonDarkSurface else Color(0xFFF3E8FF)),
+                                border = if (isDark) BorderStroke(1.dp, Color(0xFF2F2F2F)) else null,
                                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
@@ -482,14 +570,14 @@ fun AiChatScreen(
                                             text = "✨ VitalSync AI",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF7C3AED)
+                                            color = if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
                                         )
 
                                         if (msg.timeText.isNotBlank()) {
                                             Text(
                                                 text = msg.timeText,
                                                 fontSize = 10.sp,
-                                                color = Color(0xFF9CA3AF)
+                                                color = if (isDark) Color(0xFF8E8E93) else Color(0xFF9CA3AF)
                                             )
                                         }
                                     }
@@ -502,7 +590,7 @@ fun AiChatScreen(
                                     Text(
                                         text = formattedText,
                                         fontSize = 14.sp,
-                                        color = Color(0xFF111827),
+                                        color = if (isDark) Color(0xFFECECEC) else Color(0xFF111827),
                                         lineHeight = 21.sp
                                     )
                                 }
@@ -525,15 +613,55 @@ fun AiChatScreen(
                     .fillMaxWidth()
                     .padding(bottom = 12.dp)
             ) {
+                if (editingMessageIndex != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null,
+                                tint = if (isDark) CarbonDarkAccent else VitalTealDark,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Editing previous message",
+                                fontSize = 12.sp,
+                                color = if (isDark) CarbonDarkAccent else VitalTealDark,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Text(
+                            text = "Cancel",
+                            fontSize = 12.sp,
+                            color = Color(0xFFEF4444),
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable {
+                                    editingMessageIndex = null
+                                    messageInput = ""
+                                }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
                 OutlinedTextField(
                     value = messageInput,
                     onValueChange = { messageInput = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                     placeholder = {
                         Text(
-                            text = if (isListeningForVoice) "Listening to your voice..." else "Ask VitalSync AI anything...",
+                            text = if (editingMessageIndex != null) "Edit your message..." else "Ask VitalSync AI anything...",
                             fontSize = 14.sp,
-                            color = Color(0xFF9CA3AF)
+                            color = if (isDark) Color(0xFF8E8E93) else Color(0xFF9CA3AF)
                         )
                     },
                     singleLine = true,
@@ -541,52 +669,56 @@ fun AiChatScreen(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { submitMessage(messageInput) }),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedTextColor = Color(0xFF111827),
-                        unfocusedTextColor = Color(0xFF111827),
-                        focusedBorderColor = VitalTealPrimary,
-                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                        focusedContainerColor = if (isDark) CarbonDarkSurfaceVariant else Color.White,
+                        unfocusedContainerColor = if (isDark) CarbonDarkSurfaceVariant else Color.White,
+                        focusedTextColor = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
+                        unfocusedTextColor = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
+                        focusedBorderColor = if (isDark) CarbonDarkAccent else VitalTealPrimary,
+                        unfocusedBorderColor = if (isDark) Color(0xFF3D3D3D) else Color(0xFFE5E7EB)
                     ),
                     trailingIcon = {
                         Row(
                             modifier = Modifier.padding(end = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Interactive Animated AI Voice Orb Icon
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isListeningForVoice) Color(0xFFF3E8FF) else Color.Transparent)
-                                    .clickable {
-                                        isListeningForVoice = !isListeningForVoice
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                AiVoiceSphereAnimation(
-                                    modifier = Modifier.size(28.dp),
-                                    isListening = isListeningForVoice
-                                )
-                            }
+                            val isCurrentlyGenerating = uiState.isGenerating || uiState.isSending || uiState.isAiThinking
 
-                            Spacer(modifier = Modifier.width(6.dp))
-
-                            // Send Message Button
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .clip(CircleShape)
-                                    .background(if (messageInput.isNotBlank() && !uiState.isSending) VitalTealPrimary else Color(0xFFD1D5DB))
-                                    .clickable(enabled = messageInput.isNotBlank() && !uiState.isSending) {
-                                        submitMessage(messageInput)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                SendArrowIcon(
-                                    modifier = Modifier.size(16.dp),
-                                    color = Color.White
-                                )
+                            if (isCurrentlyGenerating) {
+                                // Stop Generation Button
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFEF4444))
+                                        .clickable {
+                                            viewModel.stopGeneration()
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Stop,
+                                        contentDescription = "Stop generation",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            } else {
+                                // Send Message Button
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape)
+                                        .background(if (messageInput.isNotBlank()) (if (isDark) CarbonDarkAccent else VitalTealPrimary) else (if (isDark) Color(0xFF3D3D3D) else Color(0xFFD1D5DB)))
+                                        .clickable(enabled = messageInput.isNotBlank()) {
+                                            submitMessage(messageInput)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    SendArrowIcon(
+                                        modifier = Modifier.size(16.dp),
+                                        color = Color.White
+                                    )
+                                }
                             }
                         }
                     }
@@ -597,69 +729,12 @@ fun AiChatScreen(
                 Text(
                     text = "General wellness guidance only · Not a medical diagnosis.",
                     fontSize = 10.sp,
-                    color = Color(0xFF9CA3AF),
+                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF),
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.fillMaxWidth()
                 )
-            }
-        }
-
-        // Frosted Glass Soft Dark Scrim Overlay when AI Voice is Active
-        AnimatedVisibility(
-            visible = isListeningForVoice,
-            enter = fadeIn(animationSpec = tween(350)),
-            exit = fadeOut(animationSpec = tween(300))
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0x600F0B1E))
-                    .clickable { isListeningForVoice = false }
-            )
-        }
-
-        // Seamless Floating Transparent AI Voice Orb Overlay + "Speak now..." Text
-        AnimatedVisibility(
-            visible = isListeningForVoice,
-            enter = fadeIn(animationSpec = tween(350)),
-            exit = fadeOut(animationSpec = tween(300)),
-            modifier = Modifier.align(Alignment.Center)
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable {
-                    submitMessage("How was my activity and sleep quality this week?")
-                }
-            ) {
-                Box(
-                    modifier = Modifier.size(210.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AiVoiceSphereAnimation(
-                        modifier = Modifier.fillMaxSize(),
-                        isListening = true
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF281C3D))
-                        .padding(horizontal = 20.dp, vertical = 10.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Speak now...",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFE9D5FF)
-                        )
-                    }
-                }
             }
         }
     }
@@ -671,6 +746,7 @@ private fun ChatSessionsDrawerContent(
     sessions: List<AiChatSessionDto>,
     currentSessionId: Int?,
     isLoading: Boolean,
+    isDark: Boolean = false,
     onNewChatClick: () -> Unit,
     onSelectSession: (AiChatSessionDto) -> Unit,
     onDeleteSession: (Int) -> Unit,
@@ -699,7 +775,7 @@ private fun ChatSessionsDrawerContent(
                     text = "VitalSync AI History",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                 )
             }
             IconButton(
@@ -709,7 +785,7 @@ private fun ChatSessionsDrawerContent(
                 Text(
                     text = "✕",
                     fontSize = 16.sp,
-                    color = Color(0xFF6B7280),
+                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -724,7 +800,7 @@ private fun ChatSessionsDrawerContent(
                 .fillMaxWidth()
                 .height(48.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = VitalTealDark)
+            colors = ButtonDefaults.buttonColors(containerColor = if (isDark) CarbonDarkAccent else VitalTealDark)
         ) {
             Text(
                 text = "✏️  + New Chat",
@@ -740,7 +816,7 @@ private fun ChatSessionsDrawerContent(
             text = "Past Conversations",
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF6B7280)
+            color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -754,7 +830,7 @@ private fun ChatSessionsDrawerContent(
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
-                    color = VitalTealPrimary,
+                    color = if (isDark) CarbonDarkAccent else VitalTealPrimary,
                     strokeWidth = 2.dp
                 )
             }
@@ -771,7 +847,7 @@ private fun ChatSessionsDrawerContent(
                     Text(
                         text = "No saved conversations yet.\nTap '+ New Chat' to begin!",
                         fontSize = 13.sp,
-                        color = Color(0xFF9CA3AF),
+                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF),
                         textAlign = TextAlign.Center
                     )
                 }
@@ -791,8 +867,9 @@ private fun ChatSessionsDrawerContent(
                             .clickable { onSelectSession(sess) },
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) Color(0xFFEDE9FE) else Color(0xFFF3F4F6)
+                            containerColor = if (isSelected) (if (isDark) Color(0xFF2A2640) else Color(0xFFEDE9FE)) else (if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF3F4F6))
                         ),
+                        border = if (isDark) BorderStroke(1.dp, CarbonDarkBorder) else null,
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Row(
@@ -807,7 +884,7 @@ private fun ChatSessionsDrawerContent(
                                     text = sess.title,
                                     fontSize = 13.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color(0xFF7C3AED) else Color(0xFF1F2937),
+                                    color = if (isSelected) (if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)) else (if (isDark) CarbonDarkTextPrimary else Color(0xFF1F2937)),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -819,7 +896,7 @@ private fun ChatSessionsDrawerContent(
                                     Text(
                                         text = metaText,
                                         fontSize = 10.sp,
-                                        color = Color(0xFF9CA3AF),
+                                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -907,6 +984,9 @@ fun TypingIndicatorBubble(
         label = "Dot3Alpha"
     )
 
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+    val dotColor = if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -916,7 +996,8 @@ fun TypingIndicatorBubble(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
+            colors = CardDefaults.cardColors(containerColor = if (isDark) CarbonDarkSurface else Color(0xFFF3E8FF)),
+            border = if (isDark) BorderStroke(1.dp, Color(0xFF2F2F2F)) else null,
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -929,13 +1010,13 @@ fun TypingIndicatorBubble(
                         text = "✨ VitalSync AI",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF7C3AED)
+                        color = if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
                     )
 
                     Text(
                         text = "Thinking...",
                         fontSize = 10.sp,
-                        color = Color(0xFF9CA3AF)
+                        color = if (isDark) Color(0xFF8E8E93) else Color(0xFF9CA3AF)
                     )
                 }
 
@@ -950,21 +1031,21 @@ fun TypingIndicatorBubble(
                             .offset(y = dot1Offset.dp)
                             .size(7.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF7C3AED).copy(alpha = dot1Alpha))
+                            .background(dotColor.copy(alpha = dot1Alpha))
                     )
                     Box(
                         modifier = Modifier
                             .offset(y = dot2Offset.dp)
                             .size(7.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF7C3AED).copy(alpha = dot2Alpha))
+                            .background(dotColor.copy(alpha = dot2Alpha))
                     )
                     Box(
                         modifier = Modifier
                             .offset(y = dot3Offset.dp)
                             .size(7.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF7C3AED).copy(alpha = dot3Alpha))
+                            .background(dotColor.copy(alpha = dot3Alpha))
                     )
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -973,7 +1054,7 @@ fun TypingIndicatorBubble(
                         text = "VitalSync AI is thinking...",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF7C3AED)
+                        color = dotColor
                     )
                 }
             }

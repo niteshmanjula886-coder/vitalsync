@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,6 +32,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -59,6 +61,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkBorder
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
+import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
+import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 import com.simats.vitalsync.ui.vitals.viewmodel.StepsViewModel
@@ -92,10 +100,12 @@ fun StepCountDetailScreen(
     val targetGaugeAngle = (progressPercent.coerceIn(0, 100) / 100f) * 360f
     val remainingSteps = (stepsGoal - stepsCurrent).coerceAtLeast(0)
     val remainingText = if (stepsCurrent <= 0) "No steps recorded today" else if (remainingSteps > 0) "${String.format(java.util.Locale.US, "%,d", remainingSteps)} steps remaining" else "Daily goal reached! 🎉"
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp),
@@ -123,7 +133,7 @@ fun StepCountDetailScreen(
                     ) {
                         BackArrowIcon(
                             modifier = Modifier.size(20.dp),
-                            color = Color(0xFF111827)
+                            color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                         )
                     }
 
@@ -133,7 +143,7 @@ fun StepCountDetailScreen(
                         text = "Step Count",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                     )
                 }
 
@@ -141,7 +151,7 @@ fun StepCountDetailScreen(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF1F5F9)),
+                        .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)),
                     contentAlignment = Alignment.Center
                 ) {
                     CalendarIcon(modifier = Modifier.size(18.dp))
@@ -154,7 +164,8 @@ fun StepCountDetailScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
@@ -310,7 +321,8 @@ fun StepCountDetailScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
@@ -324,7 +336,7 @@ fun StepCountDetailScreen(
                                 text = "Steps Reminder",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                             )
                             Text(
                                 text = if (isReminderEnabled) {
@@ -462,7 +474,8 @@ fun StepCountDetailScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
@@ -475,7 +488,7 @@ fun StepCountDetailScreen(
                             text = "This week",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(text = "● High", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
@@ -567,7 +580,8 @@ fun StepCountDetailScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
@@ -575,7 +589,7 @@ fun StepCountDetailScreen(
                         text = "Recent daily totals",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))

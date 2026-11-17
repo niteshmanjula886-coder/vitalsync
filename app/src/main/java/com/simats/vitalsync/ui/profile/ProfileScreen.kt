@@ -22,13 +22,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +50,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.theme.CarbonDarkAccent
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
 @Composable
@@ -66,6 +75,52 @@ fun ProfileScreen(
     onHelpSupportClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = {
+                Text(
+                    text = "Log Out",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to log out of VitalSync?",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        onLogoutClick()
+                    }
+                ) {
+                    Text(
+                        text = "Log Out",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFEF4444)
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text(
+                        text = "Cancel",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(18.dp)
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -73,6 +128,7 @@ fun ProfileScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
+            .padding(bottom = 100.dp)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -106,7 +162,7 @@ fun ProfileScreen(
             modifier = Modifier
                 .size(88.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.secondary)
+                .background(if (isDark) CarbonDarkSurfaceVariant else MaterialTheme.colorScheme.secondary)
                 .clickable { onPersonalInformationClick() },
             contentAlignment = Alignment.Center
         ) {
@@ -122,7 +178,7 @@ fun ProfileScreen(
                     text = userInitials,
                     fontSize = 30.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = if (isDark) CarbonDarkAccent else MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -151,14 +207,14 @@ fun ProfileScreen(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(20.dp))
-                .background(MaterialTheme.colorScheme.secondary)
+                .background(if (isDark) CarbonDarkSurfaceVariant else MaterialTheme.colorScheme.secondary)
                 .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
             Text(
                 text = goalText,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = if (isDark) CarbonDarkAccent else MaterialTheme.colorScheme.primary
             )
         }
 
@@ -234,7 +290,7 @@ fun ProfileScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onLogoutClick() },
+                .clickable { showLogoutDialog = true },
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -250,7 +306,7 @@ fun ProfileScreen(
                     text = "Logout",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = Color(0xFFEF4444)
                 )
             }
         }

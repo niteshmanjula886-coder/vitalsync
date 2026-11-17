@@ -31,6 +31,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse
+import com.simats.vitalsync.ui.theme.CarbonDarkActivityBg
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkCriticalBg
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
+import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
+import com.simats.vitalsync.ui.theme.CarbonDarkWarningBg
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
 @Composable
@@ -45,11 +51,13 @@ fun Spo2DetailScreen(
     val currentSpo2 = detailState?.currentSpo2?.takeIf { it > 0 }
         ?: initialPercentage.takeIf { it > 0 }
 
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+
     val (statusLabel, statusColor, statusBg) = when {
-        currentSpo2 == null -> Triple("No Readings Yet", Color(0xFF6B7280), Color(0xFFF3F4F6))
-        currentSpo2 >= 95 -> Triple("Optimal Oxygenation", Color(0xFF059669), Color(0xFFECFDF5))
-        currentSpo2 >= 90 -> Triple("Mild Hypoxia", Color(0xFFD97706), Color(0xFFFEF3C7))
-        else -> Triple("Low Oxygen / Consult Doctor", Color(0xFFDC2626), Color(0xFFFEE2E2))
+        currentSpo2 == null -> Triple("No Readings Yet", if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280), if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF3F4F6))
+        currentSpo2 >= 95 -> Triple("Optimal Oxygenation", if (isDark) Color(0xFF34D399) else Color(0xFF059669), if (isDark) CarbonDarkActivityBg else Color(0xFFECFDF5))
+        currentSpo2 >= 90 -> Triple("Mild Hypoxia", if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706), if (isDark) CarbonDarkWarningBg else Color(0xFFFEF3C7))
+        else -> Triple("Low Oxygen / Consult Doctor", if (isDark) Color(0xFFF87171) else Color(0xFFDC2626), if (isDark) CarbonDarkCriticalBg else Color(0xFFFEE2E2))
     }
 
     val recordedLabel = detailState?.recordedAt?.takeIf { it.isNotBlank() }?.let { "Recorded $it" }
@@ -83,7 +91,7 @@ fun Spo2DetailScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)

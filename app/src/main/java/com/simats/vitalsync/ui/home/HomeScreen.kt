@@ -95,6 +95,14 @@ import com.simats.vitalsync.ui.ai.AiScreen
 import com.simats.vitalsync.ui.common.AiInsightCard
 import com.simats.vitalsync.ui.gym.GymModeScreen
 import com.simats.vitalsync.ui.profile.ProfileScreen
+import com.simats.vitalsync.ui.theme.CarbonDarkAccent
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkBorder
+import com.simats.vitalsync.ui.theme.CarbonDarkPurpleBorder
+import com.simats.vitalsync.ui.theme.CarbonDarkPurpleSurface
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
+import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
+import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
 import com.simats.vitalsync.ui.theme.VitalCardBg
 import com.simats.vitalsync.ui.theme.VitalPrimaryMint
 import com.simats.vitalsync.ui.theme.VitalSoftBorder
@@ -502,12 +510,16 @@ private fun HomeDashboardContent(
         }
 
         // Wellness Score Hero Card (Clicking opens Weekly Health Performance Report Screen)
+        val isDarkTheme = MaterialTheme.colorScheme.background == CarbonDarkBackground
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onWellnessScoreClick() },
             shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDarkTheme) CarbonDarkPurpleSurface else MaterialTheme.colorScheme.surfaceVariant
+            ),
+            border = if (isDarkTheme) BorderStroke(1.dp, CarbonDarkPurpleBorder) else null,
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Row(
@@ -528,7 +540,7 @@ private fun HomeDashboardContent(
 
                         // Track
                         drawArc(
-                            color = Color(0xFFC4B5FD),
+                            color = if (isDarkTheme) Color(0xFF342E4F) else Color(0xFFC4B5FD),
                             startAngle = -220f,
                             sweepAngle = 260f,
                             useCenter = false,
@@ -538,7 +550,7 @@ private fun HomeDashboardContent(
                         )
                         // Smoothly Animated Active Progress Sweep
                         drawArc(
-                            color = Color(0xFF7C3AED),
+                            color = if (isDarkTheme) Color(0xFFC084FC) else Color(0xFF7C3AED),
                             startAngle = -220f,
                             sweepAngle = animatedSweepAngle,
                             useCenter = false,
@@ -581,7 +593,7 @@ private fun HomeDashboardContent(
                         text = wellnessStatus,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF7C3AED)
+                        color = if (isDarkTheme) Color(0xFFC084FC) else Color(0xFF7C3AED)
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -590,7 +602,7 @@ private fun HomeDashboardContent(
                         text = if (wellnessScore > 0) "Daily score: $wellnessScore/100 • Report →" else "View weekly report →",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF7C3AED)
+                        color = if (isDarkTheme) Color(0xFFC084FC) else Color(0xFF7C3AED)
                     )
                 }
             }
@@ -879,27 +891,33 @@ private fun VitalCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
     val statusColor = when {
         status.contains("Tap to log", ignoreCase = true) || status.contains("No data", ignoreCase = true) ->
-            VitalTextSecondary
+            if (isDark) CarbonDarkTextSecondary else VitalTextSecondary
         status.contains("Low", ignoreCase = true) || status.contains("Hypotension", ignoreCase = true) ||
             status.contains("High", ignoreCase = true) || status.contains("Critical", ignoreCase = true) ||
             status.contains("Crisis", ignoreCase = true) || status.contains("Stage 2", ignoreCase = true) ||
             status.contains("Hypoxia", ignoreCase = true) ->
-            Color(0xFFDC2626)
+            Color(0xFFEF4444)
         status.contains("Warning", ignoreCase = true) || status.contains("Elevated", ignoreCase = true) ||
             status.contains("Stage 1", ignoreCase = true) ->
-            Color(0xFFD97706)
+            Color(0xFFF59E0B)
         else ->
-            VitalPrimaryMint
+            if (isDark) CarbonDarkAccent else VitalPrimaryMint
     }
+
+    val cardBg = if (isDark) CarbonDarkSurface else VitalCardBg
+    val cardBorder = if (isDark) CarbonDarkBorder else VitalSoftBorder
+    val titleColor = if (isDark) CarbonDarkTextSecondary else VitalTextSecondary
+    val valColor = if (isDark) CarbonDarkTextPrimary else VitalTextPrimary
 
     Card(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = VitalCardBg),
-        border = BorderStroke(1.dp, VitalSoftBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.dp, cardBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -917,7 +935,7 @@ private fun VitalCard(
                 Text(
                     text = title,
                     fontSize = 13.sp,
-                    color = VitalTextSecondary,
+                    color = titleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -929,7 +947,7 @@ private fun VitalCard(
                 text = value,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = VitalTextPrimary,
+                color = valColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -940,7 +958,7 @@ private fun VitalCard(
                 text = status,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (status.equals("Tap to log", ignoreCase = true)) VitalTealDark else statusColor,
+                color = if (status.equals("Tap to log", ignoreCase = true)) (if (isDark) CarbonDarkTextSecondary else VitalTealDark) else statusColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -951,7 +969,7 @@ private fun VitalCard(
                     text = trend,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium,
-                    color = VitalTextSecondary,
+                    color = titleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1086,7 +1104,8 @@ private fun HomeBottomNavigationBar(
                     ) {
                         items.forEachIndexed { index, label ->
                             val isSelected = selectedTab == index
-                            val activeColor = MaterialTheme.colorScheme.primary
+                            val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+                            val activeColor = if (isDark) Color.White else MaterialTheme.colorScheme.primary
                             val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
 
                             val iconScale by animateFloatAsState(
@@ -1121,12 +1140,12 @@ private fun HomeBottomNavigationBar(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         when (index) {
-                                            0 -> AnimatedHomeNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) Color(0xFF8B4513) else inactiveColor)
+                                            0 -> AnimatedHomeNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) (if (isDark) Color.White else Color(0xFF8B4513)) else inactiveColor)
                                             1 -> AnimatedVitalsNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
-                                            2 -> AnimatedAiNavSparkleIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) Color(0xFF7C3AED) else inactiveColor)
+                                            2 -> AnimatedAiNavSparkleIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) (if (isDark) Color.White else Color(0xFF7C3AED)) else inactiveColor)
                                             3 -> AnimatedProfileNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
-                                            4 -> AnimatedGymNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) Color(0xFF10B981) else inactiveColor)
-                                            else -> AnimatedHomeNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) Color(0xFF8B4513) else inactiveColor)
+                                            4 -> AnimatedGymNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) (if (isDark) Color.White else Color(0xFF10B981)) else inactiveColor)
+                                            else -> AnimatedHomeNavIcon(isSelected = isSelected, modifier = Modifier.size(20.dp), color = if (isSelected) activeColor else inactiveColor)
                                         }
                                     }
 

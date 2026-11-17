@@ -28,9 +28,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import com.simats.vitalsync.ui.theme.AppThemeMode
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +52,8 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 fun SettingsScreen(
     modifier: Modifier = Modifier,
     isDarkTheme: Boolean = false,
+    themeMode: AppThemeMode = if (isDarkTheme) AppThemeMode.DARK else AppThemeMode.LIGHT,
+    onThemeModeSelected: (AppThemeMode) -> Unit = {},
     onDarkThemeToggle: (Boolean) -> Unit = {},
     pushNotifications: Boolean = true,
     onPushNotificationsToggle: (Boolean) -> Unit = {},
@@ -147,11 +151,7 @@ fun SettingsScreen(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            BackHandler(enabled = true) {
-        onBackClick()
-    }
-
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
                 SettingsSwitchRow("Push Notifications", pushNotifications) {
                     onPushNotificationsToggle(it)
                 }
@@ -220,40 +220,70 @@ fun SettingsScreen(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            BackHandler(enabled = true) {
-        onBackClick()
-    }
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Theme Preference",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = when (themeMode) {
+                        AppThemeMode.SYSTEM -> "Matching device system setting automatically"
+                        AppThemeMode.LIGHT -> "VitalSync clean light theme"
+                        AppThemeMode.DARK -> "Carbon-Gray & Matte-Black dark theme"
+                    },
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 3-way Segmented Buttons (System Default / Light / Dark)
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = "Dark Mode",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Text(
-                            text = if (isDarkTheme) "Dark UI theme active" else "Light UI theme active",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Switch(
-                        checked = isDarkTheme,
-                        onCheckedChange = { onDarkThemeToggle(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary
-                        )
+                    val modes = listOf(
+                        Triple(AppThemeMode.SYSTEM, "System", "⚙️"),
+                        Triple(AppThemeMode.LIGHT, "Light", "☀️"),
+                        Triple(AppThemeMode.DARK, "Dark", "🌙")
                     )
+                    modes.forEach { (mode, label, icon) ->
+                        val isSelected = (themeMode == mode)
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    onThemeModeSelected(mode)
+                                    onDarkThemeToggle(mode == AppThemeMode.DARK)
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant,
+                            border = BorderStroke(
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = icon,
+                                    fontSize = 16.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = label,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -270,11 +300,7 @@ fun SettingsScreen(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            BackHandler(enabled = true) {
-        onBackClick()
-    }
-
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
                 SettingsNavigationRow("About VitalSync", onClick = onAboutClick)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(

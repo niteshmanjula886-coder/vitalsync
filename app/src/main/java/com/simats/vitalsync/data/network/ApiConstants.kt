@@ -9,27 +9,29 @@ import java.net.UnknownHostException
 object ApiConstants {
 
     /**
-     * Active Host Machine Wi-Fi IPv4 Base URL (detected from ipconfig):
+     * Active Host Machine IPv4 Base URL (detected from ipconfig on active network interface):
+     * - Current College Ethernet IP: 172.23.176.95
      */
-    const val BASE_URL = "http://10.205.196.52/vitalsync-backend/"
+    const val BASE_URL = "http://172.23.176.95/vitalsync_background/"
 
     /**
-     * Local machine LAN IP (for physical devices connected to same Wi-Fi / Hotspot).
+     * Local machine LAN IP (for physical devices connected to same Wi-Fi / Hotspot / College LAN).
      */
     const val LAN_BASE_URL = BASE_URL
-    const val LAN_HOTSPOT_BASE_URL = "http://10.205.196.52/vitalsync-backend/"
-    const val LAN_WIFI_BASE_URL = "http://192.168.1.5/vitalsync-backend/"
+    const val LAN_COLLEGE_BASE_URL = "http://172.23.176.95/vitalsync_background/"
+    const val LAN_HOTSPOT_BASE_URL = "http://10.205.196.52/vitalsync_background/"
+    const val LAN_WIFI_BASE_URL = "http://192.168.1.5/vitalsync_background/"
 
     /**
      * Android emulator loopback.
      */
-    const val EMULATOR_BASE_URL = "http://10.0.2.2/vitalsync-backend/"
+    const val EMULATOR_BASE_URL = "http://10.0.2.2/vitalsync_background/"
 
     /**
      * Physical device over USB with ADB reverse (`adb reverse tcp:80 tcp:80`).
      */
-    const val ADB_LOCALHOST_BASE_URL = "http://127.0.0.1/vitalsync-backend/"
-    const val LOCALHOST_BASE_URL = "http://localhost/vitalsync-backend/"
+    const val ADB_LOCALHOST_BASE_URL = "http://127.0.0.1/vitalsync_background/"
+    const val LOCALHOST_BASE_URL = "http://localhost/vitalsync_background/"
 
     /**
      * Optional remote DevTunnel URL (if running).
@@ -64,10 +66,10 @@ object ApiConstants {
     val DEFAULT_BASE_URL: String
         get() = if (isRunningOnEmulator) EMULATOR_BASE_URL else BASE_URL
 
-    // Resilient timeouts supporting fast connect failover and up to 60s for local Ollama / AI inference
-    const val CONNECT_TIMEOUT_SECONDS = 6L
-    const val READ_TIMEOUT_SECONDS = 60L
-    const val WRITE_TIMEOUT_SECONDS = 30L
+    // Resilient timeouts supporting up to 180s for local Ollama / AI inference
+    const val CONNECT_TIMEOUT_SECONDS = 180L
+    const val READ_TIMEOUT_SECONDS = 180L
+    const val WRITE_TIMEOUT_SECONDS = 180L
 
     fun resolveNetworkErrorMessage(
         throwable: Throwable?,

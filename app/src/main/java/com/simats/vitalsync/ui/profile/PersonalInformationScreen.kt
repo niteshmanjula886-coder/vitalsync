@@ -2,6 +2,7 @@ package com.simats.vitalsync.ui.profile
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.net.Uri
 import java.io.File
 import java.io.FileOutputStream
@@ -37,18 +38,22 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
@@ -56,6 +61,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +70,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -129,22 +137,66 @@ fun PersonalInformationScreen(
     val wKg = weight.toFloatOrNull() ?: 0f
     val calculatedBmi = if (hCm > 50f && wKg > 20f) wKg / ((hCm / 100f) * (hCm / 100f)) else 0f
 
+    var rawBitmapToCrop by remember { mutableStateOf<Bitmap?>(null) }
+    var showCropDialog by remember { mutableStateOf(false) }
+    var activeCroppedAvatarFile by remember { mutableStateOf<File?>(null) }
+
     // Android Gallery Photo Picker Launcher
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            selectedImageUri = uri
-            photoCleared = false
             try {
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     val bitmap = BitmapFactory.decodeStream(inputStream)
-                    profileImageBitmap = bitmap?.asImageBitmap()
+                    if (bitmap != null) {
+                        rawBitmapToCrop = bitmap
+                        showCropDialog = true
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
+    }
+
+    if (showCropDialog && rawBitmapToCrop != null) {
+        ImageCropDialog(
+            sourceBitmap = rawBitmapToCrop!!,
+            onDismiss = {
+                showCropDialog = false
+                rawBitmapToCrop = null
+            },
+            onCropComplete = { cropped ->
+                try {
+                    val maxDim = 1024
+                    val scaled = if (cropped.width > maxDim || cropped.height > maxDim) {
+                        val ratio = minOf(maxDim.toFloat() / cropped.width, maxDim.toFloat() / cropped.height)
+                        Bitmap.createScaledBitmap(
+                            cropped,
+                            (cropped.width * ratio).toInt().coerceAtLeast(1),
+                            (cropped.height * ratio).toInt().coerceAtLeast(1),
+                            true
+                        )
+                    } else {
+                        cropped
+                    }
+                    val outFile = File(context.cacheDir, "avatar_upload_${System.currentTimeMillis()}.jpg")
+                    FileOutputStream(outFile).use { out ->
+                        scaled.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                    }
+                    activeCroppedAvatarFile = outFile
+                    profileImageBitmap = scaled.asImageBitmap()
+                    selectedImageUri = Uri.fromFile(outFile)
+                    photoCleared = false
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    profileImageBitmap = cropped.asImageBitmap()
+                }
+                showCropDialog = false
+                rawBitmapToCrop = null
+            }
+        )
     }
 
     Column(
@@ -218,7 +270,7 @@ fun PersonalInformationScreen(
                         modifier = Modifier
                             .size(92.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.secondary)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
                             .clickable { galleryLauncher.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
@@ -249,7 +301,7 @@ fun PersonalInformationScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.secondary)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
                                 .clickable { galleryLauncher.launch("image/*") }
                                 .padding(horizontal = 14.dp, vertical = 8.dp)
                         ) {
@@ -265,10 +317,11 @@ fun PersonalInformationScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFFEE2E2))
+                                    .background(Color(0xFFEF4444).copy(alpha = 0.15f))
                                     .clickable {
                                         profileImageBitmap = null
                                         selectedImageUri = null
+                                        activeCroppedAvatarFile = null
                                         photoCleared = true
                                     }
                                     .padding(horizontal = 14.dp, vertical = 8.dp)
@@ -277,7 +330,7 @@ fun PersonalInformationScreen(
                                     text = "Remove Photo 🗑️",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFDC2626)
+                                    color = Color(0xFFEF4444)
                                 )
                             }
                         }
@@ -297,11 +350,12 @@ fun PersonalInformationScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(if (isSelected) VitalTealDark else MaterialTheme.colorScheme.outlineVariant)
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                                     .clickable {
                                         initials = presetInitials
                                         profileImageBitmap = null
                                         selectedImageUri = null
+                                        activeCroppedAvatarFile = null
                                         photoCleared = true
                                     }
                                     .padding(4.dp),
@@ -345,10 +399,11 @@ fun PersonalInformationScreen(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        focusedBorderColor = VitalTealPrimary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     ),
                     trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 )
@@ -365,7 +420,7 @@ fun PersonalInformationScreen(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(MaterialTheme.colorScheme.secondary)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
@@ -388,10 +443,11 @@ fun PersonalInformationScreen(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        focusedBorderColor = VitalTealPrimary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     ),
                     trailingIcon = { CalendarIcon(modifier = Modifier.size(16.dp)) }
                 )
@@ -406,16 +462,17 @@ fun PersonalInformationScreen(
                     onValueChange = { gender = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("e.g. John Doe", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    placeholder = { Text("e.g. Male / Female", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        focusedBorderColor = VitalTealPrimary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
 
@@ -429,16 +486,17 @@ fun PersonalInformationScreen(
                     onValueChange = { email = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("e.g. John Doe", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    placeholder = { Text("e.g. alex@example.com", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        focusedBorderColor = VitalTealPrimary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     ),
                     trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 )
@@ -453,16 +511,17 @@ fun PersonalInformationScreen(
                     onValueChange = { phone = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("e.g. John Doe", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    placeholder = { Text("e.g. +1 234 567 8900", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        focusedBorderColor = VitalTealPrimary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     ),
                     trailingIcon = { PencilEditIcon(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 )
@@ -479,7 +538,7 @@ fun PersonalInformationScreen(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(MaterialTheme.colorScheme.secondary)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
@@ -511,10 +570,11 @@ fun PersonalInformationScreen(
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                                 unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                                focusedBorderColor = VitalTealPrimary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                cursorColor = MaterialTheme.colorScheme.primary
                             )
                         )
                     }
@@ -533,10 +593,11 @@ fun PersonalInformationScreen(
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                                 unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                                focusedBorderColor = VitalTealPrimary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                cursorColor = MaterialTheme.colorScheme.primary
                             )
                         )
                     }
@@ -549,7 +610,7 @@ fun PersonalInformationScreen(
         // Save Changes Button
         Button(
             onClick = {
-                val avatarFile = selectedImageUri?.let { uri ->
+                val avatarFile = activeCroppedAvatarFile ?: selectedImageUri?.let { uri ->
                     try {
                         context.contentResolver.openInputStream(uri)?.use { stream ->
                             val decoded = BitmapFactory.decodeStream(stream)
@@ -586,7 +647,7 @@ fun PersonalInformationScreen(
                 .height(54.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = VitalTealDark,
+                containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = Color.White
             )
         ) {
@@ -602,7 +663,7 @@ fun PersonalInformationScreen(
 @Composable
 private fun PencilEditIcon(
     modifier: Modifier = Modifier,
-    color: Color = Color(0xFF374151)
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     Canvas(modifier = modifier) {
         val w = size.width
@@ -622,6 +683,7 @@ private fun PencilEditIcon(
 
 @Composable
 private fun CalendarIcon(modifier: Modifier = Modifier) {
+    val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -634,14 +696,14 @@ private fun CalendarIcon(modifier: Modifier = Modifier) {
             close()
         }
 
-        drawPath(path = calPath, color = Color(0xFF6B7280), style = Stroke(width = 1.6.dp.toPx()))
+        drawPath(path = calPath, color = iconColor, style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 
 @Composable
 private fun BackArrowIcon(
     modifier: Modifier = Modifier,
-    color: Color = Color.Black
+    color: Color = MaterialTheme.colorScheme.onBackground
 ) {
     Canvas(modifier = modifier) {
         val w = size.width
@@ -656,6 +718,245 @@ private fun BackArrowIcon(
         }
 
         drawPath(path = path, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Composable
+fun ImageCropDialog(
+    sourceBitmap: Bitmap,
+    onDismiss: () -> Unit,
+    onCropComplete: (Bitmap) -> Unit
+) {
+    var rotationDegrees by remember { mutableFloatStateOf(0f) }
+    var flipHorizontal by remember { mutableStateOf(false) }
+    var flipVertical by remember { mutableStateOf(false) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF0F0F0F)),
+            color = Color(0xFF0F0F0F)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Top Title & Hint
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Crop & Adjust Photo",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFF1F1F1)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Rotate, flip, and align inside the square viewfinder",
+                        fontSize = 12.sp,
+                        color = Color(0xFFAAAAAA)
+                    )
+                }
+
+                // Square Viewfinder Box with Grid Overlay
+                Box(
+                    modifier = Modifier
+                        .size(300.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF1E1E1E)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Preview Bitmap with Live Transformations
+                    Image(
+                        bitmap = sourceBitmap.asImageBitmap(),
+                        contentDescription = "Crop Preview",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                rotationZ = rotationDegrees
+                                scaleX = if (flipHorizontal) -1f else 1f
+                                scaleY = if (flipVertical) -1f else 1f
+                            },
+                        contentScale = ContentScale.Crop
+                    )
+
+                    // Crop Grid Overlay
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val w = size.width
+                        val h = size.height
+
+                        // Outer Frame Border
+                        drawRect(
+                            color = Color(0xFF10A37F),
+                            style = Stroke(width = 2.dp.toPx())
+                        )
+
+                        // 3x3 Grid Lines (Rule of Thirds)
+                        val gridColor = Color.White.copy(alpha = 0.35f)
+                        val strokeW = 1.dp.toPx()
+
+                        // Vertical lines
+                        drawLine(color = gridColor, start = Offset(w / 3f, 0f), end = Offset(w / 3f, h), strokeWidth = strokeW)
+                        drawLine(color = gridColor, start = Offset(w * 2f / 3f, 0f), end = Offset(w * 2f / 3f, h), strokeWidth = strokeW)
+
+                        // Horizontal lines
+                        drawLine(color = gridColor, start = Offset(0f, h / 3f), end = Offset(w, h / 3f), strokeWidth = strokeW)
+                        drawLine(color = gridColor, start = Offset(0f, h * 2f / 3f), end = Offset(w, h * 2f / 3f), strokeWidth = strokeW)
+
+                        // Corner Viewfinder Brackets
+                        val cornerLen = 20.dp.toPx()
+                        val cornerStroke = 3.dp.toPx()
+                        val cornerColor = Color(0xFF10A37F)
+
+                        // Top-Left
+                        drawLine(cornerColor, Offset(0f, 0f), Offset(cornerLen, 0f), cornerStroke)
+                        drawLine(cornerColor, Offset(0f, 0f), Offset(0f, cornerLen), cornerStroke)
+
+                        // Top-Right
+                        drawLine(cornerColor, Offset(w, 0f), Offset(w - cornerLen, 0f), cornerStroke)
+                        drawLine(cornerColor, Offset(w, 0f), Offset(w, cornerLen), cornerStroke)
+
+                        // Bottom-Left
+                        drawLine(cornerColor, Offset(0f, h), Offset(cornerLen, h), cornerStroke)
+                        drawLine(cornerColor, Offset(0f, h), Offset(0f, h - cornerLen), cornerStroke)
+
+                        // Bottom-Right
+                        drawLine(cornerColor, Offset(w, h), Offset(w - cornerLen, h), cornerStroke)
+                        drawLine(cornerColor, Offset(w, h), Offset(w, cornerLen), cornerStroke)
+                    }
+                }
+
+                // Adjustment Controls (Rotate, Flip, Reset)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CropToolButton(icon = "↺", label = "-90°") {
+                            rotationDegrees = (rotationDegrees - 90f) % 360f
+                        }
+                        CropToolButton(icon = "↻", label = "+90°") {
+                            rotationDegrees = (rotationDegrees + 90f) % 360f
+                        }
+                        CropToolButton(icon = "⇄", label = "Flip H") {
+                            flipHorizontal = !flipHorizontal
+                        }
+                        CropToolButton(icon = "⇅", label = "Flip V") {
+                            flipVertical = !flipVertical
+                        }
+                        CropToolButton(icon = "⟲", label = "Reset") {
+                            rotationDegrees = 0f
+                            flipHorizontal = false
+                            flipVertical = false
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Cancel & Done Action Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, Color(0xFF333333)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFFF1F1F1)
+                            )
+                        ) {
+                            Text(text = "Cancel", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                try {
+                                    val matrix = Matrix().apply {
+                                        postRotate(rotationDegrees)
+                                        postScale(
+                                            if (flipHorizontal) -1f else 1f,
+                                            if (flipVertical) -1f else 1f
+                                        )
+                                    }
+                                    val transformed = Bitmap.createBitmap(
+                                        sourceBitmap,
+                                        0,
+                                        0,
+                                        sourceBitmap.width,
+                                        sourceBitmap.height,
+                                        matrix,
+                                        true
+                                    )
+                                    val minDim = minOf(transformed.width, transformed.height)
+                                    val x = (transformed.width - minDim) / 2
+                                    val y = (transformed.height - minDim) / 2
+                                    val cropped = Bitmap.createBitmap(transformed, x, y, minDim, minDim)
+                                    onCropComplete(cropped)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                    onCropComplete(sourceBitmap)
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF10A37F),
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text(text = "Done", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CropToolButton(
+    icon: String,
+    label: String,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .background(Color(0xFF2A2A2A), RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = icon, fontSize = 20.sp, color = Color(0xFFF1F1F1))
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(text = label, fontSize = 11.sp, color = Color(0xFFAAAAAA))
     }
 }
 

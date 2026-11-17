@@ -51,6 +51,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.model.vitals.VitalRecentLogDto
+import com.simats.vitalsync.ui.theme.CarbonDarkActivityBg
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkBorder
+import com.simats.vitalsync.ui.theme.CarbonDarkCriticalBg
+import com.simats.vitalsync.ui.theme.CarbonDarkPurpleAccent
+import com.simats.vitalsync.ui.theme.CarbonDarkRecoveryBg
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
+import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
+import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
+import com.simats.vitalsync.ui.theme.CarbonDarkWarningBg
 import com.simats.vitalsync.ui.theme.VitalTealDark
 
 /**
@@ -355,6 +366,7 @@ internal fun VitalDetailTopBar(
     onBackClick: () -> Unit,
     onActionClick: () -> Unit
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -380,7 +392,7 @@ internal fun VitalDetailTopBar(
                     }
                     drawPath(
                         path = path,
-                        color = Color(0xFF111827),
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
                         style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                     )
                 }
@@ -426,11 +438,12 @@ internal fun VitalMedicalAlertBanner(
     message: String,
     modifier: Modifier = Modifier
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
-        border = BorderStroke(1.5.dp, Color(0xFFFCA5A5)),
+        colors = CardDefaults.cardColors(containerColor = if (isDark) CarbonDarkCriticalBg else Color(0xFFFEF2F2)),
+        border = BorderStroke(1.5.dp, if (isDark) Color(0xFF7F1D1D) else Color(0xFFFCA5A5)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
@@ -443,7 +456,7 @@ internal fun VitalMedicalAlertBanner(
                 text = message,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF991B1B),
+                color = if (isDark) Color(0xFFF87171) else Color(0xFF991B1B),
                 lineHeight = 19.sp
             )
         }
@@ -462,11 +475,12 @@ internal fun VitalOllamaGuidanceCard(
     lifestyleTip: String,
     modifier: Modifier = Modifier
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE9D5FF)),
+        colors = CardDefaults.cardColors(containerColor = if (isDark) CarbonDarkSurface else Color.White),
+        border = BorderStroke(1.dp, if (isDark) CarbonDarkBorder else Color(0xFFE9D5FF)),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
@@ -479,28 +493,28 @@ internal fun VitalOllamaGuidanceCard(
                     text = "✦ VitalSync AI Analysis",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF6D28D9)
+                    color = if (isDark) CarbonDarkPurpleAccent else Color(0xFF6D28D9)
                 )
 
                 if (isLoading) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFF3E8FF))
+                            .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF3E8FF))
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
                         Text(
                             text = "Analyzing...",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF7C3AED)
+                            color = if (isDark) CarbonDarkPurpleAccent else Color(0xFF7C3AED)
                         )
                     }
                 } else {
                     Text(
                         text = modelUsed ?: "qwen2.5:1.5b",
                         fontSize = 10.sp,
-                        color = Color(0xFF9CA3AF)
+                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF)
                     )
                 }
             }
@@ -511,7 +525,7 @@ internal fun VitalOllamaGuidanceCard(
                 text = explanation,
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
-                color = Color(0xFF374151)
+                color = if (isDark) Color(0xFFECECEC) else Color(0xFF374151)
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -520,7 +534,7 @@ internal fun VitalOllamaGuidanceCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFFECFDF5))
+                    .background(if (isDark) CarbonDarkActivityBg else Color(0xFFECFDF5))
                     .padding(horizontal = 14.dp, vertical = 11.dp)
             ) {
                 Column {
@@ -528,14 +542,14 @@ internal fun VitalOllamaGuidanceCard(
                         text = "🏃 Recommended Activity",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF065F46)
+                        color = if (isDark) Color(0xFF34D399) else Color(0xFF065F46)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = recommendedActivity,
                         fontSize = 12.sp,
                         lineHeight = 17.sp,
-                        color = Color(0xFF064E3B)
+                        color = if (isDark) Color(0xFFD1FAE5) else Color(0xFF064E3B)
                     )
                 }
             }
@@ -546,7 +560,7 @@ internal fun VitalOllamaGuidanceCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFFFFFBEB))
+                    .background(if (isDark) CarbonDarkRecoveryBg else Color(0xFFFFFBEB))
                     .padding(horizontal = 14.dp, vertical = 11.dp)
             ) {
                 Column {
@@ -554,14 +568,14 @@ internal fun VitalOllamaGuidanceCard(
                         text = "💡 Recovery Tip",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF92400E)
+                        color = if (isDark) Color(0xFFFBBF24) else Color(0xFF92400E)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = lifestyleTip,
                         fontSize = 12.sp,
                         lineHeight = 17.sp,
-                        color = Color(0xFF78350F)
+                        color = if (isDark) Color(0xFFFEF3C7) else Color(0xFF78350F)
                     )
                 }
             }
@@ -579,6 +593,7 @@ internal fun VitalRecentLogsCard(
     emptyMessage: String,
     modifier: Modifier = Modifier
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
@@ -607,11 +622,12 @@ internal fun VitalRecentLogsCard(
                     val (badgeTextColor, badgeBg) = when {
                         entry.urgency.equals("MEDICAL_ATTENTION", ignoreCase = true) ||
                             entry.status.contains("Hypotension", ignoreCase = true) ->
-                            Pair(Color(0xFFE53935), Color(0xFFFEE2E2))
+                            if (isDark) Pair(Color(0xFFF87171), CarbonDarkCriticalBg) else Pair(Color(0xFFE53935), Color(0xFFFEE2E2))
                         entry.urgency.equals("NEEDS_IMPROVEMENT", ignoreCase = true) ||
                             entry.status.contains("Elevated", ignoreCase = true) ->
-                            Pair(Color(0xFFD97706), Color(0xFFFEF3C7))
-                        else -> Pair(Color(0xFF43A047), Color(0xFFECFDF5))
+                            if (isDark) Pair(Color(0xFFFBBF24), CarbonDarkWarningBg) else Pair(Color(0xFFD97706), Color(0xFFFEF3C7))
+                        else ->
+                            if (isDark) Pair(Color(0xFF34D399), CarbonDarkActivityBg) else Pair(Color(0xFF43A047), Color(0xFFECFDF5))
                     }
 
                     Row(

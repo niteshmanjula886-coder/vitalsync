@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import com.simats.vitalsync.data.model.auth.User
 import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.RetrofitClient
+import com.simats.vitalsync.ui.theme.AppThemeMode
 
 /**
  * Manages user authentication session, SharedPreferences persistence,
@@ -37,6 +38,7 @@ class SessionManager(context: Context) {
 
         private const val KEY_ONBOARDING_COMPLETED = "key_onboarding_completed"
         private const val KEY_DARK_MODE_ENABLED = "key_dark_mode_enabled"
+        private const val KEY_THEME_MODE = "key_theme_mode"
         private const val KEY_DAILY_STEP_GOAL = "key_daily_step_goal"
 
         // Hydration & Steps Reminders Keys
@@ -209,12 +211,36 @@ class SessionManager(context: Context) {
         prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, completed).apply()
     }
 
+    fun getThemeMode(): AppThemeMode {
+        val saved = prefs.getString(KEY_THEME_MODE, null)
+        if (saved != null) {
+            return try {
+                AppThemeMode.valueOf(saved)
+            } catch (e: Exception) {
+                AppThemeMode.SYSTEM
+            }
+        }
+        // Fallback for legacy key
+        return if (prefs.contains(KEY_DARK_MODE_ENABLED)) {
+            if (prefs.getBoolean(KEY_DARK_MODE_ENABLED, false)) AppThemeMode.DARK else AppThemeMode.LIGHT
+        } else {
+            AppThemeMode.SYSTEM
+        }
+    }
+
+    fun setThemeMode(mode: AppThemeMode) {
+        prefs.edit()
+            .putString(KEY_THEME_MODE, mode.name)
+            .putBoolean(KEY_DARK_MODE_ENABLED, mode == AppThemeMode.DARK)
+            .apply()
+    }
+
     fun isDarkModeEnabled(): Boolean {
-        return prefs.getBoolean(KEY_DARK_MODE_ENABLED, false)
+        return getThemeMode() == AppThemeMode.DARK
     }
 
     fun setDarkModeEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_DARK_MODE_ENABLED, enabled).apply()
+        setThemeMode(if (enabled) AppThemeMode.DARK else AppThemeMode.LIGHT)
     }
 
     /**

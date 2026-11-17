@@ -14,6 +14,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,6 +43,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
@@ -78,6 +80,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.model.hydration.WeeklyHydrationDayDto
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
+import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
+import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -266,10 +272,12 @@ fun HydrationDetailScreen(
         }
     }
 
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -290,7 +298,7 @@ fun HydrationDetailScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                     )
                 }
 
@@ -300,7 +308,7 @@ fun HydrationDetailScreen(
                     text = "Hydration Tracker",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                 )
             }
 
@@ -308,7 +316,7 @@ fun HydrationDetailScreen(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF1F5F9)),
+                    .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)),
                 contentAlignment = Alignment.Center
             ) {
                 CalendarIcon(modifier = Modifier.size(18.dp))
@@ -345,7 +353,8 @@ fun HydrationDetailScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(
@@ -538,7 +547,8 @@ fun HydrationDetailScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
@@ -551,7 +561,7 @@ fun HydrationDetailScreen(
                         text = "Weekly hydration history",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827),
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
                         modifier = Modifier.weight(1f, fill = false)
                     )
 
@@ -700,7 +710,8 @@ fun HydrationDetailScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
@@ -714,7 +725,7 @@ fun HydrationDetailScreen(
                             text = "Hydration Reminder",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                         )
                         Text(
                             text = if (isReminderEnabled) {
@@ -902,7 +913,8 @@ fun HydrationDetailScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
@@ -918,7 +930,7 @@ fun HydrationDetailScreen(
                             text = "AI Hydration Insight",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                         )
                     }
 
@@ -994,7 +1006,8 @@ fun HydrationDetailScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
@@ -1012,7 +1025,7 @@ fun HydrationDetailScreen(
                                 text = "Historical Weekly Volume",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827),
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )

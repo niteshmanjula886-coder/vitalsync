@@ -134,6 +134,7 @@ object RetrofitClient {
                         ApiConstants.ADB_LOCALHOST_BASE_URL,
                         ApiConstants.LOCALHOST_BASE_URL,
                         ApiConstants.LAN_BASE_URL,
+                        ApiConstants.LAN_COLLEGE_BASE_URL,
                         ApiConstants.LAN_HOTSPOT_BASE_URL,
                         ApiConstants.LAN_WIFI_BASE_URL,
                         ApiConstants.REMOTE_DEVTUNNEL_URL
@@ -141,6 +142,7 @@ object RetrofitClient {
                 } else {
                     listOf(
                         ApiConstants.LAN_BASE_URL,
+                        ApiConstants.LAN_COLLEGE_BASE_URL,
                         ApiConstants.LAN_HOTSPOT_BASE_URL,
                         ApiConstants.LAN_WIFI_BASE_URL,
                         ApiConstants.ADB_LOCALHOST_BASE_URL,
@@ -178,9 +180,9 @@ object RetrofitClient {
             }
             .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
             .addInterceptor(logging)
-            .connectTimeout(ApiConstants.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .readTimeout(ApiConstants.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .writeTimeout(ApiConstants.WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .connectTimeout(180, TimeUnit.SECONDS)
+            .readTimeout(180, TimeUnit.SECONDS)
+            .writeTimeout(180, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
     }
@@ -197,12 +199,13 @@ object RetrofitClient {
     }
 
     private fun replaceBasePrefix(url: String, targetBase: String): String {
-        val regex = Regex("^https?://[^/]+/vitalsync-backend/")
+        val regex = Regex("^https?://[^/]+/(?:vitalsync-backend|vitalsync_background)/")
         return if (regex.containsMatchIn(url)) {
             url.replaceFirst(regex, targetBase)
         } else {
             val currentBasePrefix = when {
                 url.startsWith(ApiConstants.EMULATOR_BASE_URL) -> ApiConstants.EMULATOR_BASE_URL
+                url.startsWith(ApiConstants.LAN_COLLEGE_BASE_URL) -> ApiConstants.LAN_COLLEGE_BASE_URL
                 url.startsWith(ApiConstants.LAN_HOTSPOT_BASE_URL) -> ApiConstants.LAN_HOTSPOT_BASE_URL
                 url.startsWith(ApiConstants.LAN_WIFI_BASE_URL) -> ApiConstants.LAN_WIFI_BASE_URL
                 url.startsWith(ApiConstants.LAN_BASE_URL) -> ApiConstants.LAN_BASE_URL
@@ -229,9 +232,18 @@ object RetrofitClient {
         if (raw.isBlank()) return@withContext null
 
         val targetUrl = if (raw.startsWith("http://", ignoreCase = true) || raw.startsWith("https://", ignoreCase = true)) {
-            val idx = raw.indexOf("/vitalsync-backend/", ignoreCase = true)
+            val idx = when {
+                raw.contains("/vitalsync_background/", ignoreCase = true) -> raw.indexOf("/vitalsync_background/", ignoreCase = true)
+                raw.contains("/vitalsync-backend/", ignoreCase = true) -> raw.indexOf("/vitalsync-backend/", ignoreCase = true)
+                else -> -1
+            }
             if (idx >= 0) {
-                val relative = raw.substring(idx + "/vitalsync-backend/".length).trimStart('/')
+                val matchedSegment = if (raw.regionMatches(idx, "/vitalsync_background/", 0, "/vitalsync_background/".length, ignoreCase = true)) {
+                    "/vitalsync_background/"
+                } else {
+                    "/vitalsync-backend/"
+                }
+                val relative = raw.substring(idx + matchedSegment.length).trimStart('/')
                 currentBaseUrl + relative
             } else {
                 raw

@@ -16,8 +16,10 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import com.simats.vitalsync.ui.theme.AppThemeMode
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -237,15 +239,30 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            var isDarkModeEnabled by remember { mutableStateOf(false) }
+            var currentThemeMode by remember { mutableStateOf(sessionManager.getThemeMode()) }
+            val isSystemDark = isSystemInDarkTheme()
+            val isEffectiveDark = when (currentThemeMode) {
+                AppThemeMode.SYSTEM -> isSystemDark
+                AppThemeMode.DARK -> true
+                AppThemeMode.LIGHT -> false
+            }
 
             val windowInsetsController = remember(window) { WindowCompat.getInsetsController(window, window.decorView) }
             SideEffect {
-                windowInsetsController.isAppearanceLightStatusBars = !isDarkModeEnabled
-                windowInsetsController.isAppearanceLightNavigationBars = !isDarkModeEnabled
+                if (isEffectiveDark) {
+                    window.statusBarColor = android.graphics.Color.parseColor("#0F0F0F")
+                    window.navigationBarColor = android.graphics.Color.parseColor("#0F0F0F")
+                    windowInsetsController.isAppearanceLightStatusBars = false
+                    windowInsetsController.isAppearanceLightNavigationBars = false
+                } else {
+                    window.statusBarColor = android.graphics.Color.parseColor("#F7FBF8")
+                    window.navigationBarColor = android.graphics.Color.parseColor("#FFFFFF")
+                    windowInsetsController.isAppearanceLightStatusBars = true
+                    windowInsetsController.isAppearanceLightNavigationBars = true
+                }
             }
 
-            VitalsyncTheme(darkTheme = isDarkModeEnabled) {
+            VitalsyncTheme(themeMode = currentThemeMode, darkTheme = isEffectiveDark) {
                 val context = LocalContext.current
 
                 // Instantiate ViewModels via their custom Factories
@@ -2059,8 +2076,17 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.SETTINGS -> {
                                 SettingsScreen(
-                                    isDarkTheme = isDarkModeEnabled,
-                                    onDarkThemeToggle = { isDarkModeEnabled = it },
+                                    themeMode = currentThemeMode,
+                                    onThemeModeSelected = { mode ->
+                                        currentThemeMode = mode
+                                        sessionManager.setThemeMode(mode)
+                                    },
+                                    isDarkTheme = isEffectiveDark,
+                                    onDarkThemeToggle = { enabled ->
+                                        val newMode = if (enabled) AppThemeMode.DARK else AppThemeMode.LIGHT
+                                        currentThemeMode = newMode
+                                        sessionManager.setThemeMode(newMode)
+                                    },
                                     pushNotifications = appSettingsState.pushNotifications,
                                     onPushNotificationsToggle = { enabled ->
                                         profileViewModel.updateAppSettings(email = currentEmail, pushNotifications = enabled)

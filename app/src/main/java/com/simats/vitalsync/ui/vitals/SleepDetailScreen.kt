@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,6 +34,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,6 +68,17 @@ import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.vitals.LogSleepRequest
 import com.simats.vitalsync.data.model.vitals.SleepLogEntryDto
 import com.simats.vitalsync.data.network.RetrofitClient
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkBorder
+import com.simats.vitalsync.ui.theme.CarbonDarkPurpleAccent
+import com.simats.vitalsync.ui.theme.CarbonDarkPurpleBorder
+import com.simats.vitalsync.ui.theme.CarbonDarkPurplePill
+import com.simats.vitalsync.ui.theme.CarbonDarkPurpleSurface
+import com.simats.vitalsync.ui.theme.CarbonDarkPurpleText
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
+import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
+import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
 import com.simats.vitalsync.ui.theme.SleepColorStandards
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -223,10 +236,12 @@ fun SleepDetailScreen(
         }
     }
 
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -247,7 +262,7 @@ fun SleepDetailScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                     )
                 }
 
@@ -257,7 +272,7 @@ fun SleepDetailScreen(
                     text = "Sleep Tracker",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                 )
             }
 
@@ -265,7 +280,7 @@ fun SleepDetailScreen(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF1F5F9)),
+                    .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)),
                 contentAlignment = Alignment.Center
             ) {
                 CalendarIcon(modifier = Modifier.size(18.dp))
@@ -306,7 +321,8 @@ fun SleepDetailScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = qualityPresentation.containerColor),
+            colors = CardDefaults.cardColors(containerColor = if (isDark) CarbonDarkPurpleSurface else qualityPresentation.containerColor),
+            border = if (isDark) BorderStroke(1.dp, CarbonDarkPurpleBorder) else null,
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
@@ -318,21 +334,21 @@ fun SleepDetailScreen(
                     Text(
                         text = "🌙 ${qualityPresentation.status} • ${qualityPresentation.qualityLabel}",
                         fontSize = 13.sp,
-                        color = qualityPresentation.badgeTextColor,
+                        color = if (isDark) CarbonDarkPurpleAccent else qualityPresentation.badgeTextColor,
                         fontWeight = FontWeight.Bold
                     )
 
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color.White)
+                            .background(if (isDark) CarbonDarkPurplePill else Color.White)
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = if (isRecordedSaved) "Logged ✓" else qualityPresentation.status,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = qualityPresentation.badgeTextColor
+                            color = if (isDark) CarbonDarkPurpleText else qualityPresentation.badgeTextColor
                         )
                     }
                 }
@@ -343,7 +359,7 @@ fun SleepDetailScreen(
                     text = formattedDurationStr,
                     fontSize = 42.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -351,7 +367,7 @@ fun SleepDetailScreen(
                 Text(
                     text = "$progressPercent% of ${targetSleepMinutes / 60}h daily target • ${qualityPresentation.medicalMeaning}",
                     fontSize = 12.sp,
-                    color = Color(0xFF4B5563),
+                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF4B5563),
                     fontWeight = FontWeight.Medium
                 )
 
@@ -381,13 +397,13 @@ fun SleepDetailScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text(text = "Bedtime", fontSize = 11.sp, color = Color(0xFF6B7280))
-                        Text(text = formattedBedtime, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "Bedtime", fontSize = 11.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280))
+                        Text(text = formattedBedtime, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827))
                     }
 
                     Column {
-                        Text(text = "Wake time", fontSize = 11.sp, color = Color(0xFF6B7280))
-                        Text(text = formattedWakeTime, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "Wake time", fontSize = 11.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280))
+                        Text(text = formattedWakeTime, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827))
                     }
                 }
             }
@@ -399,7 +415,8 @@ fun SleepDetailScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = if (isDark) CarbonDarkSurface else Color.White),
+            border = BorderStroke(1.dp, if (isDark) CarbonDarkBorder else Color.Transparent),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
@@ -407,13 +424,13 @@ fun SleepDetailScreen(
                     text = "⏱️ Manual Sleep Log & Time Pickers",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                 )
 
                 Text(
                     text = "Tap to pick Bedtime and Wake time for automatic calculation:",
                     fontSize = 12.sp,
-                    color = Color(0xFF6B7280),
+                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
                     modifier = Modifier.padding(top = 2.dp)
                 )
 
@@ -429,7 +446,7 @@ fun SleepDetailScreen(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFFF8FAFC))
+                            .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF8FAFC))
                             .clickable {
                                 TimePickerDialog(
                                     context,
@@ -448,10 +465,10 @@ fun SleepDetailScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(text = "🕒", fontSize = 14.sp)
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "Bedtime", fontSize = 12.sp, color = Color(0xFF64748B), fontWeight = FontWeight.SemiBold)
+                                Text(text = "Bedtime", fontSize = 12.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B), fontWeight = FontWeight.SemiBold)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(text = formattedBedtime, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(text = formattedBedtime, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827))
                         }
                     }
 
@@ -460,7 +477,7 @@ fun SleepDetailScreen(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFFF8FAFC))
+                            .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF8FAFC))
                             .clickable {
                                 TimePickerDialog(
                                     context,
@@ -479,10 +496,10 @@ fun SleepDetailScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(text = "⏰", fontSize = 14.sp)
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "Wake-up Time", fontSize = 12.sp, color = Color(0xFF64748B), fontWeight = FontWeight.SemiBold)
+                                Text(text = "Wake-up Time", fontSize = 12.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B), fontWeight = FontWeight.SemiBold)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(text = formattedWakeTime, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(text = formattedWakeTime, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827))
                         }
                     }
                 }
@@ -494,7 +511,7 @@ fun SleepDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF1F5F9))
+                        .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9))
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
                     Row(
@@ -502,12 +519,12 @@ fun SleepDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "Calculated Total Sleep:", fontSize = 13.sp, color = Color(0xFF475569))
+                        Text(text = "Calculated Total Sleep:", fontSize = 13.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF475569))
                         Text(
                             text = "$formattedDurationStr • ${qualityPresentation.status}",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = qualityPresentation.primaryColor
+                            color = if (isDark) CarbonDarkPurpleAccent else qualityPresentation.primaryColor
                         )
                     }
                 }
@@ -624,7 +641,8 @@ fun SleepDetailScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = if (isDark) CarbonDarkSurface else Color.White),
+            border = BorderStroke(1.dp, if (isDark) CarbonDarkBorder else Color.Transparent),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
@@ -632,12 +650,12 @@ fun SleepDetailScreen(
                     text = "Recent Sleep Logs",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                 )
                 Text(
                     text = "Your logged nights rated as Excellent, Optimal, Fair, or Poor:",
                     fontSize = 12.sp,
-                    color = Color(0xFF6B7280),
+                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
                     modifier = Modifier.padding(top = 2.dp)
                 )
 
@@ -647,7 +665,7 @@ fun SleepDetailScreen(
                     Text(
                         text = "No sleep logs recorded yet. Tap \"Log Sleep Session\" above to save your first log.",
                         fontSize = 13.sp,
-                        color = Color(0xFF6B7280)
+                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
                     )
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -660,7 +678,7 @@ fun SleepDetailScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFF8FAFC))
+                                    .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF8FAFC))
                                     .padding(horizontal = 12.dp, vertical = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
@@ -670,19 +688,19 @@ fun SleepDetailScreen(
                                         text = entry.date.ifBlank { todayDate },
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF111827)
+                                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                                     )
                                     Text(
                                         text = "${durH}h ${durM}m · Score $scoreVal",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF64748B)
+                                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B)
                                     )
                                 }
 
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(pres.containerColor)
+                                        .background(if (isDark) CarbonDarkSurface else pres.containerColor)
                                         .padding(horizontal = 10.dp, vertical = 5.dp)
                                 ) {
                                     Text(
@@ -705,7 +723,8 @@ fun SleepDetailScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = if (isDark) CarbonDarkSurface else Color.White),
+            border = BorderStroke(1.dp, if (isDark) CarbonDarkBorder else Color.Transparent),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
@@ -713,7 +732,7 @@ fun SleepDetailScreen(
                     text = "Your sleep stages",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -785,10 +804,10 @@ fun SleepDetailScreen(
                 val awakeStr = "${(totalSleepMinutes * 0.05f).toInt()}m"
 
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SleepStageRow(label = "Deep Sleep (Physical Repair)", duration = deepStr, color = SleepColorStandards.StageDeep)
-                    SleepStageRow(label = "REM Sleep (Cognitive Restoration)", duration = remStr, color = SleepColorStandards.StageRem)
-                    SleepStageRow(label = "Light Sleep (Physiological Rest)", duration = lightStr, color = SleepColorStandards.StageLight)
-                    SleepStageRow(label = "Awake / Disruptions", duration = awakeStr, color = SleepColorStandards.StageAwake)
+                    SleepStageRow(label = "Deep Sleep (Physical Repair)", duration = deepStr, color = SleepColorStandards.StageDeep, isDark = isDark)
+                    SleepStageRow(label = "REM Sleep (Cognitive Restoration)", duration = remStr, color = SleepColorStandards.StageRem, isDark = isDark)
+                    SleepStageRow(label = "Light Sleep (Physiological Rest)", duration = lightStr, color = SleepColorStandards.StageLight, isDark = isDark)
+                    SleepStageRow(label = "Awake / Disruptions", duration = awakeStr, color = SleepColorStandards.StageAwake, isDark = isDark)
                 }
             }
         }
@@ -799,7 +818,8 @@ fun SleepDetailScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = if (isDark) CarbonDarkSurface else Color.White),
+            border = BorderStroke(1.dp, if (isDark) CarbonDarkBorder else Color.Transparent),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
@@ -807,12 +827,12 @@ fun SleepDetailScreen(
                     text = "Sleep Quality Thresholds",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                 )
                 Text(
                     text = "Clinical recovery standards and stage color codes:",
                     fontSize = 12.sp,
-                    color = Color(0xFF6B7280),
+                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
                     modifier = Modifier.padding(top = 2.dp)
                 )
 
@@ -824,28 +844,32 @@ fun SleepDetailScreen(
                         threshold = "> 8.5 hrs • Score 90–100",
                         meaning = "Excellent deep restorative sleep recovery",
                         color = SleepColorStandards.ExcessivePurple,
-                        bgColor = SleepColorStandards.ExcessivePurpleBg
+                        bgColor = if (isDark) CarbonDarkSurfaceVariant else SleepColorStandards.ExcessivePurpleBg,
+                        isDark = isDark
                     )
                     QualityThresholdRow(
                         title = "Optimal",
                         threshold = "7.0 – 8.5 hrs • Score 75–90",
                         meaning = "Optimal recovery, restorative sleep",
                         color = SleepColorStandards.OptimalGreen,
-                        bgColor = SleepColorStandards.OptimalGreenBg
+                        bgColor = if (isDark) CarbonDarkSurfaceVariant else SleepColorStandards.OptimalGreenBg,
+                        isDark = isDark
                     )
                     QualityThresholdRow(
                         title = "Fair",
                         threshold = "6.0 – 6.9 hrs • Score 60–74",
                         meaning = "Mild deficit, acceptable baseline recovery",
                         color = SleepColorStandards.ModerateAmber,
-                        bgColor = SleepColorStandards.ModerateAmberBg
+                        bgColor = if (isDark) CarbonDarkSurfaceVariant else SleepColorStandards.ModerateAmberBg,
+                        isDark = isDark
                     )
                     QualityThresholdRow(
                         title = "Poor",
                         threshold = "< 6.0 hrs • Score 40–55",
                         meaning = "Critical sleep debt, elevated cortisol",
                         color = SleepColorStandards.DeficitRed,
-                        bgColor = SleepColorStandards.DeficitRedBg
+                        bgColor = if (isDark) CarbonDarkSurfaceVariant else SleepColorStandards.DeficitRedBg,
+                        isDark = isDark
                     )
                 }
             }
@@ -858,7 +882,8 @@ fun SleepDetailScreen(
             Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E8FF)),
+            colors = CardDefaults.cardColors(containerColor = if (isDark) CarbonDarkPurpleSurface else Color(0xFFF3E8FF)),
+            border = BorderStroke(1.dp, if (isDark) CarbonDarkPurpleBorder else Color.Transparent),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
@@ -866,13 +891,13 @@ fun SleepDetailScreen(
                     text = "✨ AI insight",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF7C3AED)
+                    color = if (isDark) CarbonDarkPurpleAccent else Color(0xFF7C3AED)
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "Your calculated sleep duration of $formattedDurationStr matches your 8h daily recovery target well. Maintain this sleep schedule for optimal energy.",
                     fontSize = 13.sp,
-                    color = Color(0xFF374151)
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF374151)
                 )
             }
         }
@@ -906,7 +931,8 @@ private fun parseFormattedTimeToHourMinute(timeStr: String): Pair<Int, Int>? {
 private fun SleepStageRow(
     label: String,
     duration: String,
-    color: Color
+    color: Color,
+    isDark: Boolean = false
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -921,10 +947,10 @@ private fun SleepStageRow(
                     .background(color)
             )
             Spacer(modifier = Modifier.width(10.dp))
-            Text(text = label, fontSize = 14.sp, color = Color(0xFF374151))
+            Text(text = label, fontSize = 14.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF374151))
         }
 
-        Text(text = duration, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+        Text(text = duration, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827))
     }
 }
 
@@ -973,13 +999,14 @@ private fun QualityThresholdRow(
     threshold: String,
     meaning: String,
     color: Color,
-    bgColor: Color
+    bgColor: Color,
+    isDark: Boolean = false
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFFF8FAFC))
+            .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF8FAFC))
             .padding(10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -1000,12 +1027,12 @@ private fun QualityThresholdRow(
                     text = title,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E293B)
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF1E293B)
                 )
                 Text(
                     text = meaning,
                     fontSize = 11.sp,
-                    color = Color(0xFF64748B),
+                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B),
                     lineHeight = 15.sp
                 )
             }

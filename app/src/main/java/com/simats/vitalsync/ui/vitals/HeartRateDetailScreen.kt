@@ -31,6 +31,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse
+import com.simats.vitalsync.ui.theme.CarbonDarkActivityBg
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkCriticalBg
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
+import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
+import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
+import com.simats.vitalsync.ui.theme.CarbonDarkWarningBg
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
 @Composable
@@ -58,14 +65,15 @@ fun HeartRateDetailScreen(
     val maxBpmVal = uiState.highestBpm ?: maxBpm.takeIf { it > 0 } ?: currentBpm
     val minBpmVal = uiState.lowestBpm ?: minBpm.takeIf { it > 0 } ?: currentBpm
     val restingBpmVal = uiState.restingBpm ?: restingBpm.takeIf { it > 0 }
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
 
     val (statusLabel, statusColor, statusBg) = when {
-        currentBpm == null -> Triple("No Readings Yet", Color(0xFF6B7280), Color(0xFFF3F4F6))
-        currentBpm < 50 -> Triple("Severe Bradycardia", Color(0xFFDC2626), Color(0xFFFEE2E2))
-        currentBpm < 60 -> Triple("Athletic / Low Resting", Color(0xFF0284C7), Color(0xFFE0F2FE))
-        currentBpm <= 100 -> Triple("Optimal Resting", Color(0xFF059669), Color(0xFFECFDF5))
-        currentBpm <= 129 -> Triple("Elevated", Color(0xFFD97706), Color(0xFFFEF3C7))
-        else -> Triple("Tachycardia / High", Color(0xFFDC2626), Color(0xFFFEE2E2))
+        currentBpm == null -> Triple("No Readings Yet", if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280), if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF3F4F6))
+        currentBpm < 50 -> Triple("Severe Bradycardia", if (isDark) Color(0xFFF87171) else Color(0xFFDC2626), if (isDark) CarbonDarkCriticalBg else Color(0xFFFEE2E2))
+        currentBpm < 60 -> Triple("Athletic / Low Resting", if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7), if (isDark) Color(0xFF1A2533) else Color(0xFFE0F2FE))
+        currentBpm <= 100 -> Triple("Optimal Resting", if (isDark) Color(0xFF34D399) else Color(0xFF059669), if (isDark) CarbonDarkActivityBg else Color(0xFFECFDF5))
+        currentBpm <= 129 -> Triple("Elevated", if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706), if (isDark) CarbonDarkWarningBg else Color(0xFFFEF3C7))
+        else -> Triple("Tachycardia / High", if (isDark) Color(0xFFF87171) else Color(0xFFDC2626), if (isDark) CarbonDarkCriticalBg else Color(0xFFFEE2E2))
     }
 
     val recordedLabel = detailState?.recordedAt?.takeIf { it.isNotBlank() }?.let { "Recorded $it" }
@@ -110,7 +118,7 @@ fun HeartRateDetailScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -196,14 +204,14 @@ fun HeartRateDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFFF8FAFC))
+                            .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF8FAFC))
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        StatMiniMetric(label = "Avg", value = avgBpmVal?.let { "$it BPM" } ?: "--")
-                        StatMiniMetric(label = "Min", value = minBpmVal?.let { "$it BPM" } ?: "--")
-                        StatMiniMetric(label = "Max", value = maxBpmVal?.let { "$it BPM" } ?: "--")
-                        StatMiniMetric(label = "Resting", value = restingBpmVal?.let { "$it BPM" } ?: "--")
+                        StatMiniMetric(label = "Avg", value = avgBpmVal?.let { "$it BPM" } ?: "--", isDark = isDark)
+                        StatMiniMetric(label = "Min", value = minBpmVal?.let { "$it BPM" } ?: "--", isDark = isDark)
+                        StatMiniMetric(label = "Max", value = maxBpmVal?.let { "$it BPM" } ?: "--", isDark = isDark)
+                        StatMiniMetric(label = "Resting", value = restingBpmVal?.let { "$it BPM" } ?: "--", isDark = isDark)
                     }
                 }
             }
@@ -240,11 +248,11 @@ fun HeartRateDetailScreen(
 }
 
 @Composable
-private fun StatMiniMetric(label: String, value: String) {
+private fun StatMiniMetric(label: String, value: String, isDark: Boolean = false) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = label, fontSize = 11.sp, color = Color(0xFF6B7280))
+        Text(text = label, fontSize = 11.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280))
         Spacer(modifier = Modifier.height(2.dp))
-        Text(text = value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+        Text(text = value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827))
     }
 }
 
