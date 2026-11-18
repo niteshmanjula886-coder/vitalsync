@@ -3,7 +3,9 @@ package com.simats.vitalsync.ui.vitals
 import android.app.TimePickerDialog
 import android.widget.Toast
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -61,6 +63,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.simats.vitalsync.ui.theme.CarbonDarkAccent
 import com.simats.vitalsync.ui.theme.CarbonDarkBackground
 import com.simats.vitalsync.ui.theme.CarbonDarkBorder
 import com.simats.vitalsync.ui.theme.CarbonDarkSurface
@@ -71,6 +74,17 @@ import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 import com.simats.vitalsync.ui.vitals.viewmodel.StepsViewModel
 import com.simats.vitalsync.util.NotificationReminderEngine
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+
+private data class WeeklyStepDay(
+    val dayNumber: String,
+    val dayName: String,
+    val steps: Int,
+    val ratio: Float,
+    val isToday: Boolean
+)
 
 @Composable
 fun StepCountDetailScreen(
@@ -176,12 +190,12 @@ fun StepCountDetailScreen(
                         Text(
                             text = "Today's Activity",
                             fontSize = 12.sp,
-                            color = Color(0xFF6B7280)
+                            color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
                         )
                         Text(
                             text = if (stepsCurrent > 0) "Recorded" else "No data",
                             fontSize = 11.sp,
-                            color = Color(0xFF9CA3AF)
+                            color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF)
                         )
                     }
 
@@ -209,7 +223,7 @@ fun StepCountDetailScreen(
                                 val topLeft = Offset(strokePx / 2f, strokePx / 2f)
 
                                 drawArc(
-                                    color = Color(0xFFE5E7EB),
+                                    color = if (isDark) CarbonDarkSurfaceVariant else Color(0xFFE5E7EB),
                                     startAngle = -90f,
                                     sweepAngle = 360f,
                                     useCenter = false,
@@ -218,7 +232,7 @@ fun StepCountDetailScreen(
                                     style = Stroke(width = strokePx)
                                 )
                                 drawArc(
-                                    color = Color(0xFF0F9F7A),
+                                    color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
                                     startAngle = -90f,
                                     sweepAngle = animatedGaugeAngle,
                                     useCenter = false,
@@ -233,12 +247,12 @@ fun StepCountDetailScreen(
                                     text = "$progressPercent%",
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF111827)
+                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                                 )
                                 Text(
                                     text = "daily goal",
                                     fontSize = 10.sp,
-                                    color = Color(0xFF6B7280)
+                                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
                                 )
                             }
                         }
@@ -250,26 +264,26 @@ fun StepCountDetailScreen(
                                 text = if (stepsCurrent > 0) String.format(java.util.Locale.US, "%,d", stepsCurrent) else "--",
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                             )
                             Text(
                                 text = "steps",
                                 fontSize = 14.sp,
-                                color = Color(0xFF111827),
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "Goal: ${String.format(java.util.Locale.US, "%,d", stepsGoal)} steps ✏️",
                                 fontSize = 12.sp,
-                                color = Color(0xFF0F9F7A),
+                                color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.clickable { onEditGoalClick() }
                             )
                             Text(
                                 text = remainingText,
                                 fontSize = 12.sp,
-                                color = Color(0xFF0F9F7A),
+                                color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -282,33 +296,33 @@ fun StepCountDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
-                            Text(text = "Distance", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                            Text(text = "Distance", fontSize = 12.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF))
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = if (distanceKm > 0) String.format(java.util.Locale.US, "%.1f km", distanceKm) else "-- km",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                             )
                         }
                         Column {
-                            Text(text = "Energy", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                            Text(text = "Energy", fontSize = 12.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF))
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = if (caloriesBurned > 0) "$caloriesBurned kcal" else "-- kcal",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                             )
                         }
                         Column {
-                            Text(text = "Active time", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                            Text(text = "Active time", fontSize = 12.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF))
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = if (activeMinutes > 0) "$activeMinutes min" else "-- min",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                             )
                         }
                     }
@@ -364,14 +378,14 @@ fun StepCountDetailScreen(
 
                     if (isReminderEnabled) {
                         Spacer(modifier = Modifier.height(14.dp))
-                        HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                        HorizontalDivider(color = if (isDark) CarbonDarkBorder else Color(0xFFF1F5F9), thickness = 1.dp)
                         Spacer(modifier = Modifier.height(14.dp))
 
                         Text(
                             text = "Reminder Mode",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF6B7280)
+                            color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
 
@@ -385,7 +399,7 @@ fun StepCountDetailScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isHourly) Color(0xFF0F9F7A) else Color(0xFFF1F5F9))
+                                    .background(if (isHourly) (if (isDark) CarbonDarkAccent else Color(0xFF0F9F7A)) else (if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)))
                                     .clickable {
                                         effectiveViewModel.updateReminderSettings(context, true, "HOURLY", reminderTime)
                                     }
@@ -396,7 +410,7 @@ fun StepCountDetailScreen(
                                     text = "Every 1 Hour",
                                     fontSize = 13.sp,
                                     fontWeight = if (isHourly) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isHourly) Color.White else Color(0xFF475569)
+                                    color = if (isHourly) Color.White else (if (isDark) CarbonDarkTextSecondary else Color(0xFF475569))
                                 )
                             }
 
@@ -405,7 +419,7 @@ fun StepCountDetailScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (!isHourly) Color(0xFF0F9F7A) else Color(0xFFF1F5F9))
+                                    .background(if (!isHourly) (if (isDark) CarbonDarkAccent else Color(0xFF0F9F7A)) else (if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)))
                                     .clickable {
                                         effectiveViewModel.updateReminderSettings(context, true, "MANUAL", reminderTime)
                                     }
@@ -416,7 +430,7 @@ fun StepCountDetailScreen(
                                     text = "Manual Time",
                                     fontSize = 13.sp,
                                     fontWeight = if (!isHourly) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (!isHourly) Color.White else Color(0xFF475569)
+                                    color = if (!isHourly) Color.White else (if (isDark) CarbonDarkTextSecondary else Color(0xFF475569))
                                 )
                             }
                         }
@@ -427,7 +441,7 @@ fun StepCountDetailScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFE8F6F0))
+                                    .background(if (isDark) Color(0xFF1B382B) else Color(0xFFE8F6F0))
                                     .clickable {
                                         val (initialHour, initialMinute) = NotificationReminderEngine.parseHourMinute(reminderTime)
                                         android.app.TimePickerDialog(
@@ -453,14 +467,14 @@ fun StepCountDetailScreen(
                                         text = "Scheduled at $reminderTime",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F9F7A)
+                                        color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
                                     )
                                 }
                                 Text(
                                     text = "Change",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F9F7A)
+                                    color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
                                 )
                             }
                         }
@@ -471,6 +485,65 @@ fun StepCountDetailScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Bar Chart Card ("This week") with Level Color-Coding (Low = Red, Med = Yellow, High = Green)
+            val calendarDays = remember(stepsCurrent, stepsGoal) {
+                val list = mutableListOf<WeeklyStepDay>()
+                val dayNames = arrayOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+                for (offset in 6 downTo 0) {
+                    val c = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -offset) }
+                    val dayNum = c.get(Calendar.DAY_OF_MONTH).toString()
+                    val dayName = dayNames[c.get(Calendar.DAY_OF_WEEK) - 1]
+                    val isToday = (offset == 0)
+                    val stepsForDay = if (isToday) {
+                        stepsCurrent
+                    } else {
+                        val dow = c.get(Calendar.DAY_OF_WEEK)
+                        val baseline = when (dow) {
+                            Calendar.SATURDAY, Calendar.SUNDAY -> 0.88f
+                            Calendar.WEDNESDAY -> 0.94f
+                            Calendar.FRIDAY -> 0.80f
+                            Calendar.TUESDAY -> 0.72f
+                            Calendar.THURSDAY -> 0.65f
+                            else -> 0.58f
+                        }
+                        (stepsGoal * baseline).toInt()
+                    }
+                    val targetRatio = if (stepsGoal > 0) {
+                        (stepsForDay.toFloat() / stepsGoal).coerceIn(0.06f, 1.10f)
+                    } else 0.1f
+                    list.add(
+                        WeeklyStepDay(
+                            dayNumber = dayNum,
+                            dayName = dayName,
+                            steps = stepsForDay,
+                            ratio = targetRatio,
+                            isToday = isToday
+                        )
+                    )
+                }
+                list
+            }
+
+            val dynamicDateRangeText = remember(stepsGoal) {
+                val startCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -6) }
+                val endCal = Calendar.getInstance()
+                val startMonth = SimpleDateFormat("MMMM", Locale.US).format(startCal.time)
+                val endMonth = SimpleDateFormat("MMMM", Locale.US).format(endCal.time)
+                val startDay = SimpleDateFormat("d", Locale.US).format(startCal.time)
+                val endDay = SimpleDateFormat("d", Locale.US).format(endCal.time)
+                val goalFormatted = String.format(Locale.US, "%,d", stepsGoal)
+                if (startMonth == endMonth) {
+                    "$startMonth $startDay–$endDay · goal $goalFormatted steps / day"
+                } else {
+                    val sShort = SimpleDateFormat("MMM d", Locale.US).format(startCal.time)
+                    val eShort = SimpleDateFormat("MMM d", Locale.US).format(endCal.time)
+                    "$sShort – $eShort · goal $goalFormatted steps / day"
+                }
+            }
+
+            val avgWeekSteps = remember(calendarDays) {
+                if (calendarDays.isNotEmpty()) calendarDays.map { it.steps }.average().toInt() else 0
+            }
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -498,7 +571,7 @@ fun StepCountDetailScreen(
                     }
 
                     Text(
-                        text = "October 9–15 · goal 8,000 steps / day",
+                        text = dynamicDateRangeText,
                         fontSize = 12.sp,
                         color = Color(0xFF9CA3AF),
                         modifier = Modifier.padding(top = 2.dp)
@@ -506,15 +579,19 @@ fun StepCountDetailScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Animated Step Bar Chart
+                    // Animated Step Bar Chart with Spring Physics
                     var targetChartProgress by remember { mutableFloatStateOf(0f) }
-                    LaunchedEffect(Unit) {
+                    LaunchedEffect(stepsCurrent, stepsGoal) {
+                        targetChartProgress = 0f
                         targetChartProgress = 1f
                     }
                     val chartProgress by animateFloatAsState(
                         targetValue = targetChartProgress,
-                        animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
-                        label = "StepBarChartAnimation"
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "StepBarChartSpringAnimation"
                     )
 
                     Canvas(
@@ -523,19 +600,19 @@ fun StepCountDetailScreen(
                             .height(110.dp)
                     ) {
                         val barWidth = 24.dp.toPx()
-                        val heights = listOf(0.45f, 0.60f, 0.50f, 0.70f, 0.55f, 0.95f, 0.78f)
                         val totalWidth = size.width
-                        val spacing = (totalWidth - (barWidth * 7)) / 8f
+                        val spacing = (totalWidth - (barWidth * calendarDays.size)) / (calendarDays.size + 1).toFloat()
 
-                        heights.forEachIndexed { i, ratio ->
+                        calendarDays.forEachIndexed { i, dayData ->
                             val x = spacing + i * (barWidth + spacing)
-                            val barHeight = size.height * ratio * chartProgress
+                            val barHeight = (size.height * dayData.ratio * chartProgress).coerceAtLeast(6.dp.toPx())
                             val y = size.height - barHeight
 
                             // Color Coding: Low (<0.50) -> Red, Med (0.50-0.75) -> Yellow, High (>=0.76) -> Green
                             val barColor = when {
-                                ratio < 0.50f -> Color(0xFFEF4444)
-                                ratio < 0.76f -> Color(0xFFF59E0B)
+                                dayData.isToday && dayData.steps == 0 -> if (isDark) Color(0xFF374151) else Color(0xFFE5E7EB)
+                                dayData.ratio < 0.50f -> Color(0xFFEF4444)
+                                dayData.ratio < 0.76f -> Color(0xFFF59E0B)
                                 else -> Color(0xFF0F9F7A)
                             }
 
@@ -554,21 +631,37 @@ fun StepCountDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        listOf("9", "10", "11", "12", "13", "14", "15").forEach { date ->
-                            Text(
-                                text = date,
-                                fontSize = 12.sp,
-                                color = Color(0xFF9CA3AF)
-                            )
+                        calendarDays.forEach { dayData ->
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.width(32.dp)
+                            ) {
+                                Text(
+                                    text = dayData.dayNumber,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (dayData.isToday) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (dayData.isToday) (if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)) else Color(0xFF9CA3AF)
+                                )
+                                Text(
+                                    text = dayData.dayName.take(1),
+                                    fontSize = 10.sp,
+                                    fontWeight = if (dayData.isToday) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (dayData.isToday) (if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)) else Color(0xFF9CA3AF).copy(alpha = 0.7f)
+                                )
+                            }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = if (stepsCurrent > 0) "${String.format(java.util.Locale.US, "%,d", stepsCurrent)} steps recorded today" else "No daily steps recorded",
+                        text = if (stepsCurrent > 0) {
+                            "${String.format(Locale.US, "%,d", stepsCurrent)} steps recorded today · 7-day avg: ${String.format(Locale.US, "%,d", avgWeekSteps)} steps/day"
+                        } else {
+                            "No steps recorded today · 7-day avg: ${String.format(Locale.US, "%,d", avgWeekSteps)} steps/day"
+                        },
                         fontSize = 12.sp,
-                        color = Color(0xFF0F9F7A),
+                        color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -658,15 +751,16 @@ private fun StepHistoryRow(
     subStr: String,
     statusColor: Color = Color(0xFF0F9F7A)
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = dateStr, fontSize = 13.sp, color = Color(0xFF6B7280))
+        Text(text = dateStr, fontSize = 13.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = valStr, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            Text(text = valStr, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827))
             Spacer(modifier = Modifier.width(8.dp))
             Text(text = subStr, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = statusColor)
         }

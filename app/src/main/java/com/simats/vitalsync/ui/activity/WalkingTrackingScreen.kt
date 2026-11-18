@@ -3,6 +3,7 @@ package com.simats.vitalsync.ui.activity
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,6 +28,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -47,7 +49,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.simats.vitalsync.data.sensor.PhoneWorkoutEngine
+import com.simats.vitalsync.data.sensor.WorkoutTrackingService
+import com.simats.vitalsync.ui.theme.CarbonDarkAccent
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkBorder
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
+import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
+import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 import java.util.Locale
@@ -57,14 +66,15 @@ fun WalkingTrackingScreen(
     modifier: Modifier = Modifier,
     targetGoalTab: String = "Distance",
     targetMinutes: Int = 30,
-    targetDistanceKm: Float = 5.0f,
+    targetDistanceKm: Float = 3.0f,
     userWeightKg: Float = 70.0f,
     onBackClick: () -> Unit = {},
     onFinishTracking: () -> Unit = {},
     onFinishTrackingWithData: ((durationSeconds: Int, distanceKm: Float, caloriesBurned: Int, avgPace: String, avgHeartRate: Int?, steps: Int) -> Unit)? = null
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
     val context = LocalContext.current
-    val workoutEngine = remember { PhoneWorkoutEngine.getInstance(context) }
+    val workoutEngine = remember { WorkoutTrackingService.getInstance(context) }
     val telemetry by workoutEngine.telemetry.collectAsState()
 
     LaunchedEffect(targetGoalTab, targetMinutes, targetDistanceKm, userWeightKg) {
@@ -99,7 +109,7 @@ fun WalkingTrackingScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp),
@@ -127,7 +137,7 @@ fun WalkingTrackingScreen(
                     ) {
                         BackArrowIcon(
                             modifier = Modifier.size(20.dp),
-                            color = Color(0xFF111827)
+                            color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                         )
                     }
 
@@ -137,7 +147,7 @@ fun WalkingTrackingScreen(
                         text = "Walking",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                     )
                 }
 
@@ -145,7 +155,13 @@ fun WalkingTrackingScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (!telemetry.isPaused) Color(0xFFE6F4EA) else Color(0xFFFEF3C7))
+                        .background(
+                            if (!telemetry.isPaused) {
+                                if (isDark) Color(0xFF1B382B) else Color(0xFFE6F4EA)
+                            } else {
+                                if (isDark) Color(0xFF3B2D14) else Color(0xFFFEF3C7)
+                            }
+                        )
                         .clickable {
                             if (telemetry.isPaused) workoutEngine.resumeWorkout() else workoutEngine.pauseWorkout()
                         }
@@ -155,7 +171,11 @@ fun WalkingTrackingScreen(
                         text = if (!telemetry.isPaused) "• In progress" else "⏸ Paused",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (!telemetry.isPaused) Color(0xFF0F9F7A) else Color(0xFFD97706)
+                        color = if (!telemetry.isPaused) {
+                            if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                        } else {
+                            if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
+                        }
                     )
                 }
             }
@@ -168,19 +188,23 @@ fun WalkingTrackingScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "🚶 Outdoor Walk", fontSize = 13.sp, color = Color(0xFF6B7280))
+                    Text(
+                        text = "🚶 Outdoor Walk",
+                        fontSize = 13.sp,
+                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFE8F6F0))
+                            .background(if (isDark) Color(0xFF1B382B) else Color(0xFFE8F6F0))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = if (targetGoalTab == "Distance") "Target: ${String.format(Locale.US, "%.1f", targetDistanceKm)} km" else "Target: $targetMinutes min",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F9F7A)
+                            color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
                         )
                     }
                 }
@@ -191,13 +215,13 @@ fun WalkingTrackingScreen(
                     text = formattedDynamicTime,
                     fontSize = 52.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                 )
 
                 Text(
                     text = "Elapsed Time",
                     fontSize = 12.sp,
-                    color = Color(0xFF9CA3AF)
+                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF)
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -205,7 +229,13 @@ fun WalkingTrackingScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(if (telemetry.isPaused) Color(0xFFFEF3C7) else Color(0xFFE8F6F0))
+                        .background(
+                            if (telemetry.isPaused) {
+                                if (isDark) Color(0xFF3B2D14) else Color(0xFFFEF3C7)
+                            } else {
+                                if (isDark) Color(0xFF1B382B) else Color(0xFFE8F6F0)
+                            }
+                        )
                         .clickable {
                             if (telemetry.isPaused) workoutEngine.resumeWorkout() else workoutEngine.pauseWorkout()
                         }
@@ -215,7 +245,11 @@ fun WalkingTrackingScreen(
                         text = if (telemetry.isPaused) "▶ Resume" else "⏸ Pause",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (telemetry.isPaused) Color(0xFFD97706) else Color(0xFF0F9F7A)
+                        color = if (telemetry.isPaused) {
+                            if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
+                        } else {
+                            if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                        }
                     )
                 }
             }
@@ -228,15 +262,25 @@ fun WalkingTrackingScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text(text = "Live Distance", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    Text(text = "Live Distance", fontSize = 12.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF))
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = String.format(Locale.US, "%.2f km", liveDistanceKm), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(
+                        text = String.format(Locale.US, "%.2f km", liveDistanceKm),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                    )
                 }
 
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(text = "Live Steps", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    Text(text = "Live Steps", fontSize = 12.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF))
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = String.format(Locale.US, "%,d", liveSteps), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(
+                        text = String.format(Locale.US, "%,d", liveSteps),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                    )
                 }
             }
 
@@ -247,15 +291,25 @@ fun WalkingTrackingScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text(text = "Average Pace", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    Text(text = "Average Pace", fontSize = 12.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF))
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = livePaceFormatted, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(
+                        text = livePaceFormatted,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                    )
                 }
 
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(text = "Active Calories", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    Text(text = "Active Calories", fontSize = 12.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF))
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "$liveCalories kcal", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(
+                        text = "$liveCalories kcal",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                    )
                 }
             }
 
@@ -265,7 +319,8 @@ fun WalkingTrackingScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
@@ -277,13 +332,13 @@ fun WalkingTrackingScreen(
                             text = if (targetGoalTab == "Distance") "Live Distance Progress" else "Live Time Progress",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                         )
                         Text(
                             text = "${(animatedGoalProgress * 100).toInt()}%",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F9F7A)
+                            color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
                         )
                     }
 
@@ -294,14 +349,14 @@ fun WalkingTrackingScreen(
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(Color(0xFFE5E7EB))
+                            .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFE5E7EB))
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(animatedGoalProgress)
                                 .height(8.dp)
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0xFF0F9F7A))
+                                .background(if (isDark) CarbonDarkAccent else Color(0xFF0F9F7A))
                         )
                     }
 
@@ -315,7 +370,7 @@ fun WalkingTrackingScreen(
                             "$formattedDynamicTime of ${targetMinutes}m · ${telemetry.remainingFormatted}"
                         },
                         fontSize = 12.sp,
-                        color = Color(0xFF6B7280)
+                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
                     )
                 }
             }
@@ -326,7 +381,9 @@ fun WalkingTrackingScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F6F0)),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isDark) Color(0xFF1B382B) else Color(0xFFE8F6F0)
+                ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
@@ -335,11 +392,16 @@ fun WalkingTrackingScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "Session Performance Result", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(
+                            text = "Session Performance Result",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                        )
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF0F9F7A))
+                                .background(if (isDark) CarbonDarkAccent else Color(0xFF0F9F7A))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(text = "Live Result", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
@@ -353,21 +415,54 @@ fun WalkingTrackingScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
-                            Text(text = "LIVE TIME", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A), letterSpacing = 0.8.sp)
+                            Text(
+                                text = "LIVE TIME",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
+                                letterSpacing = 0.8.sp
+                            )
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = formattedDynamicTime, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(
+                                text = formattedDynamicTime,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                            )
                         }
 
                         Column {
-                            Text(text = "ENERGY BURN", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A), letterSpacing = 0.8.sp)
+                            Text(
+                                text = "ENERGY BURN",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
+                                letterSpacing = 0.8.sp
+                            )
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = "$liveCalories kcal", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(
+                                text = "$liveCalories kcal",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                            )
                         }
 
                         Column(horizontalAlignment = Alignment.End) {
-                            Text(text = "CALCULATED PACE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A), letterSpacing = 0.8.sp)
+                            Text(
+                                text = "CALCULATED PACE",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
+                                letterSpacing = 0.8.sp
+                            )
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = livePaceFormatted, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(
+                                text = livePaceFormatted,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                            )
                         }
                     }
                 }
@@ -396,7 +491,7 @@ fun WalkingTrackingScreen(
                 .height(54.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = VitalTealDark,
+                containerColor = if (isDark) CarbonDarkAccent else VitalTealDark,
                 contentColor = Color.White
             )
         ) {

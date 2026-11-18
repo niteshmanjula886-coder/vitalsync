@@ -225,6 +225,35 @@ object RetrofitClient {
     fun getBaseUrl(): String = currentBaseUrl
 
     /**
+     * Pings a base URL candidate to test connectivity.
+     */
+    suspend fun testConnection(testUrl: String): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        val formatted = if (testUrl.endsWith("/")) testUrl else "$testUrl/"
+        val pingUrl = formatted + "check_connection.php"
+        try {
+            val req = Request.Builder()
+                .url(pingUrl)
+                .get()
+                .header("Connection", "close")
+                .header("X-Tunnel-Skip-Anti-Abuse", "true")
+                .build()
+            val shortClient = okHttpClient.newBuilder()
+                .connectTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(5, TimeUnit.SECONDS)
+                .build()
+            shortClient.newCall(req).execute().use { resp ->
+                if (resp.isSuccessful) {
+                    Pair(true, "Server reachable (HTTP ${resp.code})")
+                } else {
+                    Pair(false, "Server returned HTTP ${resp.code}")
+                }
+            }
+        } catch (e: Exception) {
+            Pair(false, e.localizedMessage ?: "Connection failed")
+        }
+    }
+
+    /**
      * Resolves an avatar URL or relative path against the active backend host and downloads its bytes.
      */
     suspend fun downloadImageBytes(urlOrPath: String): ByteArray? = withContext(Dispatchers.IO) {

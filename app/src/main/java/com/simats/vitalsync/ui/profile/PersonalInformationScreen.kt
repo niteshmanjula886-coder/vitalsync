@@ -1,9 +1,11 @@
 package com.simats.vitalsync.ui.profile
 
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
+import android.widget.Toast
 import java.io.File
 import java.io.FileOutputStream
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -13,11 +15,13 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,6 +51,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -62,7 +67,10 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -189,6 +197,10 @@ fun PersonalInformationScreen(
                     profileImageBitmap = scaled.asImageBitmap()
                     selectedImageUri = Uri.fromFile(outFile)
                     photoCleared = false
+
+                    // Immediately persist and set the avatar across app and upload to backend
+                    onSaveAvatarFile(outFile, false)
+                    Toast.makeText(context, "Profile photo cropped & set successfully!", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     e.printStackTrace()
                     profileImageBitmap = cropped.asImageBitmap()
@@ -730,6 +742,19 @@ fun ImageCropDialog(
     var rotationDegrees by remember { mutableFloatStateOf(0f) }
     var flipHorizontal by remember { mutableStateOf(false) }
     var flipVertical by remember { mutableStateOf(false) }
+    var zoomScale by remember { mutableFloatStateOf(1f) }
+    var panOffsetX by remember { mutableFloatStateOf(0f) }
+    var panOffsetY by remember { mutableFloatStateOf(0f) }
+    var viewfinderSizePx by remember { mutableIntStateOf(0) }
+
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    val viewfinderDp = if (isLandscape) {
+        minOf(260.dp, (configuration.screenHeightDp - 48).dp)
+    } else {
+        minOf(300.dp, (configuration.screenWidthDp - 48).dp)
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -741,107 +766,175 @@ fun ImageCropDialog(
                 .background(Color(0xFF0F0F0F)),
             color = Color(0xFF0F0F0F)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Top Title & Hint
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Crop & Adjust Photo",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFF1F1F1)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Rotate, flip, and align inside the square viewfinder",
-                        fontSize = 12.sp,
-                        color = Color(0xFFAAAAAA)
-                    )
-                }
+            val onDoneAction: () -> Unit = {
+                try {
+                    val targetDim = minOf(1024, maxOf(sourceBitmap.width, sourceBitmap.height, 512))
+                    val output = Bitmap.createBitmap(targetDim, targetDim, Bitmap.Config.ARGB_8888)
+                    val canvas = android.graphics.Canvas(output)
+                    val matrix = Matrix()
+                    val vSize = if (viewfinderSizePx > 0) viewfinderSizePx.toFloat() else 300f
 
-                // Square Viewfinder Box with Grid Overlay
+                    // 1. Center source bitmap at origin
+                    matrix.postTranslate(-sourceBitmap.width / 2f, -sourceBitmap.height / 2f)
+                    // 2. Rotate
+                    matrix.postRotate(rotationDegrees)
+                    // 3. Flip
+                    matrix.postScale(if (flipHorizontal) -1f else 1f, if (flipVertical) -1f else 1f)
+                    // 4. Base scale to cover viewfinder + user zoom + target resolution factor
+                    val baseScale = maxOf(vSize / sourceBitmap.width, vSize / sourceBitmap.height)
+                    val totalScale = baseScale * zoomScale * (targetDim.toFloat() / vSize)
+                    matrix.postScale(totalScale, totalScale)
+                    // 5. Translate canvas center + scaled user pan
+                    val panRatio = targetDim.toFloat() / vSize
+                    matrix.postTranslate(
+                        targetDim / 2f + panOffsetX * panRatio,
+                        targetDim / 2f + panOffsetY * panRatio
+                    )
+
+                    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.FILTER_BITMAP_FLAG)
+                    canvas.drawBitmap(sourceBitmap, matrix, paint)
+                    onCropComplete(output)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    onCropComplete(sourceBitmap)
+                }
+            }
+
+            // Viewfinder Box Composable
+            val viewfinderComposable = @Composable {
                 Box(
                     modifier = Modifier
-                        .size(300.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF1E1E1E)),
+                        .size(viewfinderDp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0xFF1E1E1E))
+                        .onGloballyPositioned { coords ->
+                            viewfinderSizePx = coords.size.width
+                        }
+                        .pointerInput(Unit) {
+                            detectTransformGestures { _, pan, zoom, _ ->
+                                zoomScale = (zoomScale * zoom).coerceIn(1.0f, 5.0f)
+                                panOffsetX += pan.x
+                                panOffsetY += pan.y
+                            }
+                        },
                     contentAlignment = Alignment.Center
                 ) {
-                    // Preview Bitmap with Live Transformations
                     Image(
                         bitmap = sourceBitmap.asImageBitmap(),
                         contentDescription = "Crop Preview",
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
+                                translationX = panOffsetX
+                                translationY = panOffsetY
+                                scaleX = (if (flipHorizontal) -1f else 1f) * zoomScale
+                                scaleY = (if (flipVertical) -1f else 1f) * zoomScale
                                 rotationZ = rotationDegrees
-                                scaleX = if (flipHorizontal) -1f else 1f
-                                scaleY = if (flipVertical) -1f else 1f
                             },
                         contentScale = ContentScale.Crop
                     )
 
-                    // Crop Grid Overlay
+                    // Rule of Thirds & Corner Bracket Overlay
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val w = size.width
                         val h = size.height
 
-                        // Outer Frame Border
+                        // Border Frame
                         drawRect(
                             color = Color(0xFF10A37F),
                             style = Stroke(width = 2.dp.toPx())
                         )
 
-                        // 3x3 Grid Lines (Rule of Thirds)
+                        // 3x3 Grid
                         val gridColor = Color.White.copy(alpha = 0.35f)
                         val strokeW = 1.dp.toPx()
-
-                        // Vertical lines
                         drawLine(color = gridColor, start = Offset(w / 3f, 0f), end = Offset(w / 3f, h), strokeWidth = strokeW)
                         drawLine(color = gridColor, start = Offset(w * 2f / 3f, 0f), end = Offset(w * 2f / 3f, h), strokeWidth = strokeW)
-
-                        // Horizontal lines
                         drawLine(color = gridColor, start = Offset(0f, h / 3f), end = Offset(w, h / 3f), strokeWidth = strokeW)
                         drawLine(color = gridColor, start = Offset(0f, h * 2f / 3f), end = Offset(w, h * 2f / 3f), strokeWidth = strokeW)
 
-                        // Corner Viewfinder Brackets
-                        val cornerLen = 20.dp.toPx()
-                        val cornerStroke = 3.dp.toPx()
+                        // Green Viewfinder Corner Brackets
+                        val cornerLen = 22.dp.toPx()
+                        val cornerStroke = 3.5.dp.toPx()
                         val cornerColor = Color(0xFF10A37F)
-
-                        // Top-Left
                         drawLine(cornerColor, Offset(0f, 0f), Offset(cornerLen, 0f), cornerStroke)
                         drawLine(cornerColor, Offset(0f, 0f), Offset(0f, cornerLen), cornerStroke)
-
-                        // Top-Right
                         drawLine(cornerColor, Offset(w, 0f), Offset(w - cornerLen, 0f), cornerStroke)
                         drawLine(cornerColor, Offset(w, 0f), Offset(w, cornerLen), cornerStroke)
-
-                        // Bottom-Left
                         drawLine(cornerColor, Offset(0f, h), Offset(cornerLen, h), cornerStroke)
                         drawLine(cornerColor, Offset(0f, h), Offset(0f, h - cornerLen), cornerStroke)
-
-                        // Bottom-Right
                         drawLine(cornerColor, Offset(w, h), Offset(w - cornerLen, h), cornerStroke)
                         drawLine(cornerColor, Offset(w, h), Offset(w, cornerLen), cornerStroke)
                     }
                 }
+            }
 
-                // Adjustment Controls (Rotate, Flip, Reset)
+            // Controls Composable
+            val controlsComposable = @Composable {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Zoom Bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Zoom:",
+                            fontSize = 12.sp,
+                            color = Color(0xFFAAAAAA),
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .background(Color(0xFF262626), CircleShape)
+                                .clickable {
+                                    zoomScale = (zoomScale - 0.25f).coerceAtLeast(1.0f)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "−", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFF1E1E1E), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = String.format(Locale.US, "%.1fx", zoomScale),
+                                color = Color(0xFF10A37F),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .background(Color(0xFF262626), CircleShape)
+                                .clickable {
+                                    zoomScale = (zoomScale + 0.25f).coerceAtMost(5.0f)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "+", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Tool Buttons (Rotate, Flip, Reset)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -863,10 +956,13 @@ fun ImageCropDialog(
                             rotationDegrees = 0f
                             flipHorizontal = false
                             flipVertical = false
+                            zoomScale = 1.0f
+                            panOffsetX = 0f
+                            panOffsetY = 0f
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     // Cancel & Done Action Buttons
                     Row(
@@ -877,7 +973,7 @@ fun ImageCropDialog(
                             onClick = onDismiss,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(50.dp),
+                                .height(48.dp),
                             shape = RoundedCornerShape(14.dp),
                             border = BorderStroke(1.dp, Color(0xFF333333)),
                             colors = ButtonDefaults.outlinedButtonColors(
@@ -888,37 +984,10 @@ fun ImageCropDialog(
                         }
 
                         Button(
-                            onClick = {
-                                try {
-                                    val matrix = Matrix().apply {
-                                        postRotate(rotationDegrees)
-                                        postScale(
-                                            if (flipHorizontal) -1f else 1f,
-                                            if (flipVertical) -1f else 1f
-                                        )
-                                    }
-                                    val transformed = Bitmap.createBitmap(
-                                        sourceBitmap,
-                                        0,
-                                        0,
-                                        sourceBitmap.width,
-                                        sourceBitmap.height,
-                                        matrix,
-                                        true
-                                    )
-                                    val minDim = minOf(transformed.width, transformed.height)
-                                    val x = (transformed.width - minDim) / 2
-                                    val y = (transformed.height - minDim) / 2
-                                    val cropped = Bitmap.createBitmap(transformed, x, y, minDim, minDim)
-                                    onCropComplete(cropped)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                    onCropComplete(sourceBitmap)
-                                }
-                            },
+                            onClick = onDoneAction,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(50.dp),
+                                .height(48.dp),
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFF10A37F),
@@ -928,6 +997,77 @@ fun ImageCropDialog(
                             Text(text = "Done", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         }
                     }
+                }
+            }
+
+            if (isLandscape) {
+                // Landscape Adaptive Layout
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .navigationBarsPadding()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    viewfinderComposable()
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Crop & Adjust Photo",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFF1F1F1)
+                        )
+                        Text(
+                            text = "Drag to align • Pinch or use + / − to zoom",
+                            fontSize = 11.sp,
+                            color = Color(0xFFAAAAAA)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        controlsComposable()
+                    }
+                }
+            } else {
+                // Portrait Layout
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Crop & Adjust Photo",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFF1F1F1)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Drag to align • Pinch or use + / − to zoom",
+                            fontSize = 12.sp,
+                            color = Color(0xFFAAAAAA)
+                        )
+                    }
+
+                    viewfinderComposable()
+
+                    controlsComposable()
                 }
             }
         }

@@ -167,7 +167,14 @@ class ProfileViewModel(
     private val _uploadAvatarState = MutableStateFlow(UploadAvatarUiState())
     val uploadAvatarState: StateFlow<UploadAvatarUiState> = _uploadAvatarState.asStateFlow()
 
-    private val _appSettingsState = MutableStateFlow(AppSettingsUiState())
+    private val _appSettingsState = MutableStateFlow(
+        AppSettingsUiState(
+            aiInsights = profileRepository.sessionManager?.isAiInsightsEnabled() ?: true,
+            aiInsightsEnabled = profileRepository.sessionManager?.isAiInsightsEnabled() ?: true,
+            usageAnalytics = profileRepository.sessionManager?.isUsageAnalyticsEnabled() ?: false,
+            userAnalyticsEnabled = profileRepository.sessionManager?.isUsageAnalyticsEnabled() ?: false
+        )
+    )
     val appSettingsState: StateFlow<AppSettingsUiState> = _appSettingsState.asStateFlow()
 
     private val _weeklyReportState = MutableStateFlow(WeeklyReportUiState())
@@ -665,6 +672,12 @@ class ProfileViewModel(
                         }
                         is Resource.Success -> {
                             val s = resource.data
+                            val localAi = profileRepository.sessionManager?.isAiInsightsEnabled()
+                            val localUsage = profileRepository.sessionManager?.isUsageAnalyticsEnabled()
+                            val resolvedAi = localAi ?: s.aiInsights
+                            val resolvedUsage = localUsage ?: s.usageAnalytics
+                            profileRepository.sessionManager?.setAiInsightsEnabled(resolvedAi)
+                            profileRepository.sessionManager?.setUsageAnalyticsEnabled(resolvedUsage)
                             _appSettingsState.update {
                                 it.copy(
                                     isLoading = false,
@@ -674,10 +687,10 @@ class ProfileViewModel(
                                     metricUnits = s.metricUnits,
                                     darkMode = s.darkMode,
                                     dataSyncInterval = s.dataSyncInterval,
-                                    aiInsights = s.aiInsights,
-                                    aiInsightsEnabled = s.aiInsightsEnabled,
-                                    usageAnalytics = s.usageAnalytics,
-                                    userAnalyticsEnabled = s.userAnalyticsEnabled,
+                                    aiInsights = resolvedAi,
+                                    aiInsightsEnabled = resolvedAi,
+                                    usageAnalytics = resolvedUsage,
+                                    userAnalyticsEnabled = resolvedUsage,
                                     reminderWaterInterval = s.reminderWaterInterval,
                                     reminderWorkoutEnabled = s.reminderWorkoutEnabled,
                                     reminderSleepEnabled = s.reminderSleepEnabled,
@@ -714,6 +727,9 @@ class ProfileViewModel(
         userId: Int? = null,
         email: String? = null
     ) {
+        aiInsights?.let { profileRepository.sessionManager?.setAiInsightsEnabled(it) }
+        usageAnalytics?.let { profileRepository.sessionManager?.setUsageAnalyticsEnabled(it) }
+
         _appSettingsState.update { current ->
             current.copy(
                 pushNotifications = pushNotifications ?: current.pushNotifications,

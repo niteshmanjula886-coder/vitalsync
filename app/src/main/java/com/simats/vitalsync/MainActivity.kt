@@ -2,6 +2,7 @@ package com.simats.vitalsync
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import com.simats.vitalsync.ui.theme.AppThemeMode
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -30,9 +32,11 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -224,11 +228,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         
-        // Ensure system status bar (clock/battery) and bottom navigation bar are always enabled and visible
-        WindowCompat.setDecorFitsSystemWindows(window, true)
+        // Configure edge-to-edge system bars so content and themes flow properly
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-        insetsController.isAppearanceLightStatusBars = true
-        insetsController.isAppearanceLightNavigationBars = true
         insetsController.show(WindowInsetsCompat.Type.systemBars())
 
         val repository = FitnessRepository.getInstance(applicationContext)
@@ -247,19 +249,33 @@ class MainActivity : ComponentActivity() {
                 AppThemeMode.LIGHT -> false
             }
 
-            val windowInsetsController = remember(window) { WindowCompat.getInsetsController(window, window.decorView) }
-            SideEffect {
-                if (isEffectiveDark) {
-                    window.statusBarColor = android.graphics.Color.parseColor("#0F0F0F")
-                    window.navigationBarColor = android.graphics.Color.parseColor("#0F0F0F")
-                    windowInsetsController.isAppearanceLightStatusBars = false
-                    windowInsetsController.isAppearanceLightNavigationBars = false
+            DisposableEffect(isEffectiveDark) {
+                enableEdgeToEdge(
+                    statusBarStyle = if (isEffectiveDark) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                    },
+                    navigationBarStyle = if (isEffectiveDark) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                    }
+                )
+                window.statusBarColor = if (isEffectiveDark) {
+                    android.graphics.Color.parseColor("#0F0F0F")
                 } else {
-                    window.statusBarColor = android.graphics.Color.parseColor("#F7FBF8")
-                    window.navigationBarColor = android.graphics.Color.parseColor("#FFFFFF")
-                    windowInsetsController.isAppearanceLightStatusBars = true
-                    windowInsetsController.isAppearanceLightNavigationBars = true
+                    android.graphics.Color.parseColor("#F7FBF8")
                 }
+                window.navigationBarColor = if (isEffectiveDark) {
+                    android.graphics.Color.parseColor("#0F0F0F")
+                } else {
+                    android.graphics.Color.parseColor("#FFFFFF")
+                }
+                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.isAppearanceLightStatusBars = !isEffectiveDark
+                insetsController.isAppearanceLightNavigationBars = !isEffectiveDark
+                onDispose { }
             }
 
             VitalsyncTheme(themeMode = currentThemeMode, darkTheme = isEffectiveDark) {
@@ -412,10 +428,10 @@ class MainActivity : ComponentActivity() {
                     profileState.errorMessage
                 ).firstOrNull { it.isNotBlank() }
 
-                var currentScreen by remember { mutableStateOf(ScreenState.SPLASH) }
-                var isNewUser by remember { mutableStateOf(false) }
+                var currentScreen by rememberSaveable { mutableStateOf(ScreenState.SPLASH) }
+                var isNewUser by rememberSaveable { mutableStateOf(false) }
                 var activeReadingType by remember { mutableStateOf(VitalReadingType.HEART_RATE) }
-                var homeInitialTab by remember { mutableIntStateOf(0) }
+                var homeInitialTab by rememberSaveable { mutableIntStateOf(0) }
                 var viewHistoryPreviousScreen by remember { mutableStateOf(ScreenState.START_ACTIVITY) }
 
                 var activeWorkoutSplit by remember { mutableStateOf(WorkoutSplit.PUSH) }
@@ -1953,6 +1969,13 @@ class MainActivity : ComponentActivity() {
                                                 userId = currentUser?.id,
                                                 email = currentEmail
                                             )
+                                            try {
+                                                android.graphics.BitmapFactory.decodeFile(avatarFile.absolutePath)?.let {
+                                                    globalProfilePhotoBitmap = it.asImageBitmap()
+                                                }
+                                            } catch (_: Exception) {}
+                                        } else if (cleared) {
+                                            globalProfilePhotoBitmap = null
                                         }
                                     },
                                     onSaveChangesClick = { newName, newInitials, newAge, newHeight, newWeight, newPhotoBitmap, newDob, newGender, newPhone ->
@@ -2044,10 +2067,12 @@ class MainActivity : ComponentActivity() {
                                 PrivacySecurityScreen(
                                     aiInsightsEnabled = appSettingsState.aiInsights,
                                     onAiInsightsChange = { enabled ->
+                                        sessionManager.setAiInsightsEnabled(enabled)
                                         profileViewModel.updateAppSettings(email = currentEmail, aiInsights = enabled)
                                     },
                                     usageAnalyticsEnabled = appSettingsState.usageAnalytics,
                                     onUsageAnalyticsChange = { enabled ->
+                                        sessionManager.setUsageAnalyticsEnabled(enabled)
                                         profileViewModel.updateAppSettings(email = currentEmail, usageAnalytics = enabled)
                                     },
                                     activeSessionsCount = if (loginSessionsState.sessions.isNotEmpty()) loginSessionsState.sessions.size else 1,
@@ -2091,10 +2116,6 @@ class MainActivity : ComponentActivity() {
                                     onPushNotificationsToggle = { enabled ->
                                         profileViewModel.updateAppSettings(email = currentEmail, pushNotifications = enabled)
                                     },
-                                    dailyReminders = appSettingsState.dailyReminders,
-                                    onDailyRemindersToggle = { enabled ->
-                                        profileViewModel.updateAppSettings(email = currentEmail, dailyReminders = enabled)
-                                    },
                                     aiInsights = appSettingsState.aiInsights,
                                     onAiInsightsToggle = { enabled ->
                                         profileViewModel.updateAppSettings(email = currentEmail, aiInsights = enabled)
@@ -2105,7 +2126,6 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onChangePasswordClick = { currentScreen = ScreenState.CHANGE_PASSWORD },
                                     onHealthPermissionsClick = { currentScreen = ScreenState.HEALTH_PERMISSIONS },
-                                    onRemindersClick = { currentScreen = ScreenState.REMINDERS },
                                     onDataManagementClick = { currentScreen = ScreenState.DATA_MANAGEMENT },
                                     onAboutClick = { currentScreen = ScreenState.ABOUT_VITALSINC },
                                     onVersionClick = { currentScreen = ScreenState.VERSION }
@@ -2286,6 +2306,8 @@ class MainActivity : ComponentActivity() {
                             }
                             ScreenState.ACTIVITY_DETAIL -> {
                                 ActivityDetailScreen(
+                                    viewModel = activityViewModel,
+                                    userEmail = currentEmail,
                                     onBackClick = {
                                         homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN

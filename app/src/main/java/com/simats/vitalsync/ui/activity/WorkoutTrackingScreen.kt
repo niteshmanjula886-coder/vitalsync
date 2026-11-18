@@ -33,6 +33,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -111,12 +112,13 @@ fun WorkoutTrackingScreen(
         }
     }
 
+    val isDark = MaterialTheme.colorScheme.background == com.simats.vitalsync.ui.theme.CarbonDarkBackground
     val estimatedCaloriesBurned = (workoutSeconds * 0.12f).toInt()
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp),
@@ -144,7 +146,7 @@ fun WorkoutTrackingScreen(
                     ) {
                         BackArrowIcon(
                             modifier = Modifier.size(20.dp),
-                            color = Color(0xFF111827)
+                            color = if (isDark) com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary else Color(0xFF111827)
                         )
                     }
 
@@ -154,7 +156,7 @@ fun WorkoutTrackingScreen(
                         text = "Workout Tracker",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = if (isDark) com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary else Color(0xFF111827)
                     )
                 }
 
@@ -199,7 +201,7 @@ fun WorkoutTrackingScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
@@ -298,7 +300,7 @@ fun WorkoutTrackingScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {

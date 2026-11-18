@@ -40,6 +40,8 @@ class SessionManager(context: Context) {
         private const val KEY_DARK_MODE_ENABLED = "key_dark_mode_enabled"
         private const val KEY_THEME_MODE = "key_theme_mode"
         private const val KEY_DAILY_STEP_GOAL = "key_daily_step_goal"
+        private const val KEY_AI_INSIGHTS_ENABLED = "key_ai_insights_enabled"
+        private const val KEY_USAGE_ANALYTICS_ENABLED = "key_usage_analytics_enabled"
 
         // Hydration & Steps Reminders Keys
         private const val KEY_HYDRATION_REMINDER_ENABLED = "key_hydration_reminder_enabled"
@@ -61,13 +63,13 @@ class SessionManager(context: Context) {
                         val u = it.getUser()
                         if (u != null && u.id > 0) u.id.toString() else it.getUserEmail().ifBlank { null }
                     }
-                    // Sync base URL: Always ensure active ApiConstants.DEFAULT_BASE_URL is utilized,
-                    // resetting any stale cached IP across app launches
+                    // Sync base URL: Respect user-configured custom URL if available,
+                    // otherwise default to ApiConstants.DEFAULT_BASE_URL
                     val savedUrl = it.getCustomBaseUrl()
-                    if (savedUrl.isNullOrBlank() || savedUrl != ApiConstants.DEFAULT_BASE_URL) {
-                        it.setCustomBaseUrl(ApiConstants.DEFAULT_BASE_URL)
-                    } else {
+                    if (!savedUrl.isNullOrBlank()) {
                         RetrofitClient.updateBaseUrl(savedUrl)
+                    } else {
+                        it.setCustomBaseUrl(ApiConstants.DEFAULT_BASE_URL)
                     }
                 }
             }
@@ -353,5 +355,21 @@ class SessionManager(context: Context) {
 
     fun getStepsReminderTime(): String {
         return prefs.getString(KEY_STEPS_REMINDER_TIME, "07:00 PM") ?: "07:00 PM"
+    }
+
+    fun setAiInsightsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AI_INSIGHTS_ENABLED, enabled).apply()
+    }
+
+    fun isAiInsightsEnabled(): Boolean {
+        return prefs.getBoolean(KEY_AI_INSIGHTS_ENABLED, true)
+    }
+
+    fun setUsageAnalyticsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_USAGE_ANALYTICS_ENABLED, enabled).apply()
+    }
+
+    fun isUsageAnalyticsEnabled(): Boolean {
+        return prefs.getBoolean(KEY_USAGE_ANALYTICS_ENABLED, false)
     }
 }

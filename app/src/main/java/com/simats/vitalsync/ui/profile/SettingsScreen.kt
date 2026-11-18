@@ -57,14 +57,11 @@ fun SettingsScreen(
     onDarkThemeToggle: (Boolean) -> Unit = {},
     pushNotifications: Boolean = true,
     onPushNotificationsToggle: (Boolean) -> Unit = {},
-    dailyReminders: Boolean = true,
-    onDailyRemindersToggle: (Boolean) -> Unit = {},
     aiInsights: Boolean = true,
     onAiInsightsToggle: (Boolean) -> Unit = {},
     onBackClick: () -> Unit = {},
     onChangePasswordClick: () -> Unit = {},
     onHealthPermissionsClick: () -> Unit = {},
-    onRemindersClick: () -> Unit = {},
     onDataManagementClick: () -> Unit = {},
     onAboutClick: () -> Unit = {},
     onVersionClick: () -> Unit = {}
@@ -156,52 +153,6 @@ fun SettingsScreen(
                     onPushNotificationsToggle(it)
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                // Reminders row with Edit button
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { onRemindersClick() }
-                    ) {
-                        Text(
-                            text = "Reminders",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(MaterialTheme.colorScheme.secondary)
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "Edit",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-
-                    Switch(
-                        checked = dailyReminders,
-                        onCheckedChange = { onDailyRemindersToggle(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-                }
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 SettingsSwitchRow("AI Insights", aiInsights) {
                     onAiInsightsToggle(it)
                 }
@@ -228,24 +179,19 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = when (themeMode) {
-                        AppThemeMode.SYSTEM -> "Matching device system setting automatically"
-                        AppThemeMode.LIGHT -> "VitalSync clean light theme"
-                        AppThemeMode.DARK -> "Carbon-Gray & Matte-Black dark theme"
-                    },
+                    text = if (themeMode == AppThemeMode.DARK) "Carbon-Gray & Matte-Black dark theme" else "VitalSync clean light theme",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // 3-way Segmented Buttons (System Default / Light / Dark)
+                // 2-way Segmented Buttons (Light / Dark)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     val modes = listOf(
-                        Triple(AppThemeMode.SYSTEM, "System", "⚙️"),
                         Triple(AppThemeMode.LIGHT, "Light", "☀️"),
                         Triple(AppThemeMode.DARK, "Dark", "🌙")
                     )
@@ -267,17 +213,17 @@ fun SettingsScreen(
                             )
                         ) {
                             Column(
-                                modifier = Modifier.padding(vertical = 10.dp),
+                                modifier = Modifier.padding(vertical = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
                                     text = icon,
-                                    fontSize = 16.sp
+                                    fontSize = 18.sp
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = label,
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                 )

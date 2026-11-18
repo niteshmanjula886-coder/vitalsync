@@ -49,11 +49,11 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun VitalsyncTheme(
-    themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    themeMode: AppThemeMode = AppThemeMode.LIGHT,
     darkTheme: Boolean = when (themeMode) {
-        AppThemeMode.SYSTEM -> isSystemInDarkTheme()
         AppThemeMode.DARK -> true
         AppThemeMode.LIGHT -> false
+        else -> isSystemInDarkTheme()
     },
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = false,
@@ -75,16 +75,14 @@ fun VitalsyncTheme(
             val window = (view.context as? Activity)?.window
             if (window != null) {
                 val insetsController = WindowCompat.getInsetsController(window, view)
+                insetsController.isAppearanceLightStatusBars = !darkTheme
+                insetsController.isAppearanceLightNavigationBars = !darkTheme
                 if (darkTheme) {
                     window.statusBarColor = android.graphics.Color.parseColor("#0F0F0F")
                     window.navigationBarColor = android.graphics.Color.parseColor("#0F0F0F")
-                    insetsController.isAppearanceLightStatusBars = false
-                    insetsController.isAppearanceLightNavigationBars = false
                 } else {
                     window.statusBarColor = android.graphics.Color.parseColor("#F7FBF8")
                     window.navigationBarColor = android.graphics.Color.parseColor("#FFFFFF")
-                    insetsController.isAppearanceLightStatusBars = true
-                    insetsController.isAppearanceLightNavigationBars = true
                 }
             }
         }

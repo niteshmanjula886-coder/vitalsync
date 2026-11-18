@@ -29,6 +29,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +59,9 @@ fun PrivacySecurityScreen(
     onLoginSessionsClick: () -> Unit = {},
     onPrivacyPolicyClick: () -> Unit = {}
 ) {
+    var localAiInsights by remember(aiInsightsEnabled) { mutableStateOf(aiInsightsEnabled) }
+    var localUsageAnalytics by remember(usageAnalyticsEnabled) { mutableStateOf(usageAnalyticsEnabled) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -115,8 +122,11 @@ fun PrivacySecurityScreen(
                 PrivacyToggleRow(
                     title = "Personalized AI Insights",
                     subtitle = "Use wellness data for tailored insights.",
-                    checked = aiInsightsEnabled,
-                    onCheckedChange = { onAiInsightsChange(it) }
+                    checked = localAiInsights,
+                    onCheckedChange = { isChecked ->
+                        localAiInsights = isChecked
+                        onAiInsightsChange(isChecked)
+                    }
                 )
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
@@ -124,8 +134,11 @@ fun PrivacySecurityScreen(
                 PrivacyToggleRow(
                     title = "Usage Analytics",
                     subtitle = "Share optional app usage information.",
-                    checked = usageAnalyticsEnabled,
-                    onCheckedChange = { onUsageAnalyticsChange(it) }
+                    checked = localUsageAnalytics,
+                    onCheckedChange = { isChecked ->
+                        localUsageAnalytics = isChecked
+                        onUsageAnalyticsChange(isChecked)
+                    }
                 )
             }
         }

@@ -124,19 +124,14 @@ fun ProfileScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 100.dp)
-            .verticalScroll(rememberScrollState()),
+            .background(MaterialTheme.colorScheme.background),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Top Header
+        // Pinned Top Header (Persists cleanly below status bar/cutout without scrolling away)
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -155,9 +150,18 @@ fun ProfileScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        // Scrollable Profile Content
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // Choosable/Editable Avatar Circle
+            // Choosable/Editable Avatar Circle
         Box(
             modifier = Modifier
                 .size(88.dp)
@@ -312,6 +316,7 @@ fun ProfileScreen(
         }
 
         Spacer(modifier = Modifier.height(28.dp))
+        }
     }
 }
 

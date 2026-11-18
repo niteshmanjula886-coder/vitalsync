@@ -39,7 +39,7 @@ import java.io.File
 
 class ProfileRepository(
     private val apiService: ProfileApiService = RetrofitClient.profileApiService,
-    private val sessionManager: SessionManager? = null
+    val sessionManager: SessionManager? = null
 ) {
 
     fun updateLocalProfileFields(

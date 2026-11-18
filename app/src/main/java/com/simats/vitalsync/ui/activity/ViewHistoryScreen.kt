@@ -1,8 +1,8 @@
 package com.simats.vitalsync.ui.activity
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -47,6 +48,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.ActivitySessionRecord
 import com.simats.vitalsync.data.FitnessRepository
+import com.simats.vitalsync.ui.theme.CarbonDarkAccent
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkBorder
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
+import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
+import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -59,6 +67,7 @@ fun ViewHistoryScreen(
     initialFilter: String = "All",
     onBackClick: () -> Unit = {}
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
     var selectedFilter by remember { mutableStateOf(initialFilter) }
 
     val filteredRecords = remember(selectedFilter, sessionRecords) {
@@ -72,7 +81,7 @@ fun ViewHistoryScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -91,7 +100,7 @@ fun ViewHistoryScreen(
             ) {
                 BackArrowIcon(
                     modifier = Modifier.size(20.dp),
-                    color = Color(0xFF111827)
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                 )
             }
 
@@ -101,7 +110,7 @@ fun ViewHistoryScreen(
                 text = "Live Activity Session History",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
             )
         }
 
@@ -117,7 +126,13 @@ fun ViewHistoryScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(if (isSelected) VitalTealDark else Color(0xFFF1F5F9))
+                        .background(
+                            if (isSelected) {
+                                if (isDark) CarbonDarkAccent else VitalTealDark
+                            } else {
+                                if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)
+                            }
+                        )
                         .clickable { selectedFilter = filter }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
@@ -125,7 +140,7 @@ fun ViewHistoryScreen(
                         text = filter,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isSelected) Color.White else Color(0xFF475569)
+                        color = if (isSelected) Color.White else (if (isDark) CarbonDarkTextSecondary else Color(0xFF475569))
                     )
                 }
             }
@@ -137,7 +152,9 @@ fun ViewHistoryScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F6F0)),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDark) Color(0xFF1B382B) else Color(0xFFE8F6F0)
+            ),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Row(
@@ -152,19 +169,19 @@ fun ViewHistoryScreen(
                         text = "${filteredRecords.size} Live Sessions Recorded",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                     )
                     Text(
                         text = if (selectedFilter == "All") "Showing all recorded activities" else "Filtered by $selectedFilter",
                         fontSize = 12.sp,
-                        color = Color(0xFF6B7280)
+                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
                     )
                 }
 
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(VitalTealPrimary)
+                        .background(if (isDark) CarbonDarkAccent else VitalTealPrimary)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
@@ -186,7 +203,8 @@ fun ViewHistoryScreen(
                     .fillMaxWidth()
                     .padding(vertical = 20.dp),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
@@ -203,7 +221,7 @@ fun ViewHistoryScreen(
                         text = "No Activity History Yet",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827),
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
                         textAlign = TextAlign.Center
                     )
 
@@ -212,7 +230,7 @@ fun ViewHistoryScreen(
                     Text(
                         text = "Complete your first walking, running, or cycling session to view your real recorded stats history here.",
                         fontSize = 13.sp,
-                        color = Color(0xFF6B7280),
+                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
                         textAlign = TextAlign.Center,
                         lineHeight = 18.sp
                     )
@@ -239,7 +257,8 @@ fun ViewHistoryScreen(
                         .fillMaxWidth()
                         .padding(vertical = 6.dp),
                     shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Row(
@@ -262,7 +281,7 @@ fun ViewHistoryScreen(
                                     text = record.activityType,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF111827),
+                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -272,7 +291,7 @@ fun ViewHistoryScreen(
                                 Text(
                                     text = "${stepsSubtext}Duration: $durationStr · ${record.caloriesBurned} kcal$paceSubtext",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF0F9F7A),
+                                    color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -292,7 +311,7 @@ fun ViewHistoryScreen(
                                 text = distanceStr,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827),
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
                                 maxLines = 1,
                                 softWrap = false
                             )
@@ -300,7 +319,7 @@ fun ViewHistoryScreen(
                             Text(
                                 text = record.dateString,
                                 fontSize = 11.sp,
-                                color = Color(0xFF9CA3AF),
+                                color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF),
                                 maxLines = 1,
                                 softWrap = false
                             )

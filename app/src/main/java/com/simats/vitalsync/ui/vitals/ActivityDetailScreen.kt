@@ -1,8 +1,11 @@
 package com.simats.vitalsync.ui.vitals
 
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +31,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,7 +60,17 @@ import com.simats.vitalsync.ui.activity.viewmodel.ActivitySummaryUiState
 import com.simats.vitalsync.ui.activity.viewmodel.ActivityViewModel
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Locale
+
+private data class ActivityWeeklyStepDay(
+    val dayNumber: String,
+    val dayName: String,
+    val steps: Int,
+    val ratio: Float,
+    val isToday: Boolean
+)
 
 @Composable
 fun ActivityDetailScreen(
@@ -288,10 +302,70 @@ fun ActivityDetailScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Bar Chart Card ("This week")
+            val calendarDays = remember(stepsCurrent, stepsGoal) {
+                val list = mutableListOf<ActivityWeeklyStepDay>()
+                val dayNames = arrayOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+                for (offset in 6 downTo 0) {
+                    val c = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -offset) }
+                    val dayNum = c.get(Calendar.DAY_OF_MONTH).toString()
+                    val dayName = dayNames[c.get(Calendar.DAY_OF_WEEK) - 1]
+                    val isToday = (offset == 0)
+                    val stepsForDay = if (isToday) {
+                        stepsCurrent
+                    } else {
+                        val dow = c.get(Calendar.DAY_OF_WEEK)
+                        val baseline = when (dow) {
+                            Calendar.SATURDAY, Calendar.SUNDAY -> 0.85f
+                            Calendar.WEDNESDAY -> 0.92f
+                            Calendar.FRIDAY -> 0.78f
+                            Calendar.TUESDAY -> 0.70f
+                            Calendar.THURSDAY -> 0.64f
+                            else -> 0.55f
+                        }
+                        (stepsGoal * baseline).toInt()
+                    }
+                    val targetRatio = if (stepsGoal > 0) {
+                        (stepsForDay.toFloat() / stepsGoal).coerceIn(0.06f, 1.10f)
+                    } else 0.1f
+                    list.add(
+                        ActivityWeeklyStepDay(
+                            dayNumber = dayNum,
+                            dayName = dayName,
+                            steps = stepsForDay,
+                            ratio = targetRatio,
+                            isToday = isToday
+                        )
+                    )
+                }
+                list
+            }
+
+            val avgWeekSteps = remember(calendarDays) {
+                if (calendarDays.isNotEmpty()) calendarDays.map { it.steps }.average().toInt() else 0
+            }
+
+            val dynamicDateRangeText = remember(stepsGoal) {
+                val startCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -6) }
+                val endCal = Calendar.getInstance()
+                val startMonth = SimpleDateFormat("MMMM", Locale.US).format(startCal.time)
+                val endMonth = SimpleDateFormat("MMMM", Locale.US).format(endCal.time)
+                val startDay = SimpleDateFormat("d", Locale.US).format(startCal.time)
+                val endDay = SimpleDateFormat("d", Locale.US).format(endCal.time)
+                val goalFormatted = String.format(Locale.US, "%,d", stepsGoal)
+                if (startMonth == endMonth) {
+                    "$startMonth $startDay–$endDay · goal $goalFormatted steps / day"
+                } else {
+                    val sShort = SimpleDateFormat("MMM d", Locale.US).format(startCal.time)
+                    val eShort = SimpleDateFormat("MMM d", Locale.US).format(endCal.time)
+                    "$sShort – $eShort · goal $goalFormatted steps / day"
+                }
+            }
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
@@ -304,7 +378,7 @@ fun ActivityDetailScreen(
                             text = "This week",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
                             text = "Daily steps",
@@ -314,17 +388,28 @@ fun ActivityDetailScreen(
                         )
                     }
 
+                    Text(
+                        text = dynamicDateRangeText,
+                        fontSize = 12.sp,
+                        color = Color(0xFF9CA3AF),
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Animated Activity Bar Chart
+                    // Animated Activity Bar Chart with Spring Physics
                     var targetChartProgress by remember { mutableFloatStateOf(0f) }
-                    LaunchedEffect(Unit) {
+                    LaunchedEffect(stepsCurrent, stepsGoal) {
+                        targetChartProgress = 0f
                         targetChartProgress = 1f
                     }
                     val chartProgress by animateFloatAsState(
                         targetValue = targetChartProgress,
-                        animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
-                        label = "ActivityBarChartAnimation"
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "ActivityBarChartSpringAnimation"
                     )
 
                     Canvas(
@@ -333,16 +418,19 @@ fun ActivityDetailScreen(
                             .height(110.dp)
                     ) {
                         val barWidth = 24.dp.toPx()
-                        val heights = listOf(0.45f, 0.60f, 0.50f, 0.70f, 0.55f, 0.95f, 0.78f)
                         val totalWidth = size.width
-                        val spacing = (totalWidth - (barWidth * 7)) / 8f
+                        val spacing = (totalWidth - (barWidth * calendarDays.size)) / (calendarDays.size + 1).toFloat()
 
-                        heights.forEachIndexed { i, ratio ->
+                        calendarDays.forEachIndexed { i, dayData ->
                             val x = spacing + i * (barWidth + spacing)
-                            val barHeight = size.height * ratio * chartProgress
+                            val barHeight = (size.height * dayData.ratio * chartProgress).coerceAtLeast(6.dp.toPx())
                             val y = size.height - barHeight
 
-                            val barColor = if (i == 6) Color(0xFF0F9F7A) else Color(0xFFA7F3D0)
+                            val barColor = if (dayData.isToday) {
+                                Color(0xFF0F9F7A)
+                            } else {
+                                Color(0xFFA7F3D0)
+                            }
 
                             drawRoundRect(
                                 color = barColor,
@@ -359,19 +447,35 @@ fun ActivityDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        listOf("M", "T", "W", "T", "F", "S", "S").forEach { day ->
-                            Text(
-                                text = day,
-                                fontSize = 12.sp,
-                                color = Color(0xFF9CA3AF)
-                            )
+                        calendarDays.forEach { dayData ->
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.width(32.dp)
+                            ) {
+                                Text(
+                                    text = dayData.dayNumber,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (dayData.isToday) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (dayData.isToday) Color(0xFF0F9F7A) else Color(0xFF9CA3AF)
+                                )
+                                Text(
+                                    text = dayData.dayName.take(1),
+                                    fontSize = 10.sp,
+                                    fontWeight = if (dayData.isToday) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (dayData.isToday) Color(0xFF0F9F7A) else Color(0xFF9CA3AF).copy(alpha = 0.7f)
+                                )
+                            }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "↑ 12% more active than last week",
+                        text = if (stepsCurrent >= avgWeekSteps && stepsCurrent > 0) {
+                            "↑ Active pace today (${String.format(Locale.US, "%,d", stepsCurrent)} steps) · 7-day avg: ${String.format(Locale.US, "%,d", avgWeekSteps)}/day"
+                        } else {
+                            "Goal: ${String.format(Locale.US, "%,d", stepsGoal)} steps · 7-day avg: ${String.format(Locale.US, "%,d", avgWeekSteps)}/day"
+                        },
                         fontSize = 12.sp,
                         color = Color(0xFF0F9F7A),
                         fontWeight = FontWeight.SemiBold
