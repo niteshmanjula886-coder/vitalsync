@@ -2,6 +2,9 @@ package com.simats.vitalsync.ui.theme
 
 import android.app.Activity
 import android.os.Build
+import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -72,18 +75,34 @@ fun VitalsyncTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as? Activity)?.window
+            val activity = view.context as? ComponentActivity ?: (view.context as? Activity)
+            val window = activity?.window
             if (window != null) {
+                if (activity is ComponentActivity) {
+                    activity.enableEdgeToEdge(
+                        statusBarStyle = if (darkTheme) {
+                            SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                        } else {
+                            SystemBarStyle.light(
+                                android.graphics.Color.TRANSPARENT,
+                                android.graphics.Color.TRANSPARENT
+                            )
+                        },
+                        navigationBarStyle = if (darkTheme) {
+                            SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                        } else {
+                            SystemBarStyle.light(
+                                android.graphics.Color.TRANSPARENT,
+                                android.graphics.Color.TRANSPARENT
+                            )
+                        }
+                    )
+                }
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+                window.navigationBarColor = android.graphics.Color.TRANSPARENT
                 val insetsController = WindowCompat.getInsetsController(window, view)
                 insetsController.isAppearanceLightStatusBars = !darkTheme
                 insetsController.isAppearanceLightNavigationBars = !darkTheme
-                if (darkTheme) {
-                    window.statusBarColor = android.graphics.Color.parseColor("#0F0F0F")
-                    window.navigationBarColor = android.graphics.Color.parseColor("#0F0F0F")
-                } else {
-                    window.statusBarColor = android.graphics.Color.parseColor("#F7FBF8")
-                    window.navigationBarColor = android.graphics.Color.parseColor("#FFFFFF")
-                }
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.vitals
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -71,6 +72,10 @@ fun EditStepGoalScreen(
     onSaveGoalSuccess: (Int) -> Unit = {}
 ) {
     var stepGoal by remember(initialStepGoal) { mutableIntStateOf(initialStepGoal) }
+
+    BackHandler(enabled = true) {
+        onBackClick()
+    }
 
     val stepGoalState by (viewModel?.stepGoalState?.collectAsState() ?: remember { mutableStateOf(StepGoalUiState()) })
 

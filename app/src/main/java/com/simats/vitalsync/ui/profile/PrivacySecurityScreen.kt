@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.profile
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -56,9 +57,14 @@ fun PrivacySecurityScreen(
     onUsageAnalyticsChange: (Boolean) -> Unit = {},
     activeSessionsCount: Int = 1,
     onBackClick: () -> Unit = {},
+    onChangePasswordClick: () -> Unit = {},
     onLoginSessionsClick: () -> Unit = {},
     onPrivacyPolicyClick: () -> Unit = {}
 ) {
+    BackHandler(enabled = true) {
+        onBackClick()
+    }
+
     var localAiInsights by remember(aiInsightsEnabled) { mutableStateOf(aiInsightsEnabled) }
     var localUsageAnalytics by remember(usageAnalyticsEnabled) { mutableStateOf(usageAnalyticsEnabled) }
 
@@ -156,6 +162,15 @@ fun PrivacySecurityScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                SecurityRow(
+                    title = "Change Password",
+                    subtitle = "Update account security password",
+                    onClick = onChangePasswordClick
+                )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
                 SecurityRow(
                     title = "Login Sessions",
                     subtitle = "$activeSessionsCount active session(s)",

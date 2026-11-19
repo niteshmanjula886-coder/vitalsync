@@ -17,11 +17,13 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import com.simats.vitalsync.ui.theme.AppThemeMode
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -225,11 +227,12 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         
         // Configure edge-to-edge system bars so content and themes flow properly
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.show(WindowInsetsCompat.Type.systemBars())
 
@@ -254,24 +257,22 @@ class MainActivity : ComponentActivity() {
                     statusBarStyle = if (isEffectiveDark) {
                         SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
                     } else {
-                        SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                        SystemBarStyle.light(
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT
+                        )
                     },
                     navigationBarStyle = if (isEffectiveDark) {
                         SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
                     } else {
-                        SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                        SystemBarStyle.light(
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT
+                        )
                     }
                 )
-                window.statusBarColor = if (isEffectiveDark) {
-                    android.graphics.Color.parseColor("#0F0F0F")
-                } else {
-                    android.graphics.Color.parseColor("#F7FBF8")
-                }
-                window.navigationBarColor = if (isEffectiveDark) {
-                    android.graphics.Color.parseColor("#0F0F0F")
-                } else {
-                    android.graphics.Color.parseColor("#FFFFFF")
-                }
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+                window.navigationBarColor = android.graphics.Color.TRANSPARENT
                 val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                 insetsController.isAppearanceLightStatusBars = !isEffectiveDark
                 insetsController.isAppearanceLightNavigationBars = !isEffectiveDark
@@ -432,6 +433,8 @@ class MainActivity : ComponentActivity() {
                 var isNewUser by rememberSaveable { mutableStateOf(false) }
                 var activeReadingType by remember { mutableStateOf(VitalReadingType.HEART_RATE) }
                 var homeInitialTab by rememberSaveable { mutableIntStateOf(0) }
+                var stepsPreviousScreen by rememberSaveable { mutableStateOf(ScreenState.MAIN) }
+                var stepsPreviousTab by rememberSaveable { mutableIntStateOf(0) }
                 var viewHistoryPreviousScreen by remember { mutableStateOf(ScreenState.START_ACTIVITY) }
 
                 var activeWorkoutSplit by remember { mutableStateOf(WorkoutSplit.PUSH) }
@@ -1170,7 +1173,10 @@ class MainActivity : ComponentActivity() {
                         ScreenState.AI_CHAT_HISTORY -> {
                             currentScreen = ScreenState.AI_CHAT
                         }
-                        ScreenState.STEP_COUNT_DETAIL,
+                        ScreenState.STEP_COUNT_DETAIL -> {
+                            homeInitialTab = stepsPreviousTab
+                            currentScreen = stepsPreviousScreen
+                        }
                         ScreenState.HEART_RATE_DETAIL,
                         ScreenState.BLOOD_PRESSURE_DETAIL,
                         ScreenState.SPO2_DETAIL,
@@ -1189,7 +1195,7 @@ class MainActivity : ComponentActivity() {
                             currentScreen = ScreenState.BMI_DETAIL
                         }
                         ScreenState.START_ACTIVITY -> {
-                            homeInitialTab = 1
+                            homeInitialTab = 0
                             currentScreen = ScreenState.MAIN
                         }
                         ScreenState.WALKING_TRACKING,
@@ -1211,23 +1217,23 @@ class MainActivity : ComponentActivity() {
                         ScreenState.ABOUT_VITALSINC,
                         ScreenState.VERSION,
                         ScreenState.HELP_SUPPORT,
-                        ScreenState.REMINDERS -> {
+                        ScreenState.REMINDERS,
+                        ScreenState.PRIVACY_SECURITY -> {
                             homeInitialTab = 3
                             currentScreen = ScreenState.MAIN
                         }
                         ScreenState.ADD_REMINDER -> {
                             currentScreen = ScreenState.REMINDERS
                         }
-                        ScreenState.CHANGE_PASSWORD,
-                        ScreenState.PRIVACY_SECURITY -> {
-                            currentScreen = ScreenState.SETTINGS
+                        ScreenState.CHANGE_PASSWORD -> {
+                            currentScreen = ScreenState.PRIVACY_SECURITY
                         }
                         ScreenState.LOGIN_SESSIONS,
                         ScreenState.PRIVACY_POLICY -> {
                             currentScreen = ScreenState.PRIVACY_SECURITY
                         }
                         ScreenState.PASSWORD_CHANGED_SUCCESS -> {
-                            currentScreen = ScreenState.SETTINGS
+                            currentScreen = ScreenState.PRIVACY_SECURITY
                         }
                         ScreenState.GYM_SPLIT_SELECT,
                         ScreenState.EXERCISE_LIBRARY,
@@ -1276,7 +1282,11 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
                     AnimatedContent(
                         targetState = currentScreen,
                         transitionSpec = {
@@ -1479,6 +1489,9 @@ class MainActivity : ComponentActivity() {
                             ScreenState.MAIN -> {
                                 HomeScreen(
                                     initialTab = homeInitialTab,
+                                    onTabChanged = { tab ->
+                                        homeInitialTab = tab
+                                    },
                                     userName = globalUserName,
                                     userInitials = globalUserInitials,
                                     userAge = globalUserAge,
@@ -1529,7 +1542,11 @@ class MainActivity : ComponentActivity() {
                                     onHeartRateClick = { currentScreen = ScreenState.HEART_RATE_DETAIL },
                                     onBloodPressureClick = { currentScreen = ScreenState.BLOOD_PRESSURE_DETAIL },
                                     onSpO2Click = { currentScreen = ScreenState.SPO2_DETAIL },
-                                    onStepsClick = { currentScreen = ScreenState.STEP_COUNT_DETAIL },
+                                    onStepsClick = {
+                                        stepsPreviousScreen = ScreenState.MAIN
+                                        stepsPreviousTab = homeInitialTab
+                                        currentScreen = ScreenState.STEP_COUNT_DETAIL
+                                    },
                                     onActivityClick = { currentScreen = ScreenState.START_ACTIVITY },
                                     onSleepClick = { currentScreen = ScreenState.SLEEP_DETAIL },
                                     onHydrationClick = { currentScreen = ScreenState.HYDRATION_DETAIL },
@@ -2080,6 +2097,10 @@ class MainActivity : ComponentActivity() {
                                         homeInitialTab = 3
                                         currentScreen = ScreenState.MAIN
                                     },
+                                    onChangePasswordClick = {
+                                        authViewModel.clearChangePasswordError()
+                                        currentScreen = ScreenState.CHANGE_PASSWORD
+                                    },
                                     onLoginSessionsClick = { currentScreen = ScreenState.LOGIN_SESSIONS },
                                     onPrivacyPolicyClick = { currentScreen = ScreenState.PRIVACY_POLICY }
                                 )
@@ -2124,7 +2145,10 @@ class MainActivity : ComponentActivity() {
                                         homeInitialTab = 3
                                         currentScreen = ScreenState.MAIN
                                     },
-                                    onChangePasswordClick = { currentScreen = ScreenState.CHANGE_PASSWORD },
+                                    onChangePasswordClick = {
+                                        authViewModel.clearChangePasswordError()
+                                        currentScreen = ScreenState.CHANGE_PASSWORD
+                                    },
                                     onHealthPermissionsClick = { currentScreen = ScreenState.HEALTH_PERMISSIONS },
                                     onDataManagementClick = { currentScreen = ScreenState.DATA_MANAGEMENT },
                                     onAboutClick = { currentScreen = ScreenState.ABOUT_VITALSINC },
@@ -2132,11 +2156,30 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             ScreenState.CHANGE_PASSWORD -> {
+                                val changePasswordState by authViewModel.changePasswordState.collectAsState()
                                 ChangePasswordScreen(
-                                    onBackClick = { currentScreen = ScreenState.SETTINGS },
-                                    onUpdatePasswordSuccess = {
-                                        currentScreen = ScreenState.PASSWORD_CHANGED_SUCCESS
+                                    loggedInEmail = currentEmail,
+                                    isLoading = changePasswordState.isLoading,
+                                    errorMessage = changePasswordState.errorMessage,
+                                    successMessage = changePasswordState.successMessage,
+                                    onBackClick = {
+                                        authViewModel.resetChangePasswordState()
+                                        currentScreen = ScreenState.PRIVACY_SECURITY
                                     },
+                                    onSubmit = { email, currentPassword, newPassword, confirmPassword ->
+                                        authViewModel.changePassword(
+                                            email = email,
+                                            loggedInEmail = currentEmail,
+                                            currentPassword = currentPassword,
+                                            newPassword = newPassword,
+                                            confirmPassword = confirmPassword,
+                                            onSuccess = { msg ->
+                                                Toast.makeText(context, "Password changed successfully", Toast.LENGTH_SHORT).show()
+                                                currentScreen = ScreenState.PASSWORD_CHANGED_SUCCESS
+                                            }
+                                        )
+                                    },
+                                    onClearError = { authViewModel.clearChangePasswordError() },
                                     onForgotPasswordClick = { currentScreen = ScreenState.FORGOT_PASSWORD }
                                 )
                             }
@@ -2144,7 +2187,8 @@ class MainActivity : ComponentActivity() {
                                 PasswordSuccessScreen(
                                     isFromProfile = authViewModel.isLoggedIn(),
                                     onContinueClick = {
-                                        currentScreen = if (authViewModel.isLoggedIn()) ScreenState.SETTINGS else ScreenState.LOGIN
+                                        authViewModel.resetChangePasswordState()
+                                        currentScreen = if (authViewModel.isLoggedIn()) ScreenState.PRIVACY_SECURITY else ScreenState.LOGIN
                                     }
                                 )
                             }
@@ -2673,8 +2717,8 @@ class MainActivity : ComponentActivity() {
                                     caloriesBurned = effectiveCalories,
                                     activeMinutes = effectiveActiveMinutes,
                                     onBackClick = {
-                                        homeInitialTab = 0
-                                        currentScreen = ScreenState.MAIN
+                                        homeInitialTab = stepsPreviousTab
+                                        currentScreen = stepsPreviousScreen
                                     },
                                     onEditGoalClick = { currentScreen = ScreenState.EDIT_STEP_GOAL }
                                 )

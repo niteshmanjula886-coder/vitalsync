@@ -2,8 +2,10 @@
 <resources>
 
     <style name="Theme.Vitalsync" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">@color/splash_bg</item>
-        <item name="android:navigationBarColor">@color/splash_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">#F7FBF8</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 
     <style name="Theme.Vitalsync.Starting" parent="Theme.SplashScreen">

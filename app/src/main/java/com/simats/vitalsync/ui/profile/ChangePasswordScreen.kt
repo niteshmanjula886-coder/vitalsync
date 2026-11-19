@@ -1,5 +1,7 @@
 package com.simats.vitalsync.ui.profile
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,7 +25,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -56,10 +62,20 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 @Composable
 fun ChangePasswordScreen(
     modifier: Modifier = Modifier,
+    loggedInEmail: String = "",
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
+    successMessage: String? = null,
     onBackClick: () -> Unit = {},
-    onUpdatePasswordSuccess: () -> Unit = {},
+    onSubmit: (email: String, currentPassword: String, newPassword: String, confirmPassword: String) -> Unit = { _, _, _, _ -> },
+    onClearError: () -> Unit = {},
     onForgotPasswordClick: () -> Unit = {}
 ) {
+    BackHandler(enabled = true) {
+        onBackClick()
+    }
+
+    var email by remember(loggedInEmail) { mutableStateOf(loggedInEmail) }
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -68,10 +84,14 @@ fun ChangePasswordScreen(
     var isNewVisible by remember { mutableStateOf(false) }
     var isConfirmVisible by remember { mutableStateOf(false) }
 
+    var localValidationError by remember { mutableStateOf<String?>(null) }
+
+    val activeError = localValidationError ?: errorMessage
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
@@ -98,7 +118,7 @@ fun ChangePasswordScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -108,42 +128,140 @@ fun ChangePasswordScreen(
                     text = "Change Password",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Ensure your account is using a strong and unique password.",
+                text = "Enter your current account email and new credentials to secure your VitalSync account.",
                 fontSize = 13.sp,
-                color = Color(0xFF6B7280)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Current Password
-            Text(text = "Current Password", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            // Error Notice Banner
+            if (!activeError.isNullOrBlank()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2)),
+                    border = BorderStroke(1.dp, Color(0xFFFCA5A5))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "⚠️", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = activeError,
+                            color = Color(0xFF991B1B),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            // Success Notice Banner
+            if (!successMessage.isNullOrBlank()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFDCFCE7)),
+                    border = BorderStroke(1.dp, Color(0xFF86EFAC))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "✅", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = successMessage,
+                            color = Color(0xFF166534),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            // 1. Account Email Field
+            Text(
+                text = "Account Email",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            OutlinedTextField(
+                value = email,
+                onValueChange = {
+                    email = it
+                    localValidationError = null
+                    onClearError()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text("Enter your account email", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                shape = RoundedCornerShape(14.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    focusedBorderColor = VitalTealPrimary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 2. Current Password Field (Optional / Pre-validation)
+            Text(
+                text = "Current Password",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = currentPassword,
-                onValueChange = { currentPassword = it },
+                onValueChange = {
+                    currentPassword = it
+                    localValidationError = null
+                    onClearError()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                placeholder = { Text("Enter current password (if known)", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 shape = RoundedCornerShape(14.dp),
                 visualTransformation = if (isCurrentVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedTextColor = Color(0xFF111827),
-                    unfocusedTextColor = Color(0xFF111827),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                     focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB)
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                 ),
                 trailingIcon = {
                     IconButton(onClick = { isCurrentVisible = !isCurrentVisible }) {
-                        EyeVisibilityIcon(isVisible = isCurrentVisible, modifier = Modifier.size(20.dp))
+                        EyeVisibilityIcon(
+                            isVisible = isCurrentVisible,
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             )
@@ -165,56 +283,84 @@ fun ChangePasswordScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // New Password
-            Text(text = "New Password", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            // 3. New Password Field
+            Text(
+                text = "New Password",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = newPassword,
-                onValueChange = { newPassword = it },
+                onValueChange = {
+                    newPassword = it
+                    localValidationError = null
+                    onClearError()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                placeholder = { Text("Minimum 6 characters", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 shape = RoundedCornerShape(14.dp),
                 visualTransformation = if (isNewVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedTextColor = Color(0xFF111827),
-                    unfocusedTextColor = Color(0xFF111827),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                     focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB)
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                 ),
                 trailingIcon = {
                     IconButton(onClick = { isNewVisible = !isNewVisible }) {
-                        EyeVisibilityIcon(isVisible = isNewVisible, modifier = Modifier.size(20.dp))
+                        EyeVisibilityIcon(
+                            isVisible = isNewVisible,
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Confirm Password
-            Text(text = "Confirm New Password", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            // 4. Confirm Password Field
+            Text(
+                text = "Confirm New Password",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = confirmPassword,
-                onValueChange = { confirmPassword = it },
+                onValueChange = {
+                    confirmPassword = it
+                    localValidationError = null
+                    onClearError()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                placeholder = { Text("Re-enter new password", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 shape = RoundedCornerShape(14.dp),
                 visualTransformation = if (isConfirmVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedTextColor = Color(0xFF111827),
-                    unfocusedTextColor = Color(0xFF111827),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                     focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB)
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                 ),
                 trailingIcon = {
                     IconButton(onClick = { isConfirmVisible = !isConfirmVisible }) {
-                        EyeVisibilityIcon(isVisible = isConfirmVisible, modifier = Modifier.size(20.dp))
+                        EyeVisibilityIcon(
+                            isVisible = isConfirmVisible,
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             )
@@ -222,7 +368,7 @@ fun ChangePasswordScreen(
             Spacer(modifier = Modifier.height(28.dp))
         }
 
-        // Save Button
+        // Save Button Footer
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
@@ -230,7 +376,35 @@ fun ChangePasswordScreen(
                 .padding(vertical = 16.dp)
         ) {
             Button(
-                onClick = { onUpdatePasswordSuccess() },
+                onClick = {
+                    val trimmedEmail = email.trim()
+                    val trimmedLoggedIn = loggedInEmail.trim()
+
+                    if (trimmedEmail.isBlank()) {
+                        localValidationError = "Please enter your account email"
+                        return@Button
+                    }
+                    if (trimmedLoggedIn.isNotBlank() && !trimmedEmail.equals(trimmedLoggedIn, ignoreCase = true)) {
+                        localValidationError = "Email does not match your currently logged-in account ($trimmedLoggedIn)"
+                        return@Button
+                    }
+                    if (newPassword.isBlank()) {
+                        localValidationError = "New password cannot be empty"
+                        return@Button
+                    }
+                    if (newPassword.length < 6) {
+                        localValidationError = "New password must be at least 6 characters"
+                        return@Button
+                    }
+                    if (newPassword != confirmPassword) {
+                        localValidationError = "New passwords do not match"
+                        return@Button
+                    }
+
+                    localValidationError = null
+                    onSubmit(trimmedEmail, currentPassword, newPassword, confirmPassword)
+                },
+                enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
@@ -240,11 +414,19 @@ fun ChangePasswordScreen(
                     contentColor = Color.White
                 )
             ) {
-                Text(
-                    text = "Update Password",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Update Password",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
@@ -316,6 +498,6 @@ private fun BackArrowIcon(
 @Composable
 fun ChangePasswordScreenPreview() {
     VitalsyncTheme {
-        ChangePasswordScreen()
+        ChangePasswordScreen(loggedInEmail = "user@vitalsync.com")
     }
 }

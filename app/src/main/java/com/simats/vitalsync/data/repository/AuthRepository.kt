@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.auth.AuthResponse
 import com.simats.vitalsync.data.model.auth.BaseResponse
+import com.simats.vitalsync.data.model.auth.ChangePasswordRequest
 import com.simats.vitalsync.data.model.auth.LoginRequest
 import com.simats.vitalsync.data.model.auth.ResetPasswordRequest
 import com.simats.vitalsync.data.model.auth.SignUpRequest
@@ -98,6 +99,32 @@ class AuthRepository(
                 }
             } else {
                 val errorMsg = parseErrorMessage(response.errorBody()) ?: "Reset password failed (${response.code()})"
+                emit(Resource.Error(errorMsg, response.code()))
+            }
+        } catch (e: IOException) {
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
+        } catch (e: Exception) {
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    /**
+     * Change account password with current credentials verification
+     */
+    fun changePassword(request: ChangePasswordRequest): Flow<Resource<String>> = flow {
+        emit(Resource.Loading)
+        try {
+            val response = apiService.changePassword(request)
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null && body.success) {
+                    emit(Resource.Success(body.message.ifBlank { "Password changed successfully" }))
+                } else {
+                    val message = body?.message?.ifBlank { null } ?: "Failed to change password"
+                    emit(Resource.Error(message, response.code()))
+                }
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()) ?: "Failed to change password (${response.code()})"
                 emit(Resource.Error(errorMsg, response.code()))
             }
         } catch (e: IOException) {

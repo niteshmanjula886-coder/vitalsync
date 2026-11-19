@@ -2,6 +2,7 @@ package com.simats.vitalsync.ui.vitals
 
 import android.app.TimePickerDialog
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -101,6 +102,10 @@ fun StepCountDetailScreen(
     val context = LocalContext.current
     val effectiveViewModel = viewModel ?: viewModel<StepsViewModel>()
     val stepsState by effectiveViewModel.stepsState.collectAsState()
+
+    BackHandler(enabled = true) {
+        onBackClick()
+    }
 
     LaunchedEffect(Unit) {
         effectiveViewModel.initReminder(context)

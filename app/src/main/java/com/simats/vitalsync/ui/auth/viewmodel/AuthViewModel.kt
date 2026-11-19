@@ -2,6 +2,7 @@ package com.simats.vitalsync.ui.auth.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.simats.vitalsync.data.model.auth.ChangePasswordRequest
 import com.simats.vitalsync.data.model.auth.LoginRequest
 import com.simats.vitalsync.data.model.auth.ResetPasswordRequest
 import com.simats.vitalsync.data.model.auth.SignUpRequest
@@ -33,6 +34,9 @@ class AuthViewModel(
 
     private val _resetPasswordState = MutableStateFlow(AuthUiState())
     val resetPasswordState: StateFlow<AuthUiState> = _resetPasswordState.asStateFlow()
+
+    private val _changePasswordState = MutableStateFlow(AuthUiState())
+    val changePasswordState: StateFlow<AuthUiState> = _changePasswordState.asStateFlow()
 
     private val _sessionExpiredNotice = MutableStateFlow<String?>(null)
     val sessionExpiredNotice: StateFlow<String?> = _sessionExpiredNotice.asStateFlow()
@@ -291,6 +295,93 @@ class AuthViewModel(
                 _resetPasswordState.update { it.copy(isLoading = false) }
             }
         }
+    }
+
+    fun changePassword(
+        email: String,
+        loggedInEmail: String,
+        currentPassword: String? = null,
+        newPassword: String,
+        confirmPassword: String,
+        onSuccess: (String) -> Unit = {}
+    ) {
+        val trimmedEmail = email.trim()
+        val trimmedLoggedIn = loggedInEmail.trim()
+        if (trimmedEmail.isBlank()) {
+            _changePasswordState.update { it.copy(errorMessage = "Please enter your account email") }
+            return
+        }
+        if (!trimmedEmail.equals(trimmedLoggedIn, ignoreCase = true)) {
+            _changePasswordState.update { it.copy(errorMessage = "Email does not match your currently logged-in account") }
+            return
+        }
+        if (newPassword.isBlank()) {
+            _changePasswordState.update { it.copy(errorMessage = "New password cannot be empty") }
+            return
+        }
+        if (newPassword.length < 6) {
+            _changePasswordState.update { it.copy(errorMessage = "New password must be at least 6 characters") }
+            return
+        }
+        if (newPassword != confirmPassword) {
+            _changePasswordState.update { it.copy(errorMessage = "Passwords do not match") }
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                authRepository.changePassword(
+                    ChangePasswordRequest(
+                        email = trimmedEmail,
+                        currentPassword = currentPassword?.ifBlank { null },
+                        newPassword = newPassword,
+                        confirmPassword = confirmPassword
+                    )
+                ).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> {
+                            _changePasswordState.update {
+                                it.copy(isLoading = true, errorMessage = null, isSuccess = false)
+                            }
+                        }
+                        is Resource.Success -> {
+                            val msg = resource.data.ifBlank { "Password changed successfully" }
+                            _changePasswordState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSuccess = true,
+                                    successMessage = msg,
+                                    errorMessage = null
+                                )
+                            }
+                            authRepository.updateActivity()
+                            onSuccess(msg)
+                        }
+                        is Resource.Error -> {
+                            _changePasswordState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSuccess = false,
+                                    errorMessage = resource.message
+                                )
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _changePasswordState.update { it.copy(isLoading = false, errorMessage = ApiConstants.resolveNetworkErrorMessage(e)) }
+            } finally {
+                _changePasswordState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    fun clearChangePasswordError() {
+        _changePasswordState.update { it.copy(errorMessage = null) }
+    }
+
+    fun resetChangePasswordState() {
+        _changePasswordState.value = AuthUiState()
     }
 
     fun clearLoginError() {

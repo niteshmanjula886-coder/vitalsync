@@ -303,9 +303,15 @@ class GymViewModel(
         }
     }
 
-    // Issue 4: Standard MET-based Calorie Burn Formula
-    // Calories Burned = (MET * 3.5 * weightKg / 200) * durationMinutes
-    fun calculateEstimatedCalories(splitName: String, durationMinutes: Int): Int {
+    // Work and Volume-based MET Calorie Burn Formula
+    // Scales dynamically with completed sets, volume moved, and active session time
+    fun calculateEstimatedCalories(
+        splitName: String,
+        durationMinutes: Int = 1,
+        completedSets: Int = 0,
+        totalVolumeKg: Float = 0f
+    ): Int {
+        if (completedSets <= 0) return 0
         val splitLower = splitName.lowercase(Locale.US).trim()
         val met = when {
             splitLower.contains("cardio") -> 7.0f
@@ -315,7 +321,19 @@ class GymViewModel(
         }
         val weight = if (_uiState.value.bodyWeightKg > 0f) _uiState.value.bodyWeightKg else 70f
         val mins = durationMinutes.coerceAtLeast(1)
-        return ((met * 3.5f * weight / 200f) * mins).toInt().coerceAtLeast(1)
+
+        val baseCaloriesPerSet = when {
+            splitLower.contains("leg") -> 10.0f
+            splitLower.contains("cardio") -> 12.0f
+            splitLower.contains("push") || splitLower.contains("pull") -> 8.5f
+            else -> 6.5f
+        } * (weight / 70f)
+
+        val setWorkCalories = completedSets * baseCaloriesPerSet
+        val volumeCalories = (totalVolumeKg * 0.0025f)
+        val timeBaseBurn = ((met * 3.5f * weight / 200f) * mins * 0.20f)
+
+        return (setWorkCalories + volumeCalories + timeBaseBurn).toInt().coerceAtLeast(completedSets * 4)
     }
 
     fun resetSplitToDefault(splitName: String) {
@@ -324,6 +342,13 @@ class GymViewModel(
         currentMap[splitName] = defaults
         _splitExercises.value = currentMap
         saveSplitExercisesToPrefs(splitName, defaults)
+        _uiState.update {
+            it.copy(
+                totalVolumeKg = 0f,
+                totalSetsCompleted = 0,
+                estimatedCaloriesBurned = 0
+            )
+        }
     }
 
     // Active Workout Timer Controls
@@ -399,6 +424,31 @@ class GymViewModel(
         }
     }
 
+    fun resetRestTimerToReady() {
+        pauseRestTimer()
+        _uiState.update {
+            it.copy(
+                restTimerSeconds = 0,
+                isRestTimerRunning = false
+            )
+        }
+    }
+
+    fun uncheckAllSetsInSplit(splitName: String) {
+        val currentMap = _splitExercises.value.toMutableMap()
+        val list = currentMap[splitName] ?: return
+        val uncompletedList = list.map { we ->
+            we.copy(
+                sets = we.sets.map { st ->
+                    st.copy(isCompleted = false)
+                }
+            )
+        }
+        currentMap[splitName] = uncompletedList
+        _splitExercises.value = currentMap
+        saveSplitExercisesToPrefs(splitName, uncompletedList)
+    }
+
     fun updateLiveWorkoutMetrics(volumeKg: Float, setsCompleted: Int, caloriesBurned: Int) {
         _uiState.update {
             it.copy(
@@ -428,26 +478,16 @@ class GymViewModel(
                     exercise.copy(sets = exercise.sets.filter { it.isCompleted })
                 }.filter { it.sets.isNotEmpty() }
 
-                val finalTotalSets = if (completedExercises.isNotEmpty()) {
-                    completedExercises.sumOf { it.sets.size }
-                } else {
-                    totalSets
-                }
-
-                val finalVolumeKg = if (completedExercises.isNotEmpty()) {
-                    completedExercises.sumOf { ex ->
-                        ex.sets.sumOf { (it.weightKg * it.reps).toDouble() }
-                    }.toFloat()
-                } else {
-                    volumeKg
-                }
+                val finalTotalSets = completedExercises.sumOf { it.sets.size }
+                val finalVolumeKg = completedExercises.sumOf { ex ->
+                    ex.sets.sumOf { (it.weightKg * it.reps).toDouble() }
+                }.toFloat()
 
                 // 2. Calorie calculation right before saving the session
                 val durationMin = maxOf(1, if (durationMins > 0) durationMins else (_uiState.value.workoutTimerSeconds / 60).toInt())
-                val weightKg = if (_uiState.value.bodyWeightKg > 0f) _uiState.value.bodyWeightKg else 70.0f
-                val met = 5.5f // standard strength training MET
-                val calculatedCalories = maxOf(1, (((met * 3.5f * weightKg) / 200f) * durationMin).toInt())
-                val finalCalories = if (caloriesBurned > 0) caloriesBurned else calculatedCalories
+                val finalCalories = if (finalTotalSets > 0) {
+                    if (caloriesBurned > 0) caloriesBurned else calculateEstimatedCalories(splitName, durationMin, finalTotalSets, finalVolumeKg)
+                } else 0
 
                 // Bind calculatedCalories to UI state
                 _uiState.update {
@@ -474,15 +514,27 @@ class GymViewModel(
                         when (res) {
                             is Resource.Loading -> _uiState.update { it.copy(isSavingWorkout = true) }
                             is Resource.Success -> {
+                                // 1. Uncheck all sets in the current split
+                                uncheckAllSetsInSplit(splitName)
+
+                                // 2. Reset timers and summary metrics to zero
+                                resetWorkoutTimer()
+                                resetRestTimerToReady()
+
                                 _uiState.update {
                                     it.copy(
                                         isSavingWorkout = false,
                                         saveWorkoutSuccessMessage = "Workout saved! Awesome job lifting ${volumeKg.toInt()} kg.",
-                                        workoutErrorMessage = null
+                                        workoutErrorMessage = null,
+                                        totalVolumeKg = 0f,
+                                        totalSetsCompleted = 0,
+                                        estimatedCaloriesBurned = 0,
+                                        workoutTimerSeconds = 0L,
+                                        isWorkoutTimerRunning = false,
+                                        restTimerSeconds = 0,
+                                        isRestTimerRunning = false
                                     )
                                 }
-                                resetWorkoutTimer()
-                                resetRestTimer()
 
                                 // Refresh Today's workouts and analytics immediately (Issue 6)
                                 val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
@@ -963,6 +1015,26 @@ class GymViewModel(
                                 isSuccess = true,
                                 sessionId = resource.data?.sessionId
                             )
+                            val split = when (session.split) {
+                                com.simats.vitalsync.data.WorkoutSplit.PUSH -> "Push"
+                                com.simats.vitalsync.data.WorkoutSplit.PULL -> "Pull"
+                                com.simats.vitalsync.data.WorkoutSplit.LEGS -> "Legs"
+                                else -> _uiState.value.selectedSplit
+                            }
+                            uncheckAllSetsInSplit(split)
+                            resetWorkoutTimer()
+                            resetRestTimerToReady()
+                            _uiState.update {
+                                it.copy(
+                                    totalVolumeKg = 0f,
+                                    totalSetsCompleted = 0,
+                                    estimatedCaloriesBurned = 0,
+                                    workoutTimerSeconds = 0L,
+                                    isWorkoutTimerRunning = false,
+                                    restTimerSeconds = 0,
+                                    isRestTimerRunning = false
+                                )
+                            }
                             loadWorkoutSessions(email)
                             loadGymProgress(email)
                         }

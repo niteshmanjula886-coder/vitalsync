@@ -173,3 +173,23 @@ data class ResetPasswordRequest(
     val confirmPassword: String
 )
 
+/**
+ * Payload for changing password from settings / privacy & security.
+ */
+data class ChangePasswordRequest(
+    @SerializedName("user_id")
+    val userId: Int? = null,
+
+    @SerializedName("email")
+    val email: String,
+
+    @SerializedName("current_password")
+    val currentPassword: String? = null,
+
+    @SerializedName("new_password")
+    val newPassword: String,
+
+    @SerializedName("confirm_password")
+    val confirmPassword: String
+)
+

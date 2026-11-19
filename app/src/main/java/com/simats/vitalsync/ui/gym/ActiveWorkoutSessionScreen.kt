@@ -535,16 +535,22 @@ fun ActiveWorkoutSessionScreen(
         // Finish Session Button
         Button(
             onClick = {
+                val now = java.util.Date()
+                val dateStr = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).format(now)
+                val timeStr = java.text.SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.US).format(now)
+                val calculatedCal = if (totalSetsCompleted > 0) {
+                    (totalVolumeKg * 0.003f + totalSetsCompleted * 8.5f + ((sessionElapsedSeconds / 60) * 1.5f)).toInt().coerceAtLeast(totalSetsCompleted * 4)
+                } else 0
                 val session = WorkoutSession(
                     id = System.currentTimeMillis().toString(),
                     name = workoutName,
                     split = split,
-                    dateString = "2025-10-15",
-                    timestampFormatted = "Oct 15, 2025 at 9:30 AM",
+                    dateString = dateStr,
+                    timestampFormatted = timeStr,
                     durationMinutes = (sessionElapsedSeconds / 60).coerceAtLeast(1),
                     exercises = activeExercises.toList(),
                     totalVolumeKg = totalVolumeKg,
-                    estimatedCaloriesBurned = (totalVolumeKg * 0.05f + 150).toInt()
+                    estimatedCaloriesBurned = calculatedCal
                 )
                 onFinishSession(session)
             },

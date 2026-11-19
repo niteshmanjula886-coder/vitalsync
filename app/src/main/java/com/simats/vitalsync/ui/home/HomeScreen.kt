@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -119,6 +120,7 @@ import kotlin.math.sin
 fun HomeScreen(
     modifier: Modifier = Modifier,
     initialTab: Int = 0,
+    onTabChanged: (Int) -> Unit = {},
     onWellnessScoreClick: () -> Unit = {},
     onVitalsClick: () -> Unit = {},
     onHeartRateClick: () -> Unit = {},
@@ -187,6 +189,10 @@ fun HomeScreen(
     var selectedBottomTab by remember(initialTab) { mutableIntStateOf(initialTab) }
     val snackbarHostState = remember { SnackbarHostState() }
 
+    LaunchedEffect(initialTab) {
+        selectedBottomTab = initialTab
+    }
+
     LaunchedEffect(selectedBottomTab) {
         if (selectedBottomTab == 2) {
             onAiTabSelected()
@@ -208,9 +214,7 @@ fun HomeScreen(
     }
 
     Scaffold(
-        modifier = modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
+        modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
@@ -221,6 +225,7 @@ fun HomeScreen(
                         onVitalsClick()
                     } else {
                         selectedBottomTab = tab
+                        onTabChanged(tab)
                     }
                 }
             )
@@ -230,6 +235,7 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
         ) {
             AnimatedContent(
                 targetState = selectedBottomTab,

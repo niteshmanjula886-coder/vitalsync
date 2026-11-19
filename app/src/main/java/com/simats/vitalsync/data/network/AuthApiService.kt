@@ -2,6 +2,7 @@ package com.simats.vitalsync.data.network
 
 import com.simats.vitalsync.data.model.auth.AuthResponse
 import com.simats.vitalsync.data.model.auth.BaseResponse
+import com.simats.vitalsync.data.model.auth.ChangePasswordRequest
 import com.simats.vitalsync.data.model.auth.LoginRequest
 import com.simats.vitalsync.data.model.auth.ResetPasswordRequest
 import com.simats.vitalsync.data.model.auth.SignUpRequest
@@ -29,6 +30,11 @@ interface AuthApiService {
     @POST("auth/reset_password.php")
     suspend fun resetPassword(
         @Body request: ResetPasswordRequest
+    ): Response<BaseResponse>
+
+    @POST("auth/change_password.php")
+    suspend fun changePassword(
+        @Body request: ChangePasswordRequest
     ): Response<BaseResponse>
 
     @GET("auth/profile.php")

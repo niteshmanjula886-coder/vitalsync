@@ -150,8 +150,6 @@ fun GymScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
         ) {
             Spacer(modifier = Modifier.height(14.dp))
@@ -304,12 +302,14 @@ private fun WorkoutsTabContent(
     val completedSets = currentSplitExercises.sumOf { we ->
         we.sets.count { it.isCompleted }
     }
-    val totalSetsDone = if (completedSets > 0) completedSets else currentSplitExercises.sumOf { it.sets.size }
+    val totalSetsDone = completedSets
 
     val activeMinutes = (uiState.workoutTimerSeconds / 60).toInt().coerceAtLeast(1)
     val estimatedCalories = viewModel.calculateEstimatedCalories(
         splitName = uiState.selectedSplit,
-        durationMinutes = activeMinutes
+        durationMinutes = activeMinutes,
+        completedSets = completedSets,
+        totalVolumeKg = totalVolume
     )
 
     // Keep ViewModel in sync with live metrics
