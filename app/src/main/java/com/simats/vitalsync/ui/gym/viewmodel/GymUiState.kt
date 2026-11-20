@@ -43,6 +43,13 @@ data class GymProgressUiState(
     val errorMessage: String? = null
 )
 
+enum class NutritionTrendMetric(val label: String, val unit: String, val icon: String) {
+    CALORIES("Calories", "kcal", "🔥"),
+    PROTEIN("Protein", "g", "🥩"),
+    CARBS("Carbs", "g", "🍞"),
+    FATS("Fats", "g", "🥑")
+}
+
 // =============================================================================
 // Unified Modern 3-Tab Gym UI State
 // =============================================================================
@@ -68,7 +75,7 @@ data class GymUiState(
     val isWorkoutsLoading: Boolean = false,
 
     // 2. Nutrition State
-    val selectedMealType: String = "Lunch",
+    val selectedMealType: String = "Breakfast",
     val foodDescriptionInput: String = "",
     val manualCaloriesInput: String = "",
     val manualProteinInput: String = "",
@@ -79,6 +86,13 @@ data class GymUiState(
     val nutritionSuccessMessage: String? = null,
     val nutritionErrorMessage: String? = null,
     val todayNutrition: com.simats.vitalsync.data.model.gym.GymNutritionResponse? = null,
+
+    // Weekly Nutrition Meal Trend State
+    val isWeeklyNutritionLoading: Boolean = false,
+    val weeklyNutritionTrend: com.simats.vitalsync.data.model.gym.WeeklyNutritionTrendResponse? = null,
+    val selectedWeeklyNutritionMetric: NutritionTrendMetric = NutritionTrendMetric.CALORIES,
+    val selectedWeeklyTrendDate: String? = null,
+    val weeklyNutritionErrorMessage: String? = null,
 
     // Dual-Mode Protein & Calorie Targets (Issue 5)
     val proteinTargetMode: String = "BODY_WEIGHT", // "BODY_WEIGHT" or "CUSTOM"

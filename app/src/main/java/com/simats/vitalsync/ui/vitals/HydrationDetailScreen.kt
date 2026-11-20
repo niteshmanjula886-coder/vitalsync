@@ -81,6 +81,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.vitalsync.data.model.hydration.WeeklyHydrationDayDto
 import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkBorder
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
 import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
 import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
 import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
@@ -272,7 +274,7 @@ fun HydrationDetailScreen(
         }
     }
 
-    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground || MaterialTheme.colorScheme.surface == CarbonDarkSurface
 
     Column(
         modifier = modifier
@@ -298,7 +300,7 @@ fun HydrationDetailScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -308,7 +310,7 @@ fun HydrationDetailScreen(
                     text = "Hydration Tracker",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -336,7 +338,7 @@ fun HydrationDetailScreen(
                     .fillMaxWidth()
                     .padding(bottom = 12.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFFDCFCE7))
+                    .background(if (isDark) Color(0xFF142E1F) else Color(0xFFDCFCE7))
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -344,7 +346,7 @@ fun HydrationDetailScreen(
                     text = "💧 +$lastLoggedAmountMl ml added to your hydration log!",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF15803D)
+                    color = if (isDark) Color(0xFF86EFAC) else Color(0xFF15803D)
                 )
             }
         }
@@ -367,7 +369,7 @@ fun HydrationDetailScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFE8F6F0))
+                        .background(if (isDark) Color(0xFF1B382B) else Color(0xFFE8F6F0))
                         .clickable {
                             customTargetInputText = "$dailyTargetMl"
                             showCustomTargetDialog = true
@@ -378,7 +380,7 @@ fun HydrationDetailScreen(
                         text = "🎯 Target: ${String.format(Locale.US, "%,d", dailyTargetMl)} ml ✏️",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F9F7A)
+                        color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
                     )
                 }
 
@@ -397,13 +399,13 @@ fun HydrationDetailScreen(
                     text = "${String.format(Locale.US, "%.1f", glassEquivalent)} / ${(dailyTargetMl / 250)} glasses",
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Text(
                     text = "${String.format(Locale.US, "%,d", animatedConsumedMl)} ml of ${String.format(Locale.US, "%,d", dailyTargetMl)} ml goal",
                     fontSize = 14.sp,
-                    color = Color(0xFF6B7280),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 2.dp)
                 )
 
@@ -415,7 +417,7 @@ fun HydrationDetailScreen(
                         .fillMaxWidth()
                         .height(10.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE5E7EB))
+                        .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFE5E7EB))
                 ) {
                     Box(
                         modifier = Modifier
@@ -436,7 +438,7 @@ fun HydrationDetailScreen(
                     Text(
                         text = "$progressPercentage% complete",
                         fontSize = 12.sp,
-                        color = Color(0xFF0F9F7A),
+                        color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
                         fontWeight = FontWeight.Bold
                     )
 
@@ -444,7 +446,7 @@ fun HydrationDetailScreen(
                         Text(
                             text = "Reset ↺",
                             fontSize = 12.sp,
-                            color = Color(0xFF6B7280),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.clickable {
                                 if (viewModel != null) {
@@ -472,14 +474,14 @@ fun HydrationDetailScreen(
                 text = "Log a drink",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Text(
                 text = "+ Custom ml ✏️",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F9F7A),
+                color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
                 modifier = Modifier.clickable {
                     customInputMlText = "150"
                     showCustomMlDialog = true
@@ -490,6 +492,9 @@ fun HydrationDetailScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         // Preset Quick Action Buttons Grid
+        val secondaryBtnContainer = if (isDark) CarbonDarkSurfaceVariant else Color(0xFFE6F4EA)
+        val secondaryBtnContent = if (isDark) Color(0xFF34D399) else VitalTealDark
+
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -508,7 +513,7 @@ fun HydrationDetailScreen(
                     onClick = { addWaterMl(500) },
                     modifier = Modifier.weight(1f).height(46.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE6F4EA), contentColor = VitalTealDark)
+                    colors = ButtonDefaults.buttonColors(containerColor = secondaryBtnContainer, contentColor = secondaryBtnContent)
                 ) {
                     Text(text = "🥛 +500 ml", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
@@ -522,7 +527,7 @@ fun HydrationDetailScreen(
                     onClick = { addWaterMl(750) },
                     modifier = Modifier.weight(1f).height(46.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE6F4EA), contentColor = VitalTealDark)
+                    colors = ButtonDefaults.buttonColors(containerColor = secondaryBtnContainer, contentColor = secondaryBtnContent)
                 ) {
                     Text(text = "🍾 +750 ml", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
@@ -534,7 +539,7 @@ fun HydrationDetailScreen(
                     },
                     modifier = Modifier.weight(1f).height(46.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE6F4EA), contentColor = VitalTealDark)
+                    colors = ButtonDefaults.buttonColors(containerColor = secondaryBtnContainer, contentColor = secondaryBtnContent)
                 ) {
                     Text(text = "✨ Custom ml", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
@@ -617,14 +622,14 @@ fun HydrationDetailScreen(
                         } else {
                             // Strict Log-Driven Rule: Unlogged days render as empty ghost placeholder outlines
                             drawRoundRect(
-                                color = Color(0xFFF1F5F9),
+                                color = if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9),
                                 topLeft = Offset(x, size.height * 0.85f),
                                 size = Size(barWidth, size.height * 0.15f),
                                 cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
                             )
 
                             drawRoundRect(
-                                color = Color(0xFFCBD5E1),
+                                color = if (isDark) CarbonDarkBorder else Color(0xFFCBD5E1),
                                 topLeft = Offset(x, 0f),
                                 size = Size(barWidth, size.height),
                                 cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx()),
@@ -655,7 +660,7 @@ fun HydrationDetailScreen(
                                 text = dayData.day,
                                 fontSize = 12.sp,
                                 fontWeight = if (dayData.isToday) FontWeight.Bold else FontWeight.Normal,
-                                color = if (dayData.isToday) Color(0xFF0F9F7A) else Color(0xFF9CA3AF)
+                                color = if (dayData.isToday) Color(0xFF0F9F7A) else (if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF))
                             )
                         }
                     }
@@ -670,7 +675,7 @@ fun HydrationDetailScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFF8FAFC))
+                                .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF8FAFC))
                                 .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Row(
@@ -682,7 +687,7 @@ fun HydrationDetailScreen(
                                     text = "Day: ${dayItem.day} (${dayItem.date})",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF334155),
+                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF334155),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f).padding(end = 8.dp)
@@ -692,7 +697,7 @@ fun HydrationDetailScreen(
                                     text = if ((dayItem.consumedMl ?: 0) > 0) "${String.format(Locale.US, "%,d", dayItem.consumedMl)} ml logged" else "0 ml",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if ((dayItem.consumedMl ?: 0) > 0) Color(0xFF0F9F7A) else Color(0xFF94A3B8),
+                                    color = if ((dayItem.consumedMl ?: 0) > 0) Color(0xFF0F9F7A) else (if (isDark) CarbonDarkTextSecondary else Color(0xFF94A3B8)),
                                     maxLines = 1,
                                     softWrap = false,
                                     textAlign = TextAlign.End
@@ -732,7 +737,7 @@ fun HydrationDetailScreen(
                                 if (reminderMode.equals("MANUAL", ignoreCase = true)) "Daily reminder at $reminderTime" else "Hourly reminder every 60 minutes"
                             } else "Reminders currently turned off",
                             fontSize = 12.sp,
-                            color = Color(0xFF6B7280),
+                            color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
@@ -758,14 +763,14 @@ fun HydrationDetailScreen(
 
                 if (isReminderEnabled) {
                     Spacer(modifier = Modifier.height(14.dp))
-                    HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                    HorizontalDivider(color = if (isDark) CarbonDarkBorder else Color(0xFFF1F5F9), thickness = 1.dp)
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
                         text = "Reminder Mode",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF6B7280)
+                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -779,7 +784,7 @@ fun HydrationDetailScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (isHourly) VitalTealPrimary else Color(0xFFF1F5F9))
+                                .background(if (isHourly) VitalTealPrimary else (if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)))
                                 .clickable {
                                     if (viewModel != null) {
                                         viewModel.updateReminderSettings(context, userEmail, true, "HOURLY", reminderTime)
@@ -795,7 +800,7 @@ fun HydrationDetailScreen(
                                 text = "Every 1 Hour",
                                 fontSize = 13.sp,
                                 fontWeight = if (isHourly) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isHourly) Color.White else Color(0xFF475569)
+                                color = if (isHourly) Color.White else (if (isDark) CarbonDarkTextPrimary else Color(0xFF475569))
                             )
                         }
 
@@ -804,7 +809,7 @@ fun HydrationDetailScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (!isHourly) VitalTealPrimary else Color(0xFFF1F5F9))
+                                .background(if (!isHourly) VitalTealPrimary else (if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)))
                                 .clickable {
                                     if (viewModel != null) {
                                         viewModel.updateReminderSettings(context, userEmail, true, "MANUAL", reminderTime)
@@ -820,7 +825,7 @@ fun HydrationDetailScreen(
                                 text = "Manual Time",
                                 fontSize = 13.sp,
                                 fontWeight = if (!isHourly) FontWeight.Bold else FontWeight.Medium,
-                                color = if (!isHourly) Color.White else Color(0xFF475569)
+                                color = if (!isHourly) Color.White else (if (isDark) CarbonDarkTextPrimary else Color(0xFF475569))
                             )
                         }
                     }
@@ -831,7 +836,7 @@ fun HydrationDetailScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFE8F6F0))
+                                .background(if (isDark) Color(0xFF142E1F) else Color(0xFFE8F6F0))
                                 .clickable {
                                     val (initialHour, initialMinute) = NotificationReminderEngine.parseHourMinute(reminderTime)
                                     android.app.TimePickerDialog(
@@ -862,14 +867,14 @@ fun HydrationDetailScreen(
                                     text = "Scheduled at $reminderTime",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F9F7A)
+                                    color = if (isDark) Color(0xFF86EFAC) else Color(0xFF0F9F7A)
                                 )
                             }
                             Text(
                                 text = "Change",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = VitalTealPrimary
+                                color = if (isDark) Color(0xFF34D399) else VitalTealPrimary
                             )
                         }
                     }
@@ -937,14 +942,14 @@ fun HydrationDetailScreen(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFE0F2FE))
+                            .background(if (isDark) Color(0xFF0C2A40) else Color(0xFFE0F2FE))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = "Score: $liveHydScore/100",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0369A1)
+                            color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0369A1)
                         )
                     }
                 }
@@ -955,7 +960,7 @@ fun HydrationDetailScreen(
                     text = liveHydTitle,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F9F7A)
+                    color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -964,7 +969,7 @@ fun HydrationDetailScreen(
                     text = liveHydSummary,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
-                    color = Color(0xFF374151)
+                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF374151)
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -972,7 +977,7 @@ fun HydrationDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF0FDF4))
+                        .background(if (isDark) Color(0xFF142E1F) else Color(0xFFF0FDF4))
                         .padding(horizontal = 12.dp, vertical = 10.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -982,7 +987,7 @@ fun HydrationDetailScreen(
                             text = liveHydAdvice,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF166534),
+                            color = if (isDark) Color(0xFF86EFAC) else Color(0xFF166534),
                             lineHeight = 16.sp,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
@@ -995,7 +1000,7 @@ fun HydrationDetailScreen(
                 Text(
                     text = "Powered by ${state.aiInsight?.modelUsed ?: "vitalsync:clinical-engine"}",
                     fontSize = 10.sp,
-                    color = Color(0xFF9CA3AF)
+                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF)
                 )
             }
         }
@@ -1033,7 +1038,7 @@ fun HydrationDetailScreen(
                                 Text(
                                     text = "8-Wk Avg: ${String.format(Locale.US, "%,d", sum.overallAvgDailyMl)} ml/day • Trend: ${sum.trendDirection}",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF6B7280),
+                                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -1044,14 +1049,14 @@ fun HydrationDetailScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (sum.trendDirection == "increasing") Color(0xFFDCFCE7) else Color(0xFFF1F5F9))
+                                    .background(if (sum.trendDirection == "increasing") (if (isDark) Color(0xFF142E1F) else Color(0xFFDCFCE7)) else (if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)))
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
                                     text = if (sum.trendPercentage >= 0) "+${sum.trendPercentage}%" else "${sum.trendPercentage}%",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (sum.trendDirection == "increasing") Color(0xFF15803D) else Color(0xFF475569),
+                                    color = if (sum.trendDirection == "increasing") (if (isDark) Color(0xFF86EFAC) else Color(0xFF15803D)) else (if (isDark) CarbonDarkTextPrimary else Color(0xFF475569)),
                                     maxLines = 1,
                                     softWrap = false
                                 )
@@ -1081,7 +1086,7 @@ fun HydrationDetailScreen(
                                         text = formattedWeekLabel,
                                         fontSize = 13.sp,
                                         fontWeight = if (weekItem.isCurrentWeek) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (weekItem.isCurrentWeek) Color(0xFF0F9F7A) else Color(0xFF1F2937),
+                                        color = if (weekItem.isCurrentWeek) Color(0xFF0F9F7A) else (if (isDark) CarbonDarkTextPrimary else Color(0xFF1F2937)),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f, fill = false)
@@ -1091,14 +1096,14 @@ fun HydrationDetailScreen(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(4.dp))
-                                                .background(Color(0xFFE8F6F0))
+                                                .background(if (isDark) Color(0xFF142E1F) else Color(0xFFE8F6F0))
                                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                                         ) {
                                             Text(
                                                 text = "Current",
                                                 fontSize = 9.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F9F7A),
+                                                color = if (isDark) Color(0xFF86EFAC) else Color(0xFF0F9F7A),
                                                 maxLines = 1,
                                                 softWrap = false
                                             )
@@ -1110,7 +1115,7 @@ fun HydrationDetailScreen(
                                     text = "${String.format(Locale.US, "%,d", weekItem.totalVolumeMl)} ml (${weekItem.completionRatePercent.toInt()}%)",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (weekItem.completionRatePercent >= 75) Color(0xFF0F9F7A) else Color(0xFF6B7280),
+                                    color = if (weekItem.completionRatePercent >= 75) (if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)) else (if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)),
                                     maxLines = 1,
                                     softWrap = false,
                                     textAlign = TextAlign.End
@@ -1125,7 +1130,7 @@ fun HydrationDetailScreen(
                                     .fillMaxWidth()
                                     .height(6.dp)
                                     .clip(RoundedCornerShape(3.dp))
-                                    .background(Color(0xFFF1F5F9))
+                                    .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9))
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -1153,11 +1158,13 @@ fun HydrationDetailScreen(
     if (showCustomMlDialog) {
         AlertDialog(
             onDismissRequest = { showCustomMlDialog = false },
+            containerColor = MaterialTheme.colorScheme.surface,
             title = {
                 Text(
                     text = "Add Custom Water (ml)",
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             },
             text = {
@@ -1165,7 +1172,7 @@ fun HydrationDetailScreen(
                     Text(
                         text = "Enter the amount of water you drank in milliliters:",
                         fontSize = 13.sp,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -1178,7 +1185,10 @@ fun HydrationDetailScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = VitalTealPrimary,
-                            focusedLabelColor = VitalTealPrimary
+                            focusedLabelColor = VitalTealPrimary,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1194,7 +1204,7 @@ fun HydrationDetailScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFE6F4EA))
+                                    .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFE6F4EA))
                                     .clickable { customInputMlText = preset.toString() }
                                     .padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
@@ -1202,7 +1212,7 @@ fun HydrationDetailScreen(
                                     text = "+$preset ml",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = VitalTealDark
+                                    color = if (isDark) Color(0xFF34D399) else VitalTealDark
                                 )
                             }
                         }
@@ -1220,12 +1230,12 @@ fun HydrationDetailScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = VitalTealDark)
                 ) {
-                    Text("Add Water")
+                    Text("Add Water", color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCustomMlDialog = false }) {
-                    Text("Cancel", color = Color(0xFF6B7280))
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         )
@@ -1235,11 +1245,13 @@ fun HydrationDetailScreen(
     if (showCustomTargetDialog) {
         AlertDialog(
             onDismissRequest = { showCustomTargetDialog = false },
+            containerColor = MaterialTheme.colorScheme.surface,
             title = {
                 Text(
                     text = "Set Daily Hydration Goal",
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             },
             text = {
@@ -1247,7 +1259,7 @@ fun HydrationDetailScreen(
                     Text(
                         text = "Set your custom daily target water intake in milliliters:",
                         fontSize = 13.sp,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -1260,7 +1272,10 @@ fun HydrationDetailScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = VitalTealPrimary,
-                            focusedLabelColor = VitalTealPrimary
+                            focusedLabelColor = VitalTealPrimary,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1276,7 +1291,7 @@ fun HydrationDetailScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFE6F4EA))
+                                    .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFE6F4EA))
                                     .clickable { customTargetInputText = targetPreset.toString() }
                                     .padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
@@ -1284,7 +1299,7 @@ fun HydrationDetailScreen(
                                     text = "$targetPreset ml",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = VitalTealDark
+                                    color = if (isDark) Color(0xFF34D399) else VitalTealDark
                                 )
                             }
                         }
@@ -1302,12 +1317,12 @@ fun HydrationDetailScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = VitalTealDark)
                 ) {
-                    Text("Save Goal")
+                    Text("Save Goal", color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCustomTargetDialog = false }) {
-                    Text("Cancel", color = Color(0xFF6B7280))
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         )
@@ -1449,7 +1464,7 @@ private fun CalendarIcon(modifier: Modifier = Modifier) {
             close()
         }
 
-        drawPath(path = calPath, color = Color(0xFF6B7280), style = Stroke(width = 1.6.dp.toPx()))
+        drawPath(path = calPath, color = Color(0xFF9CA3AF), style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 

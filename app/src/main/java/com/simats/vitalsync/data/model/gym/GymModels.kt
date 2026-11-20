@@ -234,6 +234,16 @@ data class GymNutritionLogDto(
     @SerializedName("time_formatted") val timeFormatted: String = ""
 )
 
+data class MealCategoryBreakdownDto(
+    @SerializedName("category") val category: String = "",
+    @SerializedName("calories") val calories: Int = 0,
+    @SerializedName("protein_g") val proteinG: Float = 0f,
+    @SerializedName("carbs_g") val carbsG: Float = 0f,
+    @SerializedName("fats_g") val fatsG: Float = 0f,
+    @SerializedName("count") val count: Int = 0,
+    @SerializedName("meals") val meals: List<GymNutritionLogDto> = emptyList()
+)
+
 data class GymNutritionResponse(
     @SerializedName("success") val success: Boolean = false,
     @SerializedName("date") val date: String = "",
@@ -246,7 +256,53 @@ data class GymNutritionResponse(
     @SerializedName("target_carbs") val targetCarbs: Float = 240f,
     @SerializedName("target_fats") val targetFats: Float = 65f,
     @SerializedName("ai_coach_tip") val aiCoachTip: String = "",
-    @SerializedName("meals") val meals: List<GymNutritionLogDto> = emptyList()
+    @SerializedName("meals") val meals: List<GymNutritionLogDto> = emptyList(),
+    @SerializedName("categories") val categories: List<MealCategoryBreakdownDto> = emptyList(),
+    @SerializedName("weekly_trend") val weeklyTrend: WeeklyNutritionTrendResponse? = null
+)
+
+data class WeeklyNutritionTrendDayDto(
+    @SerializedName("date") val date: String = "",
+    @SerializedName("day_of_week") val dayOfWeek: String = "",
+    @SerializedName("day_short") val dayShort: String = "",
+    @SerializedName("date_formatted") val dateFormatted: String = "",
+    @SerializedName("is_today") val isToday: Boolean = false,
+    @SerializedName("calories") val calories: Int = 0,
+    @SerializedName("target_calories") val targetCalories: Int = 2200,
+    @SerializedName("protein_g") val proteinG: Float = 0f,
+    @SerializedName("target_protein_g") val targetProteinG: Float = 140f,
+    @SerializedName("carbs_g") val carbsG: Float = 0f,
+    @SerializedName("target_carbs_g") val targetCarbsG: Float = 240f,
+    @SerializedName("fats_g") val fatsG: Float = 0f,
+    @SerializedName("target_fats_g") val targetFatsG: Float = 65f,
+    @SerializedName("meals_count") val mealsCount: Int = 0,
+    @SerializedName("status") val status: String = "No logs"
+)
+
+data class WeeklyNutritionTrendSummaryDto(
+    @SerializedName("weekly_total_calories") val weeklyTotalCalories: Int = 0,
+    @SerializedName("weekly_avg_calories") val weeklyAvgCalories: Int = 0,
+    @SerializedName("weekly_total_protein") val weeklyTotalProtein: Float = 0f,
+    @SerializedName("weekly_avg_protein") val weeklyAvgProtein: Float = 0f,
+    @SerializedName("weekly_avg_carbs") val weeklyAvgCarbs: Float = 0f,
+    @SerializedName("weekly_avg_fats") val weeklyAvgFats: Float = 0f,
+    @SerializedName("days_logged") val daysLogged: Int = 0,
+    @SerializedName("days_on_target") val daysOnTarget: Int = 0,
+    @SerializedName("adherence_percentage") val adherencePercentage: Int = 0,
+    @SerializedName("target_calories") val targetCalories: Int = 2200,
+    @SerializedName("target_protein_g") val targetProteinG: Float = 140f,
+    @SerializedName("target_carbs_g") val targetCarbsG: Float = 240f,
+    @SerializedName("target_fats_g") val targetFatsG: Float = 65f,
+    @SerializedName("ai_trend_insight") val aiTrendInsight: String = ""
+)
+
+data class WeeklyNutritionTrendResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("start_date") val startDate: String = "",
+    @SerializedName("end_date") val endDate: String = "",
+    @SerializedName("summary") val summary: WeeklyNutritionTrendSummaryDto = WeeklyNutritionTrendSummaryDto(),
+    @SerializedName("days") val days: List<WeeklyNutritionTrendDayDto> = emptyList(),
+    @SerializedName("message") val message: String? = null
 )
 
 data class LogNutritionRequest(

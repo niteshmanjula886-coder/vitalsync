@@ -18,6 +18,7 @@ import com.simats.vitalsync.data.model.gym.SaveWorkoutSessionRequest
 import com.simats.vitalsync.data.model.gym.SaveWorkoutSessionResponse
 import com.simats.vitalsync.data.model.gym.WorkoutSessionsResponse
 import com.simats.vitalsync.data.model.gym.WorkoutSplitsResponse
+import com.simats.vitalsync.data.model.gym.WeeklyNutritionTrendResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -81,8 +82,23 @@ interface GymApiService {
     suspend fun getGymNutrition(
         @Query("user_id") userId: Int? = null,
         @Query("email") email: String? = null,
-        @Query("date") date: String? = null
+        @Query("date") date: String? = null,
+        @Query("target_calories") targetCalories: Int? = null,
+        @Query("target_protein") targetProtein: Float? = null,
+        @Query("target_carbs") targetCarbs: Float? = null,
+        @Query("target_fats") targetFats: Float? = null
     ): Response<GymNutritionResponse>
+
+    @GET("gym/get_weekly_nutrition_trend.php")
+    suspend fun getWeeklyNutritionTrend(
+        @Query("user_id") userId: Int? = null,
+        @Query("email") email: String? = null,
+        @Query("date") date: String? = null,
+        @Query("target_calories") targetCalories: Int? = null,
+        @Query("target_protein") targetProtein: Float? = null,
+        @Query("target_carbs") targetCarbs: Float? = null,
+        @Query("target_fats") targetFats: Float? = null
+    ): Response<WeeklyNutritionTrendResponse>
 
     @POST("gym/delete_gym_nutrition.php")
     suspend fun deleteGymNutrition(

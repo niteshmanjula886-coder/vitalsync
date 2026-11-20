@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -39,6 +41,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
 import com.simats.vitalsync.ui.theme.SplashBgDark
 import com.simats.vitalsync.ui.theme.SplashBgLight
 import com.simats.vitalsync.ui.theme.VitalTextSubtitle
@@ -49,10 +53,12 @@ fun AboutVitalSyncScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {}
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground || MaterialTheme.colorScheme.surface == CarbonDarkSurface
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -72,7 +78,7 @@ fun AboutVitalSyncScreen(
             ) {
                 BackArrowIcon(
                     modifier = Modifier.size(20.dp),
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -82,7 +88,7 @@ fun AboutVitalSyncScreen(
                 text = "About VitalSync",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
 
@@ -155,7 +161,7 @@ fun AboutVitalSyncScreen(
             text = "A little clarity. A healthier every day.",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF111827)
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -163,7 +169,7 @@ fun AboutVitalSyncScreen(
         Text(
             text = "VitalSync helps you understand your health, build better habits, and take small steps toward feeling your best.",
             fontSize = 14.sp,
-            color = Color(0xFF6B7280),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 20.sp,
             textAlign = TextAlign.Center
         )
@@ -174,7 +180,8 @@ fun AboutVitalSyncScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
@@ -182,19 +189,19 @@ fun AboutVitalSyncScreen(
                     Text(text = "💖", fontSize = 18.sp)
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
-                        Text(text = "Your health, in one place", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Text(text = "Vitals, activity, sleep and hydration.", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "Your health, in one place", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(text = "Vitals, activity, sleep and hydration.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
-                HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 14.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 14.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "✨", fontSize = 18.sp)
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
-                        Text(text = "Insights that make sense", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Text(text = "AI-powered guidance for everyday wellness.", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "Insights that make sense", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(text = "AI-powered guidance for everyday wellness.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -203,18 +210,19 @@ fun AboutVitalSyncScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         // LEARN MORE Links Card
-        Text(text = "LEARN MORE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9CA3AF), letterSpacing = 1.sp, modifier = Modifier.align(Alignment.Start))
+        Text(text = "LEARN MORE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp, modifier = Modifier.align(Alignment.Start))
         Spacer(modifier = Modifier.height(8.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
                 AboutLinkRow("📄 Privacy Policy")
-                HorizontalDivider(color = Color(0xFFF8FAFC))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 AboutLinkRow("📜 Terms of Service")
             }
         }
@@ -224,7 +232,7 @@ fun AboutVitalSyncScreen(
         Text(
             text = "VitalSync supports everyday health awareness, and is not a substitute for professional medical advice.\n© 2026 VitalSync. All rights reserved.",
             fontSize = 11.sp,
-            color = Color(0xFF9CA3AF),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             lineHeight = 16.sp
         )
@@ -243,7 +251,7 @@ private fun AboutLinkRow(title: String) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
+        Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
         ChevronRightIcon(modifier = Modifier.size(16.dp))
     }
 }

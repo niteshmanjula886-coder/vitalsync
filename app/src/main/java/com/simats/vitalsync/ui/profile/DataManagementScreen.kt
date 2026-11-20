@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,6 +25,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -44,6 +46,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
@@ -53,11 +57,12 @@ fun DataManagementScreen(
     onBackClick: () -> Unit = {}
 ) {
     var autoBackup by remember { mutableStateOf(true) }
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground || MaterialTheme.colorScheme.surface == CarbonDarkSurface
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -76,7 +81,7 @@ fun DataManagementScreen(
             ) {
                 BackArrowIcon(
                     modifier = Modifier.size(20.dp),
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -86,7 +91,7 @@ fun DataManagementScreen(
                 text = "Data Management",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
 
@@ -95,7 +100,7 @@ fun DataManagementScreen(
         Text(
             text = "Your health data, your control. Export, manage storage, or delete your history.",
             fontSize = 13.sp,
-            color = Color(0xFF6B7280)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -104,7 +109,8 @@ fun DataManagementScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
@@ -116,7 +122,7 @@ fun DataManagementScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = "💾", fontSize = 18.sp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "On-device storage", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "On-device storage", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     }
 
                     Text(text = "24.0 MB", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
@@ -141,8 +147,8 @@ fun DataManagementScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "Health data • 18.6 MB", fontSize = 11.sp, color = Color(0xFF6B7280))
-                    Text(text = "Cache • 5.4 MB", fontSize = 11.sp, color = Color(0xFF6B7280))
+                    Text(text = "Health data • 18.6 MB", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(text = "Cache • 5.4 MB", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -155,7 +161,8 @@ fun DataManagementScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -165,9 +172,9 @@ fun DataManagementScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "🔄 Automatic backup", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "🔄 Automatic backup", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(text = "Automatically back up your health data", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "Automatically back up your health data", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
@@ -179,7 +186,7 @@ fun DataManagementScreen(
                     )
                 }
 
-                HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
 
                 Row(
                     modifier = Modifier
@@ -190,9 +197,9 @@ fun DataManagementScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text(text = "📥 Export health data", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = "📥 Export health data", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(text = "Download your history as CSV or PDF", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "Download your history as CSV or PDF", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
                     ChevronRightIcon(modifier = Modifier.size(16.dp))
@@ -208,7 +215,8 @@ fun DataManagementScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Row(
@@ -220,9 +228,9 @@ fun DataManagementScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(text = "🧹 Clear cache", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(text = "🧹 Clear cache", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Frees up 5.4 MB. Health data is kept.", fontSize = 12.sp, color = Color(0xFF6B7280))
+                    Text(text = "Frees up 5.4 MB. Health data is kept.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 ChevronRightIcon(modifier = Modifier.size(16.dp))
@@ -237,7 +245,8 @@ fun DataManagementScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Row(
@@ -249,9 +258,9 @@ fun DataManagementScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(text = "🚨 Delete all health data", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFDC2626))
+                    Text(text = "🚨 Delete all health data", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color(0xFFFCA5A5) else Color(0xFFDC2626))
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Permanently remove your health history", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    Text(text = "Permanently remove your health history", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 ChevronRightIcon(modifier = Modifier.size(16.dp))
@@ -265,7 +274,7 @@ fun DataManagementScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFFE6F4EA))
+                .background(if (isDark) Color(0xFF142E1F) else Color(0xFFE6F4EA))
                 .padding(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -275,7 +284,7 @@ fun DataManagementScreen(
                     text = "Your data is stored locally and sent only where you decide.",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF065F46)
+                    color = if (isDark) Color(0xFF86EFAC) else Color(0xFF065F46)
                 )
             }
         }
@@ -290,7 +299,7 @@ private fun SectionHeader(title: String) {
         text = title,
         fontSize = 11.sp,
         fontWeight = FontWeight.Bold,
-        color = Color(0xFF9CA3AF),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         letterSpacing = 1.sp,
         modifier = Modifier.padding(bottom = 6.dp, start = 4.dp)
     )

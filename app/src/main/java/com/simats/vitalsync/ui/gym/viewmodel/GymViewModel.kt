@@ -71,11 +71,16 @@ class GymViewModel(
     private val _progressState = MutableStateFlow(GymProgressUiState())
     val progressState: StateFlow<GymProgressUiState> = _progressState.asStateFlow()
 
+    private var currentUserId: Int? = null
+    private var currentUserEmail: String? = null
+
     // =========================================================================
     // Initialization & Local SharedPreferences Persistence (Issue 1, 2, 5)
     // =========================================================================
 
     fun initSession(context: Context, userId: Int?, email: String?) {
+        currentUserId = userId
+        currentUserEmail = email
         if (prefs == null) {
             prefs = context.applicationContext.getSharedPreferences("vitalsync_gym_preferences", Context.MODE_PRIVATE)
         }
@@ -636,11 +641,13 @@ class GymViewModel(
     fun setProteinTargetMode(mode: String) {
         _uiState.update { it.copy(proteinTargetMode = mode) }
         prefs?.edit()?.putString("key_protein_mode", mode)?.apply()
+        refreshNutritionWithCurrentTargets()
     }
 
     fun setBodyWeightMultiplier(multiplier: Float) {
         _uiState.update { it.copy(bodyWeightMultiplier = multiplier) }
         prefs?.edit()?.putFloat("key_protein_multiplier", multiplier)?.apply()
+        refreshNutritionWithCurrentTargets()
     }
 
     fun setCustomTargets(proteinG: Float, calories: Int) {
@@ -649,13 +656,26 @@ class GymViewModel(
             ?.putFloat("key_custom_protein", proteinG)
             ?.putInt("key_custom_calories", calories)
             ?.apply()
+        refreshNutritionWithCurrentTargets()
     }
 
     fun setBodyWeight(weightKg: Float) {
         if (weightKg > 0f) {
             _uiState.update { it.copy(bodyWeightKg = weightKg) }
             prefs?.edit()?.putFloat("key_body_weight", weightKg)?.apply()
+            refreshNutritionWithCurrentTargets()
         }
+    }
+
+    fun refreshNutritionWithCurrentTargets() {
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        loadGymNutrition(
+            userId = currentUserId,
+            email = currentUserEmail,
+            date = todayStr,
+            targetCalories = _uiState.value.activeCaloriesTarget,
+            targetProtein = _uiState.value.activeProteinTargetG
+        )
     }
 
     fun updateFoodInputs(
@@ -737,6 +757,7 @@ class GymViewModel(
                                 }
                                 val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
                                 loadGymNutrition(userId = userId, email = email, date = todayStr)
+                                loadWeeklyNutritionTrend(userId = userId, email = email, date = todayStr)
                                 loadGymAnalytics(userId = userId, email = email, date = todayStr)
                                 onSuccess?.invoke()
                             }
@@ -764,19 +785,133 @@ class GymViewModel(
         }
     }
 
-    fun loadGymNutrition(userId: Int? = null, email: String? = null, date: String? = null) {
+    fun selectNutritionTrendMetric(metric: NutritionTrendMetric) {
+        _uiState.update { it.copy(selectedWeeklyNutritionMetric = metric) }
+    }
+
+    fun selectWeeklyTrendDate(date: String?) {
+        _uiState.update { it.copy(selectedWeeklyTrendDate = date) }
+    }
+
+    fun loadWeeklyNutritionTrend(
+        userId: Int? = null,
+        email: String? = null,
+        date: String? = null,
+        targetCalories: Int? = null,
+        targetProtein: Float? = null,
+        targetCarbs: Float? = null,
+        targetFats: Float? = null
+    ) {
+        val uid = userId ?: currentUserId
+        val em = email ?: currentUserEmail
+        val activeCal = targetCalories ?: _uiState.value.activeCaloriesTarget
+        val activeProt = targetProtein ?: _uiState.value.activeProteinTargetG
+        val activeCarbs = targetCarbs ?: (activeCal * 0.45f / 4f)
+        val activeFats = targetFats ?: (activeCal * 0.25f / 9f)
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isWeeklyNutritionLoading = true) }
+            try {
+                withTimeoutOrNull(30_000L) {
+                    repository.getWeeklyNutritionTrend(
+                        userId = uid,
+                        email = em,
+                        date = date,
+                        targetCalories = activeCal,
+                        targetProtein = activeProt,
+                        targetCarbs = activeCarbs,
+                        targetFats = activeFats
+                    ).collect { res ->
+                        when (res) {
+                            is Resource.Loading -> _uiState.update { it.copy(isWeeklyNutritionLoading = true) }
+                            is Resource.Success -> {
+                                val trendData = res.data
+                                _uiState.update { current ->
+                                    val fallbackDate = trendData?.days?.find { it.isToday }?.date
+                                        ?: trendData?.days?.lastOrNull()?.date
+                                    current.copy(
+                                        isWeeklyNutritionLoading = false,
+                                        weeklyNutritionTrend = trendData,
+                                        weeklyNutritionErrorMessage = null,
+                                        selectedWeeklyTrendDate = current.selectedWeeklyTrendDate ?: fallbackDate
+                                    )
+                                }
+                            }
+                            is Resource.Error -> {
+                                _uiState.update {
+                                    it.copy(
+                                        isWeeklyNutritionLoading = false,
+                                        weeklyNutritionErrorMessage = res.message
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isWeeklyNutritionLoading = false,
+                        weeklyNutritionErrorMessage = ApiConstants.resolveNetworkErrorMessage(e)
+                    )
+                }
+            } finally {
+                _uiState.update { it.copy(isWeeklyNutritionLoading = false) }
+            }
+        }
+    }
+
+    fun loadGymNutrition(
+        userId: Int? = null,
+        email: String? = null,
+        date: String? = null,
+        targetCalories: Int? = null,
+        targetProtein: Float? = null,
+        targetCarbs: Float? = null,
+        targetFats: Float? = null
+    ) {
+        val uid = userId ?: currentUserId
+        val em = email ?: currentUserEmail
+        val activeCal = targetCalories ?: _uiState.value.activeCaloriesTarget
+        val activeProt = targetProtein ?: _uiState.value.activeProteinTargetG
+        val activeCarbs = targetCarbs ?: (activeCal * 0.45f / 4f)
+        val activeFats = targetFats ?: (activeCal * 0.25f / 9f)
+
+        loadWeeklyNutritionTrend(
+            userId = uid,
+            email = em,
+            date = date,
+            targetCalories = activeCal,
+            targetProtein = activeProt,
+            targetCarbs = activeCarbs,
+            targetFats = activeFats
+        )
         viewModelScope.launch {
             _uiState.update { it.copy(isNutritionLoading = true) }
             try {
                 withTimeoutOrNull(30_000L) {
-                    repository.getGymNutrition(userId = userId, email = email, date = date).collect { res ->
+                    repository.getGymNutrition(
+                        userId = uid,
+                        email = em,
+                        date = date,
+                        targetCalories = activeCal,
+                        targetProtein = activeProt,
+                        targetCarbs = activeCarbs,
+                        targetFats = activeFats
+                    ).collect { res ->
                         when (res) {
                             is Resource.Loading -> _uiState.update { it.copy(isNutritionLoading = true) }
                             is Resource.Success -> {
-                                _uiState.update {
-                                    it.copy(
+                                _uiState.update { current ->
+                                    val updatedNutrition = res.data?.copy(
+                                        targetCalories = activeCal,
+                                        targetProtein = activeProt,
+                                        targetCarbs = activeCarbs,
+                                        targetFats = activeFats
+                                    )
+                                    current.copy(
                                         isNutritionLoading = false,
-                                        todayNutrition = res.data,
+                                        todayNutrition = updatedNutrition,
                                         nutritionErrorMessage = null
                                     )
                                 }
@@ -815,6 +950,7 @@ class GymViewModel(
                             is Resource.Success -> {
                                 val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
                                 loadGymNutrition(userId = userId, email = email, date = todayStr)
+                                loadWeeklyNutritionTrend(userId = userId, email = email, date = todayStr)
                                 loadGymAnalytics(userId = userId, email = email, date = _uiState.value.selectedAnalyticsDate)
                             }
                             is Resource.Error -> {

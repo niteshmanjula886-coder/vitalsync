@@ -15,6 +15,7 @@ import com.simats.vitalsync.data.model.gym.SaveWorkoutSessionRequest
 import com.simats.vitalsync.data.model.gym.SaveWorkoutSessionResponse
 import com.simats.vitalsync.data.model.gym.WorkoutSessionDto
 import com.simats.vitalsync.data.model.gym.WorkoutSplitDto
+import com.simats.vitalsync.data.model.gym.WeeklyNutritionTrendResponse
 import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.GymApiService
 import com.simats.vitalsync.data.network.RetrofitClient
@@ -224,16 +225,67 @@ class GymRepository(
         }
     }.flowOn(Dispatchers.IO)
 
-    fun getGymNutrition(userId: Int? = null, email: String? = null, date: String? = null): Flow<Resource<GymNutritionResponse>> = flow {
+    fun getGymNutrition(
+        userId: Int? = null,
+        email: String? = null,
+        date: String? = null,
+        targetCalories: Int? = null,
+        targetProtein: Float? = null,
+        targetCarbs: Float? = null,
+        targetFats: Float? = null
+    ): Flow<Resource<GymNutritionResponse>> = flow {
         emit(Resource.Loading)
         try {
-            val response = apiService.getGymNutrition(userId = userId, email = email, date = date)
+            val response = apiService.getGymNutrition(
+                userId = userId,
+                email = email,
+                date = date,
+                targetCalories = targetCalories,
+                targetProtein = targetProtein,
+                targetCarbs = targetCarbs,
+                targetFats = targetFats
+            )
             if (response.isSuccessful && response.body() != null) {
                 val body = response.body()!!
                 if (body.success) {
                     emit(Resource.Success(body))
                 } else {
                     emit(Resource.Error("Failed to fetch gym nutrition"))
+                }
+            } else {
+                emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    fun getWeeklyNutritionTrend(
+        userId: Int? = null,
+        email: String? = null,
+        date: String? = null,
+        targetCalories: Int? = null,
+        targetProtein: Float? = null,
+        targetCarbs: Float? = null,
+        targetFats: Float? = null
+    ): Flow<Resource<WeeklyNutritionTrendResponse>> = flow {
+        emit(Resource.Loading)
+        try {
+            val response = apiService.getWeeklyNutritionTrend(
+                userId = userId,
+                email = email,
+                date = date,
+                targetCalories = targetCalories,
+                targetProtein = targetProtein,
+                targetCarbs = targetCarbs,
+                targetFats = targetFats
+            )
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                if (body.success) {
+                    emit(Resource.Success(body))
+                } else {
+                    emit(Resource.Error(body.message ?: "Failed to fetch weekly nutrition trend"))
                 }
             } else {
                 emit(Resource.Error(parseErrorMessage(response.errorBody()?.string())))

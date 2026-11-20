@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,6 +27,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
@@ -48,6 +50,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
+import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -63,11 +69,12 @@ fun AddReminderScreen(
     var selectedFrequency by remember { mutableStateOf("Every day") }
     var soundVibrationEnabled by remember { mutableStateOf(true) }
     var selectedDays by remember { mutableStateOf(setOf(0, 1, 2, 3, 4, 5, 6)) }
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground || MaterialTheme.colorScheme.surface == CarbonDarkSurface
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
@@ -94,7 +101,7 @@ fun AddReminderScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -104,14 +111,14 @@ fun AddReminderScreen(
                     text = "Add Custom Reminder",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
             // Reminder Label
-            Text(text = "Reminder Label", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            Text(text = "Reminder Label", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = reminderName,
@@ -120,12 +127,12 @@ fun AddReminderScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    focusedTextColor = Color(0xFF111827),
-                    unfocusedTextColor = Color(0xFF111827),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                     focusedBorderColor = VitalTealPrimary,
-                    unfocusedBorderColor = Color(0xFFE5E7EB)
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                 )
             )
 
@@ -135,7 +142,8 @@ fun AddReminderScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Row(
@@ -146,19 +154,19 @@ fun AddReminderScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text(text = "Trigger Time", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "Trigger Time", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = selectedTime, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(text = selectedTime, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     }
 
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFE8F6F0))
+                            .background(if (isDark) Color(0xFF142E1F) else Color(0xFFE8F6F0))
                             .clickable { }
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Text(text = "Change Time", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                        Text(text = "Change Time", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color(0xFF86EFAC) else Color(0xFF0F9F7A))
                     }
                 }
             }
@@ -166,7 +174,7 @@ fun AddReminderScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             // Repeat Day Selector
-            Text(text = "Repeat Days", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            Text(text = "Repeat Days", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(10.dp))
 
             Row(
@@ -179,7 +187,7 @@ fun AddReminderScreen(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(if (isSelected) VitalTealDark else Color(0xFFF1F5F9))
+                            .background(if (isSelected) VitalTealDark else (if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)))
                             .clickable {
                                 selectedDays = if (isSelected) {
                                     selectedDays - index
@@ -193,7 +201,7 @@ fun AddReminderScreen(
                             text = dayLabel,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isSelected) Color.White else Color(0xFF4B5563)
+                            color = if (isSelected) Color.White else (if (isDark) CarbonDarkTextPrimary else Color(0xFF4B5563))
                         )
                     }
                 }
@@ -205,7 +213,8 @@ fun AddReminderScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Row(
@@ -216,8 +225,8 @@ fun AddReminderScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text(text = "Sound & Vibration Alert", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Text(text = "Notify with system alarm tone", fontSize = 11.sp, color = Color(0xFF6B7280))
+                        Text(text = "Sound & Vibration Alert", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(text = "Notify with system alarm tone", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
                     Switch(

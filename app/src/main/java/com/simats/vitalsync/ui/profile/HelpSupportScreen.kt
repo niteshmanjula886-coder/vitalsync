@@ -3,6 +3,7 @@ package com.simats.vitalsync.ui.profile
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +29,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -48,6 +50,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
+import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalTealPrimary
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
@@ -60,12 +65,12 @@ fun HelpSupportScreen(
     onSubmitInquiry: (subject: String, message: String) -> Unit = { _, _ -> },
     onBackClick: () -> Unit = {}
 ) {
-
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground || MaterialTheme.colorScheme.surface == CarbonDarkSurface
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
@@ -84,7 +89,7 @@ fun HelpSupportScreen(
             ) {
                 BackArrowIcon(
                     modifier = Modifier.size(20.dp),
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -94,7 +99,7 @@ fun HelpSupportScreen(
                 text = "Help & Support",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
 
@@ -104,7 +109,7 @@ fun HelpSupportScreen(
             text = "How can we help?",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF111827)
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         Spacer(modifier = Modifier.height(4.dp))
@@ -112,12 +117,10 @@ fun HelpSupportScreen(
         Text(
             text = "Tap any topic or guide below to view detailed descriptions.",
             fontSize = 13.sp,
-            color = Color(0xFF6B7280)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(14.dp))
-
-
 
         // FREQUENTLY ASKED QUESTIONS Section
         SectionHeader("FREQUENTLY ASKED QUESTIONS")
@@ -125,23 +128,27 @@ fun HelpSupportScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
                 ExpandableSupportRow(
                     title = "❤️ Wellness Tracking",
-                    description = "Track your daily vitals including Heart Rate, Blood Pressure, SpO2, Step Count, Activity, Sleep, and Hydration. VitalSync automatically analyzes your trends over time to give you a personalized Wellness Score out of 100."
+                    description = "Track your daily vitals including Heart Rate, Blood Pressure, SpO2, Step Count, Activity, Sleep, and Hydration. VitalSync automatically analyzes your trends over time to give you a personalized Wellness Score out of 100.",
+                    isDark = isDark
                 )
-                HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(horizontal = 16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 16.dp))
                 ExpandableSupportRow(
                     title = "📡 Devices & Synchronization",
-                    description = "Seamlessly sync with your Smart Watch, Fitness Band, Pulse Oximeter, or Health Connect. Your readings update automatically in real-time so your health profile is always up to date."
+                    description = "Seamlessly sync with your Smart Watch, Fitness Band, Pulse Oximeter, or Health Connect. Your readings update automatically in real-time so your health profile is always up to date.",
+                    isDark = isDark
                 )
-                HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(horizontal = 16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 16.dp))
                 ExpandableSupportRow(
                     title = "🛡️ Account & Privacy",
-                    description = "Your health data is encrypted and stored securely on your device. You have full control over data sharing, biometric security, and account management from your Privacy & Security settings."
+                    description = "Your health data is encrypted and stored securely on your device. You have full control over data sharing, biometric security, and account management from your Privacy & Security settings.",
+                    isDark = isDark
                 )
             }
         }
@@ -154,18 +161,21 @@ fun HelpSupportScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
                 ExpandableSupportRow(
                     title = "📖 Getting Started with VitalSync",
-                    description = "Welcome to VitalSync! Start by completing your profile setup, logging your first reading or workout session, setting up daily reminders, and asking VitalSync AI for personalized health insights."
+                    description = "Welcome to VitalSync! Start by completing your profile setup, logging your first reading or workout session, setting up daily reminders, and asking VitalSync AI for personalized health insights.",
+                    isDark = isDark
                 )
-                HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(horizontal = 16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 16.dp))
                 ExpandableSupportRow(
                     title = "⌚ Connect Your First Device",
-                    description = "Go to Connected Devices under Profile settings, ensure Bluetooth is turned on, tap Connect next to your wearable device, and follow the simple pairing prompt to sync your health data."
+                    description = "Go to Connected Devices under Profile settings, ensure Bluetooth is turned on, tap Connect next to your wearable device, and follow the simple pairing prompt to sync your health data.",
+                    isDark = isDark
                 )
             }
         }
@@ -176,6 +186,7 @@ fun HelpSupportScreen(
         ExpandableContactSupportCard(
             emailSupport = emailSupport,
             hours = hours,
+            isDark = isDark,
             onSubmit = onSubmitInquiry
         )
 
@@ -186,7 +197,7 @@ fun HelpSupportScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFFE6F4EA))
+                .background(if (isDark) Color(0xFF142E1F) else Color(0xFFE6F4EA))
                 .padding(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -196,7 +207,7 @@ fun HelpSupportScreen(
                     text = "For urgent medical concerns, contact local emergency services. App support cannot provide medical advice.",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF065F46)
+                    color = if (isDark) Color(0xFF86EFAC) else Color(0xFF065F46)
                 )
             }
         }
@@ -208,7 +219,8 @@ fun HelpSupportScreen(
 @Composable
 private fun ExpandableSupportRow(
     title: String,
-    description: String
+    description: String,
+    isDark: Boolean = false
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
@@ -227,7 +239,7 @@ private fun ExpandableSupportRow(
                 text = title,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1F2937)
+                color = MaterialTheme.colorScheme.onSurface
             )
             ChevronIcon(
                 isExpanded = isExpanded,
@@ -246,13 +258,13 @@ private fun ExpandableSupportRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF8FAFC))
+                        .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF8FAFC))
                         .padding(12.dp)
                 ) {
                     Text(
                         text = description,
                         fontSize = 13.sp,
-                        color = Color(0xFF4B5563),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 18.sp
                     )
                 }
@@ -265,6 +277,7 @@ private fun ExpandableSupportRow(
 private fun ExpandableContactSupportCard(
     emailSupport: String,
     hours: String,
+    isDark: Boolean = false,
     onSubmit: (subject: String, message: String) -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
@@ -276,7 +289,8 @@ private fun ExpandableContactSupportCard(
             .fillMaxWidth()
             .clickable { isExpanded = !isExpanded },
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
@@ -286,11 +300,11 @@ private fun ExpandableContactSupportCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(text = "💬 Contact Support", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text(text = "💬 Contact Support", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "We're here to help with app questions", fontSize = 12.sp, color = Color(0xFF6B7280))
+                    Text(text = "We're here to help with app questions", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "$hours • Typical reply: 24h", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                    Text(text = "$hours • Typical reply: 24h", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 ChevronIcon(isExpanded = isExpanded, modifier = Modifier.size(16.dp))
@@ -303,22 +317,22 @@ private fun ExpandableContactSupportCard(
             ) {
                 Column {
                     Spacer(modifier = Modifier.height(14.dp))
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFFE8F6F0))
+                            .background(if (isDark) Color(0xFF142E1F) else Color(0xFFE8F6F0))
                             .padding(14.dp)
                     ) {
                         Column {
-                            Text(text = "📧 Email: $emailSupport", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Text(text = "📧 Email: $emailSupport", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color(0xFF86EFAC) else Color(0xFF111827))
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = "💬 In-App Helpdesk: Active 24/7", fontSize = 12.sp, color = Color(0xFF0F9F7A), fontWeight = FontWeight.SemiBold)
+                            Text(text = "💬 In-App Helpdesk: Active 24/7", fontSize = 12.sp, color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A), fontWeight = FontWeight.SemiBold)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = "Response Time: Under 24 hours. Our dedicated health-tech support team is ready to assist you!", fontSize = 12.sp, color = Color(0xFF4B5563))
+                            Text(text = "Response Time: Under 24 hours. Our dedicated health-tech support team is ready to assist you!", fontSize = 12.sp, color = if (isDark) Color(0xFFD1FAE5) else Color(0xFF4B5563))
                         }
                     }
 
@@ -328,14 +342,16 @@ private fun ExpandableContactSupportCard(
                         value = inquiryMessage,
                         onValueChange = { inquiryMessage = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Write your question or feedback...", fontSize = 13.sp, color = Color(0xFF9CA3AF)) },
+                        placeholder = { Text("Write your question or feedback...", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         maxLines = 3,
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF8FAFC),
-                            unfocusedContainerColor = Color(0xFFF8FAFC),
-                            focusedTextColor = Color(0xFF111827),
-                            unfocusedTextColor = Color(0xFF111827)
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedBorderColor = VitalTealPrimary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                         )
                     )
 
@@ -367,7 +383,7 @@ private fun SectionHeader(title: String) {
         text = title,
         fontSize = 11.sp,
         fontWeight = FontWeight.Bold,
-        color = Color(0xFF9CA3AF),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         letterSpacing = 1.sp,
         modifier = Modifier.padding(bottom = 6.dp, start = 4.dp)
     )

@@ -119,7 +119,7 @@ fun StepCountDetailScreen(
     val targetGaugeAngle = (progressPercent.coerceIn(0, 100) / 100f) * 360f
     val remainingSteps = (stepsGoal - stepsCurrent).coerceAtLeast(0)
     val remainingText = if (stepsCurrent <= 0) "No steps recorded today" else if (remainingSteps > 0) "${String.format(java.util.Locale.US, "%,d", remainingSteps)} steps remaining" else "Daily goal reached! 🎉"
-    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground || MaterialTheme.colorScheme.surface == CarbonDarkSurface
 
     Column(
         modifier = modifier
@@ -269,12 +269,12 @@ fun StepCountDetailScreen(
                                 text = if (stepsCurrent > 0) String.format(java.util.Locale.US, "%,d", stepsCurrent) else "--",
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "steps",
                                 fontSize = 14.sp,
-                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(2.dp))
@@ -301,33 +301,33 @@ fun StepCountDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
-                            Text(text = "Distance", fontSize = 12.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF))
+                            Text(text = "Distance", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = if (distanceKm > 0) String.format(java.util.Locale.US, "%.1f km", distanceKm) else "-- km",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Column {
-                            Text(text = "Energy", fontSize = 12.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF))
+                            Text(text = "Energy", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = if (caloriesBurned > 0) "$caloriesBurned kcal" else "-- kcal",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Column {
-                            Text(text = "Active time", fontSize = 12.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF))
+                            Text(text = "Active time", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = if (activeMinutes > 0) "$activeMinutes min" else "-- min",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -756,7 +756,7 @@ private fun StepHistoryRow(
     subStr: String,
     statusColor: Color = Color(0xFF0F9F7A)
 ) {
-    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground || MaterialTheme.colorScheme.surface == CarbonDarkSurface
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,

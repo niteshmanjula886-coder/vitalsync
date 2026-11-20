@@ -48,10 +48,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -110,7 +112,13 @@ fun GymScreen(
         if (uiState.selectedTab == 0) {
             viewModel.loadGymWorkouts(userId = userId, email = userEmail, date = todayStr)
         } else if (uiState.selectedTab == 1) {
-            viewModel.loadGymNutrition(userId = userId, email = userEmail, date = todayStr)
+            viewModel.loadGymNutrition(
+                userId = userId,
+                email = userEmail,
+                date = todayStr,
+                targetCalories = uiState.activeCaloriesTarget,
+                targetProtein = uiState.activeProteinTargetG
+            )
         } else if (uiState.selectedTab == 2) {
             viewModel.loadGymAnalytics(userId = userId, email = userEmail)
         }
@@ -1282,7 +1290,17 @@ private fun NutritionTabContent(
     val uiState by viewModel.uiState.collectAsState()
     val todayNutrition = uiState.todayNutrition
 
-    val mealTypes = listOf("Breakfast", "Lunch", "Dinner", "Pre-Workout", "Post-Workout / Snack")
+    val mealTypes = listOf("Breakfast", "Lunch", "Dinner", "Snacks")
+    val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
+    val expandedCategories = remember {
+        mutableStateMapOf(
+            "Breakfast" to true,
+            "Lunch" to true,
+            "Dinner" to true,
+            "Snacks" to true
+        )
+    }
     var showManualMacroOverrides by remember { mutableStateOf(false) }
 
     // Dialogs for target configuration
@@ -1307,7 +1325,7 @@ private fun NutritionTabContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
     ) {
         // ---------------------------------------------------------------------
         // Protein Target Mode Selector (Issue 5)
@@ -1540,17 +1558,43 @@ private fun NutritionTabContent(
         // ---------------------------------------------------------------------
         // AI Nutrition Coach Tip Card
         // ---------------------------------------------------------------------
-        val aiTip = todayNutrition?.aiCoachTip ?: if (totalProt >= targetProt) {
-            "Great work! You reached your daily protein target of ${targetProt.toInt()}g, priming your body for optimal recovery."
+        val protPct = if (targetProt > 0f) ((totalProt / targetProt) * 100).toInt() else 0
+        val protRemaining = (targetProt - totalProt).coerceAtLeast(0f)
+        val calPct = if (targetCal > 0) ((totalCal.toFloat() / targetCal) * 100).toInt() else 0
+        val calRemaining = (targetCal - totalCal).coerceAtLeast(0)
+        val carbsPct = if (targetCarbs > 0f) ((totalCarbs / targetCarbs) * 100).toInt() else 0
+        val carbsRemaining = (targetCarbs - totalCarbs).coerceAtLeast(0f)
+        val fatsPct = if (targetFats > 0f) ((totalFats / targetFats) * 100).toInt() else 0
+        val fatsRemaining = (targetFats - totalFats).coerceAtLeast(0f)
+
+        // Check if server-generated AI tip uses current active targets (guards against stale 140g vs 240g targets)
+        val isServerTipTargetAligned = todayNutrition != null &&
+            todayNutrition.aiCoachTip.isNotBlank() &&
+            (todayNutrition.targetProtein.toInt() == targetProt.toInt() || !todayNutrition.aiCoachTip.contains("/ 140g")) &&
+            !todayNutrition.aiCoachTip.contains("125% of your daily protein target (174")
+
+        val aiTip = if (isServerTipTargetAligned) {
+            todayNutrition!!.aiCoachTip
         } else {
-            "Aim to reach ${targetProt.toInt()}g protein today. Log meals below to receive instant USDA macro analysis."
+            // Pre-calculated verified AI coach guidance based strictly on active targets
+            if (totalCal <= 0) {
+                "No meals logged yet today. Log your breakfast, lunch, dinner, or snacks for instant AI macro breakdown!"
+            } else if (protPct >= 100) {
+                "Fantastic! You've achieved 100% of your daily protein target (${totalProt.toInt()}g / ${targetProt.toInt()}g). Optimal for muscle hypertrophy and recovery."
+            } else if (protPct >= 70) {
+                "On track with ${totalProt.toInt()}g of ${targetProt.toInt()}g protein ($protPct% of goal) and ${protRemaining.toInt()}g remaining. Prioritize your remaining macros to hit your daily targets."
+            } else if (protPct >= 40) {
+                "Logged ${totalProt.toInt()}g of ${targetProt.toInt()}g protein ($protPct%). You still need ${protRemaining.toInt()}g protein and $calRemaining kcal to reach your goal today."
+            } else {
+                "Logged $totalCal kcal and ${totalProt.toInt()}g protein so far ($protPct% of ${targetProt.toInt()}g goal). Prioritize lean protein in your next meal to support recovery."
+            }
         }
 
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
-            border = BorderStroke(1.dp, Color(0xFFBBF7D0))
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Row(
                 modifier = Modifier.padding(14.dp),
@@ -1563,18 +1607,29 @@ private fun NutritionTabContent(
                         text = "VitalSync AI Nutrition Coach",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF166534)
+                        color = VitalPrimaryMint
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = aiTip,
                         fontSize = 12.5.sp,
-                        color = Color(0xFF1E293B),
+                        color = MaterialTheme.colorScheme.onBackground,
                         lineHeight = 17.sp
                     )
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // ---------------------------------------------------------------------
+        // Weekly Nutrition Meal Trend Section (Logged vs Target, Multi-Metric)
+        // ---------------------------------------------------------------------
+        WeeklyNutritionMealTrendSection(
+            viewModel = viewModel,
+            userId = userId,
+            userEmail = userEmail
+        )
 
         Spacer(modifier = Modifier.height(18.dp))
 
@@ -1607,6 +1662,12 @@ private fun NutritionTabContent(
                 ) {
                     mealTypes.forEach { mt ->
                         val isSelected = uiState.selectedMealType.equals(mt, ignoreCase = true)
+                        val chipLabel = when (mt) {
+                            "Breakfast" -> "🍳 Breakfast"
+                            "Lunch" -> "🥗 Lunch"
+                            "Dinner" -> "🍲 Dinner"
+                            else -> "🍎 Snacks"
+                        }
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(14.dp))
@@ -1615,7 +1676,7 @@ private fun NutritionTabContent(
                                 .padding(horizontal = 12.dp, vertical = 7.dp)
                         ) {
                             Text(
-                                text = mt,
+                                text = chipLabel,
                                 fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
@@ -1740,7 +1801,7 @@ private fun NutritionTabContent(
         Spacer(modifier = Modifier.height(20.dp))
 
         // ---------------------------------------------------------------------
-        // Today's Logged Meals
+        // Daily Logged Foods Grouped by Category (Breakfast, Lunch, Dinner, Snacks)
         // ---------------------------------------------------------------------
         val meals = todayNutrition?.meals ?: emptyList()
         Row(
@@ -1748,60 +1809,63 @@ private fun NutritionTabContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Today's Meals (${meals.size})",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            Column {
+                Text(
+                    text = "Daily Meal Breakdown",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "${meals.size} items logged across 4 categories",
+                    fontSize = 11.5.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             if (uiState.isNutritionLoading) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = VitalPrimaryMint)
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        if (meals.isEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(text = "🥗", fontSize = 28.sp)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "No Meals Logged Today",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Log your meals or snacks above to track calories and protein towards your daily goals.",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
+        val categorySlots = listOf(
+            Triple("Breakfast", "🍳", "Morning fuel"),
+            Triple("Lunch", "🥗", "Midday sustenance"),
+            Triple("Dinner", "🍲", "Evening recovery"),
+            Triple("Snacks", "🍎", "Pre/post-workout & snacks")
+        )
+
+        categorySlots.forEach { (catName, icon, sub) ->
+            val catMeals = meals.filter { m ->
+                val lower = m.mealType.trim().lowercase()
+                when (catName) {
+                    "Breakfast" -> lower.contains("breakfast")
+                    "Lunch" -> lower.contains("lunch")
+                    "Dinner" -> lower.contains("dinner")
+                    else -> !lower.contains("breakfast") && !lower.contains("lunch") && !lower.contains("dinner")
                 }
             }
-        } else {
-            meals.forEach { meal ->
-                MealCardItem(
-                    meal = meal,
-                    onDelete = { viewModel.deleteGymNutrition(meal.id, userId, userEmail) }
-                )
-            }
+
+            val isExpanded = expandedCategories[catName] ?: true
+
+            MealCategorySectionCard(
+                categoryName = catName,
+                icon = icon,
+                subtitle = sub,
+                meals = catMeals,
+                isExpanded = isExpanded,
+                onToggleExpand = { expandedCategories[catName] = !isExpanded },
+                onDeleteMeal = { mealId ->
+                    viewModel.deleteGymNutrition(mealId, userId, userEmail)
+                }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(24.dp))
     }
 
     // Dialog: Edit Body Weight
@@ -1925,77 +1989,208 @@ private fun MacroBar(label: String, current: Float, target: Float, unit: String,
 }
 
 @Composable
-private fun MealCardItem(
+private fun MealCategorySectionCard(
+    categoryName: String,
+    icon: String,
+    subtitle: String,
+    meals: List<GymNutritionLogDto>,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    onDeleteMeal: (Int) -> Unit
+) {
+    val subtotalCal = meals.sumOf { it.calories }
+    val subtotalProt = meals.sumOf { it.proteinG.toDouble() }.toFloat()
+    val subtotalCarbs = meals.sumOf { it.carbsG.toDouble() }.toFloat()
+    val subtotalFats = meals.sumOf { it.fatsG.toDouble() }.toFloat()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Header Row - entire header tappable to expand/collapse
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onToggleExpand() },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(VitalTealDark.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = icon, fontSize = 20.sp)
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = categoryName,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "(${meals.size})",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (meals.isNotEmpty()) {
+                                "$subtotalCal kcal • ${subtotalProt.toInt()}g P • ${subtotalCarbs.toInt()}g C • ${subtotalFats.toInt()}g F"
+                            } else {
+                                "0 kcal • $subtitle"
+                            },
+                            fontSize = 11.5.sp,
+                            fontWeight = if (meals.isNotEmpty()) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (meals.isNotEmpty()) VitalPrimaryMint else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Trailing expand/collapse chevron icon cleanly aligned
+                IconButton(
+                    onClick = onToggleExpand,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Text(
+                        text = if (isExpanded) "▲" else "▼",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Expandable Content
+            AnimatedVisibility(visible = isExpanded) {
+                Column(modifier = Modifier.padding(top = 10.dp)) {
+                    if (meals.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                                .padding(vertical = 12.dp, horizontal = 14.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No foods logged for $categoryName yet",
+                                fontSize = 11.5.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        meals.forEach { meal ->
+                            MealItemRow(
+                                meal = meal,
+                                onDelete = { onDeleteMeal(meal.id) }
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MealItemRow(
     meal: GymNutritionLogDto,
     onDelete: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 5.dp),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFE8F6F0))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = meal.mealType,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = VitalPrimaryMint
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = meal.foodDescription,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                Text(
+                    text = meal.foodDescription,
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
 
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(26.dp)
                 ) {
-                    Text(text = "🗑️", fontSize = 13.sp)
+                    Text(
+                        text = "✕",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-            // Macros Summary
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "🔥 ${meal.calories} kcal", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                Text(text = "P: ${meal.proteinG.toInt()}g", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF026C54))
-                Text(text = "C: ${meal.carbsG.toInt()}g", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0284C7))
-                Text(text = "F: ${meal.fatsG.toInt()}g", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFD97706))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "${meal.calories} kcal",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = VitalPrimaryMint
+                    )
+                    Text(text = "•", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(text = "${meal.proteinG.toInt()}g P", fontSize = 11.5.sp, fontWeight = FontWeight.Medium, color = Color(0xFF026C54))
+                    Text(text = "${meal.carbsG.toInt()}g C", fontSize = 11.5.sp, fontWeight = FontWeight.Medium, color = Color(0xFF0284C7))
+                    Text(text = "${meal.fatsG.toInt()}g F", fontSize = 11.5.sp, fontWeight = FontWeight.Medium, color = Color(0xFFD97706))
+                }
+
+                if (meal.timeFormatted.isNotBlank()) {
+                    Text(
+                        text = meal.timeFormatted,
+                        fontSize = 10.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
             }
 
             if (meal.aiFeedback.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "💡 ${meal.aiFeedback}",
-                    fontSize = 11.5.sp,
+                    fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 15.sp
+                    lineHeight = 14.sp
                 )
             }
         }

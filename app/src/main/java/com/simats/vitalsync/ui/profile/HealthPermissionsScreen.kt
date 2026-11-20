@@ -1,5 +1,6 @@
 package com.simats.vitalsync.ui.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,6 +26,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -47,6 +49,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 import java.text.SimpleDateFormat
@@ -80,6 +84,8 @@ fun HealthPermissionsScreen(
         writeHealthDataPermission = writeHealthData
     }
 
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground || MaterialTheme.colorScheme.surface == CarbonDarkSurface
+
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     val lastSyncText = remember(lastSyncTimestamp) {
         if (lastSyncTimestamp != null && lastSyncTimestamp > 0) {
@@ -92,7 +98,7 @@ fun HealthPermissionsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp),
@@ -118,7 +124,7 @@ fun HealthPermissionsScreen(
                 ) {
                     BackArrowIcon(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -128,7 +134,7 @@ fun HealthPermissionsScreen(
                     text = "Health Permissions",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -137,7 +143,7 @@ fun HealthPermissionsScreen(
             Text(
                 text = "Choose the health data VitalSync accesses to personalize your daily insights.",
                 fontSize = 13.sp,
-                color = Color(0xFF6B7280)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -146,7 +152,8 @@ fun HealthPermissionsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F6F0)),
+                colors = CardDefaults.cardColors(containerColor = if (isDark) Color(0xFF142E1F) else Color(0xFFE8F6F0)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
@@ -160,19 +167,19 @@ fun HealthPermissionsScreen(
                         Text(text = "❤️", fontSize = 24.sp)
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text(text = "Health Connect", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                            Text(text = lastSyncText, fontSize = 12.sp, color = Color(0xFF6B7280))
+                            Text(text = "Health Connect", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color(0xFF86EFAC) else Color(0xFF111827))
+                            Text(text = lastSyncText, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
 
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFDCFCE7))
+                            .background(if (isDark) Color(0xFF1F4D33) else Color(0xFFDCFCE7))
                             .clickable { onRequestHealthPermissions() }
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Text(text = "Manage", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF15803D))
+                        Text(text = "Manage", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color(0xFF86EFAC) else Color(0xFF15803D))
                     }
                 }
             }
@@ -185,7 +192,8 @@ fun HealthPermissionsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -196,7 +204,7 @@ fun HealthPermissionsScreen(
                         checked = vitalSignsPermission
                     ) { vitalSignsPermission = it }
 
-                    HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
 
                     PermissionToggleRow(
                         title = "Activity",
@@ -205,7 +213,7 @@ fun HealthPermissionsScreen(
                         checked = activityPermission
                     ) { activityPermission = it }
 
-                    HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
 
                     PermissionToggleRow(
                         title = "Sleep",
@@ -214,7 +222,7 @@ fun HealthPermissionsScreen(
                         checked = sleepPermission
                     ) { sleepPermission = it }
 
-                    HorizontalDivider(color = Color(0xFFF8FAFC), modifier = Modifier.padding(vertical = 12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
 
                     PermissionToggleRow(
                         title = "Hydration",
@@ -233,7 +241,8 @@ fun HealthPermissionsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -284,9 +293,10 @@ fun HealthPermissionsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
-                Text(text = "Open Health Connect Settings", fontSize = 14.sp, color = Color(0xFF374151))
+                Text(text = "Open Health Connect Settings", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
             }
         }
     }
@@ -298,7 +308,7 @@ private fun SectionHeader(title: String) {
         text = title,
         fontSize = 11.sp,
         fontWeight = FontWeight.Bold,
-        color = Color(0xFF9CA3AF),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         letterSpacing = 1.sp,
         modifier = Modifier
             .fillMaxWidth()
@@ -327,9 +337,9 @@ private fun PermissionToggleRow(
             Text(text = icon, fontSize = 20.sp)
             Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(text = desc, fontSize = 11.sp, color = Color(0xFF6B7280))
+                Text(text = desc, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
