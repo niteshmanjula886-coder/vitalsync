@@ -13,9 +13,12 @@
     <!-- Foreground Service & Notifications -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
     <!-- Android Health Connect Permissions -->
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
@@ -87,6 +90,29 @@
                 <action android:name="com.simats.vitalsync.ACTION_STEPS_REMINDER" />
             </intent-filter>
         </receiver>
+
+        <!-- Sleep Tracker Alarm Receiver -->
+        <receiver
+            android:name=".util.SleepAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.simats.vitalsync.ACTION_WAKE_UP_ALARM" />
+                <action android:name="com.simats.vitalsync.ACTION_SNOOZE_ALARM" />
+                <action android:name="com.simats.vitalsync.ACTION_TURN_OFF_ALARM" />
+                <action android:name="com.simats.vitalsync.ACTION_STOP_SLEEP" />
+                <action android:name="com.simats.vitalsync.ACTION_BEDTIME_REMINDER" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Sleep Tracker Foreground Service -->
+        <service
+            android:name=".util.SleepTrackerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Sleep tracking timer and wake-up alarm" />
+        </service>
 
         <service
             android:name=".VitalSyncFirebaseMessagingService"

@@ -514,7 +514,9 @@ data class LogSleepRequest(
     @SerializedName("sleep_score")
     val sleepScore: Int,
     @SerializedName("quality_label")
-    val qualityLabel: String
+    val qualityLabel: String,
+    @SerializedName("action")
+    val action: String? = null
 )
 
 data class LogSleepResponse(

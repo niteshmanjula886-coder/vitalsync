@@ -94,6 +94,11 @@ interface VitalsApiService {
         @Body body: com.simats.vitalsync.data.model.vitals.LogSleepRequest
     ): Response<com.simats.vitalsync.data.model.vitals.LogSleepResponse>
 
+    @POST("sleep/sleep.php")
+    suspend fun resetSleep(
+        @Body body: com.simats.vitalsync.data.model.vitals.LogSleepRequest
+    ): Response<com.simats.vitalsync.data.model.vitals.LogSleepResponse>
+
     @GET("vitals/get_hr_details.php")
     suspend fun getHrDetails(
         @Query("user_id") userId: Int? = null,

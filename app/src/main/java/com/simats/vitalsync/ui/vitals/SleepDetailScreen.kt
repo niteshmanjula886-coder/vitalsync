@@ -29,6 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -36,8 +37,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -68,6 +71,7 @@ import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.vitals.LogSleepRequest
 import com.simats.vitalsync.data.model.vitals.SleepLogEntryDto
 import com.simats.vitalsync.data.network.RetrofitClient
+import com.simats.vitalsync.util.SleepSessionManager
 import com.simats.vitalsync.ui.theme.CarbonDarkBackground
 import com.simats.vitalsync.ui.theme.CarbonDarkBorder
 import com.simats.vitalsync.ui.theme.CarbonDarkPurpleAccent
@@ -119,10 +123,53 @@ fun SleepDetailScreen(
     var wakeHour by remember { mutableIntStateOf(6) }
     var wakeMinute by remember { mutableIntStateOf(30) }
 
+    // Live Sleep Tracking Session Manager & State
+    val sleepSessionManager = remember { SleepSessionManager.getInstance(context) }
+    val liveSessionState by sleepSessionManager.sessionState.collectAsState()
+    var liveAlarmEnabled by remember { mutableStateOf(liveSessionState.alarmEnabled) }
+
     var isRecordedSaved by remember { mutableStateOf(false) }
+    var loggedDurationMinutes by remember { mutableIntStateOf(0) }
+    var loggedBedtime by remember { mutableStateOf<String?>(null) }
+    var loggedWakeTime by remember { mutableStateOf<String?>(null) }
+    var showResetDialog by remember { mutableStateOf(false) }
     var isSavingRemote by remember { mutableStateOf(false) }
     var showSuccessToast by remember { mutableStateOf(false) }
     var sleepHistory by remember { mutableStateOf<List<SleepLogEntryDto>>(emptyList()) }
+
+    // Bedtime Reminder settings (stored in SleepSessionManager)
+    var bedtimeReminderEnabled by remember { mutableStateOf(sleepSessionManager.isBedtimeReminderEnabled()) }
+    var bedtimeHour by remember { mutableIntStateOf(sleepSessionManager.getBedtimeReminderHour()) }
+    var bedtimeMinute by remember { mutableIntStateOf(sleepSessionManager.getBedtimeReminderMinute()) }
+    var bedtimeReminderMode by remember { mutableStateOf(sleepSessionManager.getBedtimeReminderMode()) }
+
+    // When background sleep session completes, update local UI state immediately
+    LaunchedEffect(liveSessionState.lastCompletedRecord) {
+        liveSessionState.lastCompletedRecord?.let { record ->
+            isRecordedSaved = true
+            loggedDurationMinutes = record.durationMinutes
+            loggedBedtime = record.bedtime
+            loggedWakeTime = record.wakeTime
+            parseFormattedTimeToHourMinute(record.bedtime)?.let { (h, m) ->
+                bedHour = h
+                bedMinute = m
+            }
+            parseFormattedTimeToHourMinute(record.wakeTime)?.let { (h, m) ->
+                wakeHour = h
+                wakeMinute = m
+            }
+            showSuccessToast = true
+            sleepHistory = (listOf(
+                SleepLogEntryDto(
+                    date = record.dateString,
+                    durationMinutes = record.durationMinutes,
+                    sleepScore = record.sleepScore,
+                    quality = record.qualityLabel
+                )
+            ) + sleepHistory.filterNot { it.date == record.dateString }).take(7)
+            onSleepLogged()
+        }
+    }
 
     fun buildNormalizedLocalHistory(): List<SleepLogEntryDto> {
         return repository.getRecentSleepRecords(limit = 7).map { rec ->
@@ -142,6 +189,9 @@ fun SleepDetailScreen(
         val localToday = repository.getSleepRecord(todayDate)
         if (localToday != null && localToday.durationMinutes > 0) {
             isRecordedSaved = true
+            loggedDurationMinutes = localToday.durationMinutes
+            loggedBedtime = localToday.bedtime
+            loggedWakeTime = localToday.wakeTime
             parseFormattedTimeToHourMinute(localToday.bedtime)?.let { (h, m) ->
                 bedHour = h
                 bedMinute = m
@@ -150,6 +200,11 @@ fun SleepDetailScreen(
                 wakeHour = h
                 wakeMinute = m
             }
+        } else {
+            isRecordedSaved = false
+            loggedDurationMinutes = 0
+            loggedBedtime = null
+            loggedWakeTime = null
         }
         sleepHistory = buildNormalizedLocalHistory()
 
@@ -165,6 +220,9 @@ fun SleepDetailScreen(
             if (sleepPayload != null) {
                 if (sleepPayload.date == todayDate && sleepPayload.durationMinutes > 0) {
                     isRecordedSaved = true
+                    loggedDurationMinutes = sleepPayload.durationMinutes
+                    loggedBedtime = sleepPayload.bedtime
+                    loggedWakeTime = sleepPayload.wakeTime
                     parseFormattedTimeToHourMinute(sleepPayload.bedtime)?.let { (h, m) ->
                         bedHour = h
                         bedMinute = m
@@ -184,6 +242,12 @@ fun SleepDetailScreen(
                             dateString = todayDate
                         )
                     )
+                } else if (sleepPayload.date == todayDate && sleepPayload.durationMinutes <= 0) {
+                    isRecordedSaved = false
+                    loggedDurationMinutes = 0
+                    loggedBedtime = null
+                    loggedWakeTime = null
+                    repository.clearSleepRecord(todayDate)
                 }
                 val remoteHistory = sleepPayload.recentHistory
                     .filter { it.durationMinutes > 0 }
@@ -203,8 +267,8 @@ fun SleepDetailScreen(
         }
     }
 
-    // Automatic Overnight Duration Calculation
-    val totalSleepMinutes = remember(bedHour, bedMinute, wakeHour, wakeMinute) {
+    // Manual Time Pickers Calculated Duration
+    val manualCalculatedSleepMinutes = remember(bedHour, bedMinute, wakeHour, wakeMinute) {
         val bedTotalMins = bedHour * 60 + bedMinute
         val wakeTotalMins = wakeHour * 60 + wakeMinute
         if (wakeTotalMins >= bedTotalMins) {
@@ -222,12 +286,19 @@ fun SleepDetailScreen(
         formatTime12Hour(wakeHour, wakeMinute)
     }
 
-    val durationHours = totalSleepMinutes / 60
-    val durationMins = totalSleepMinutes % 60
-    val formattedDurationStr = "${durationHours}h ${durationMins}m"
+    // Overview Card Duration Display:
+    // If recorded/saved for today, show exact recorded sleep; if not saved/reset, show 0h 0m (No Data).
+    val displaySleepMinutes = if (isRecordedSaved && loggedDurationMinutes > 0) loggedDurationMinutes else 0
+    val displayHours = displaySleepMinutes / 60
+    val displayMins = displaySleepMinutes % 60
+    val formattedDisplayDurationStr = "${displayHours}h ${displayMins}m"
 
-    val progressRatio = (totalSleepMinutes.toFloat() / targetSleepMinutes.toFloat()).coerceIn(0f, 1f)
-    val progressPercent = (progressRatio * 100).toInt()
+    val displayProgressRatio = (displaySleepMinutes.toFloat() / targetSleepMinutes.toFloat()).coerceIn(0f, 1f)
+    val displayProgressPercent = (displayProgressRatio * 100).toInt()
+
+    val manualHours = manualCalculatedSleepMinutes / 60
+    val manualMins = manualCalculatedSleepMinutes % 60
+    val formattedManualDurationStr = "${manualHours}h ${manualMins}m"
 
     LaunchedEffect(showSuccessToast) {
         if (showSuccessToast) {
@@ -276,14 +347,34 @@ fun SleepDetailScreen(
                 )
             }
 
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)),
-                contentAlignment = Alignment.Center
-            ) {
-                CalendarIcon(modifier = Modifier.size(18.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isRecordedSaved || loggedDurationMinutes > 0) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFFEE2E2))
+                            .clickable { showResetDialog = true }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "↺ Reset (0h)",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFDC2626)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CalendarIcon(modifier = Modifier.size(18.dp))
+                }
             }
         }
 
@@ -305,7 +396,7 @@ fun SleepDetailScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "🌙 Sleep entry saved! $formattedDurationStr recorded ($progressPercent% of 8h goal)",
+                    text = "🌙 Sleep entry saved! $formattedDisplayDurationStr recorded ($displayProgressPercent% of 8h goal)",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF15803D)
@@ -313,8 +404,19 @@ fun SleepDetailScreen(
             }
         }
 
-        val qualityPresentation = remember(totalSleepMinutes) {
-            SleepColorStandards.getPresentation(totalSleepMinutes)
+        val qualityPresentation = remember(displaySleepMinutes, isRecordedSaved) {
+            if (isRecordedSaved && displaySleepMinutes > 0) {
+                SleepColorStandards.getPresentation(displaySleepMinutes)
+            } else {
+                SleepColorStandards.QualityPresentation(
+                    qualityLabel = "No record",
+                    status = "No Sleep Logged",
+                    primaryColor = Color(0xFF94A3B8),
+                    containerColor = Color(0xFFF8FAFC),
+                    badgeTextColor = Color(0xFF64748B),
+                    medicalMeaning = "No sleep logged for today yet"
+                )
+            }
         }
 
         // Top Sleep Overview & Goal Progress Card with Dynamic Quality Color Coding
@@ -338,25 +440,47 @@ fun SleepDetailScreen(
                         fontWeight = FontWeight.Bold
                     )
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(if (isDark) CarbonDarkPurplePill else Color.White)
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = if (isRecordedSaved) "Logged ✓" else qualityPresentation.status,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDark) CarbonDarkPurpleText else qualityPresentation.badgeTextColor
-                        )
+                        if (isRecordedSaved) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFFEE2E2))
+                                    .clickable { showResetDialog = true }
+                                    .padding(horizontal = 7.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "↺ Reset",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFDC2626)
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isDark) CarbonDarkPurplePill else (if (isRecordedSaved) Color.White else Color(0xFFF1F5F9)))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = if (isRecordedSaved) "Logged ✓" else "No Data",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) CarbonDarkPurpleText else (if (isRecordedSaved) qualityPresentation.badgeTextColor else Color(0xFF64748B))
+                            )
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = formattedDurationStr,
+                    text = formattedDisplayDurationStr,
                     fontSize = 42.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
@@ -365,7 +489,8 @@ fun SleepDetailScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "$progressPercent% of ${targetSleepMinutes / 60}h daily target • ${qualityPresentation.medicalMeaning}",
+                    text = if (isRecordedSaved) "$displayProgressPercent% of ${targetSleepMinutes / 60}h daily target • ${qualityPresentation.medicalMeaning}"
+                    else "0% of ${targetSleepMinutes / 60}h daily target • Tap Start Sleep or Log below",
                     fontSize = 12.sp,
                     color = if (isDark) CarbonDarkTextSecondary else Color(0xFF4B5563),
                     fontWeight = FontWeight.Medium
@@ -383,7 +508,7 @@ fun SleepDetailScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(progressRatio)
+                            .fillMaxWidth(displayProgressRatio)
                             .height(10.dp)
                             .clip(CircleShape)
                             .background(qualityPresentation.primaryColor)
@@ -398,12 +523,641 @@ fun SleepDetailScreen(
                 ) {
                     Column {
                         Text(text = "Bedtime", fontSize = 11.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280))
-                        Text(text = formattedBedtime, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827))
+                        Text(text = if (isRecordedSaved) (loggedBedtime ?: formattedBedtime) else "--", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827))
                     }
 
                     Column {
                         Text(text = "Wake time", fontSize = 11.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280))
-                        Text(text = formattedWakeTime, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827))
+                        Text(text = if (isRecordedSaved) (loggedWakeTime ?: formattedWakeTime) else "--", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827))
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // ---------------------------------------------------------------------
+        // LIVE SLEEP TRACKER & WAKE-UP ALARM CARD (Background Timer + 2-Min Snooze)
+        // ---------------------------------------------------------------------
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (liveSessionState.isActive) {
+                    if (isDark) CarbonDarkPurpleSurface else Color(0xFFF3E8FF)
+                } else {
+                    if (isDark) CarbonDarkSurface else Color.White
+                }
+            ),
+            border = BorderStroke(
+                1.5.dp,
+                if (liveSessionState.isActive) {
+                    if (isDark) CarbonDarkPurpleAccent else Color(0xFF9333EA)
+                } else {
+                    if (isDark) CarbonDarkBorder else Color.Transparent
+                }
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (liveSessionState.isActive) 3.dp else 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                if (!liveSessionState.isActive) {
+                    // --- IDLE STATE: CONFIGURE & START LIVE SLEEP SESSION ---
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "🌙 Live Sleep Tracker & Alarm",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                            )
+                            Text(
+                                text = "Track sleep in background with live timer, alarm & 2-min snooze",
+                                fontSize = 12.sp,
+                                color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
+
+                        // Alarm ON/OFF Switch Pill
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    if (liveAlarmEnabled) VitalTealDark.copy(alpha = 0.15f)
+                                    else if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)
+                                )
+                                .clickable { liveAlarmEnabled = !liveAlarmEnabled }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = if (liveAlarmEnabled) "⏰ Alarm ON" else "🔕 Alarm OFF",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (liveAlarmEnabled) VitalTealDark else (if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B))
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Wake-Up Alarm Time (Full-Width Interactive Selector)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                if (liveAlarmEnabled) (if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF8FAFC))
+                                else (if (isDark) CarbonDarkSurfaceVariant.copy(alpha = 0.5f) else Color(0xFFF1F5F9))
+                            )
+                            .clickable {
+                                TimePickerDialog(
+                                    context,
+                                    { _, h, m ->
+                                        wakeHour = h
+                                        wakeMinute = m
+                                    },
+                                    wakeHour,
+                                    wakeMinute,
+                                    false
+                                ).show()
+                            }
+                            .padding(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(text = "⏰", fontSize = 14.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Wake-Up Alarm Time",
+                                        fontSize = 12.sp,
+                                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B),
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = formattedWakeTime,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                                )
+                            }
+
+                            Text(
+                                text = if (liveAlarmEnabled) "Tap to change ✎" else "Alarm disabled",
+                                fontSize = 12.sp,
+                                color = if (liveAlarmEnabled) VitalTealDark else (if (isDark) CarbonDarkTextSecondary else Color(0xFF94A3B8)),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // "▶ Start Sleep" Button
+                    Button(
+                        onClick = {
+                            sleepSessionManager.startSleepSession(
+                                context = context,
+                                wakeHour = wakeHour,
+                                wakeMinute = wakeMinute,
+                                alarmEnabled = liveAlarmEnabled,
+                                userId = resolvedUserId,
+                                userEmail = resolvedEmail
+                            )
+                            Toast.makeText(
+                                context,
+                                if (liveAlarmEnabled) "🌙 Sleep tracker started! Wake-up alarm set for $formattedWakeTime"
+                                else "🌙 Sleep tracker started! Running in background",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = VitalTealDark,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            text = "▶ Start Sleep",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                } else {
+                    // --- ACTIVE STATE: LIVE ELAPSED TIMER & ALARM CONTROLS ---
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(if (liveSessionState.isAlarmRinging) Color(0xFFDC2626) else Color(0xFF16A34A))
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (liveSessionState.isAlarmRinging) "⏰ ALARM IS RINGING!"
+                                else if (liveSessionState.isSnoozed) "💤 SNOOZED (2 MIN)"
+                                else "SLEEP TRACKER ACTIVE",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (liveSessionState.isAlarmRinging) Color(0xFFDC2626)
+                                else if (isDark) CarbonDarkPurpleAccent else Color(0xFF7E22CE),
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+
+                        val startTimeStr = remember(liveSessionState.sleepStartMillis) {
+                            if (liveSessionState.sleepStartMillis > 0L) {
+                                SimpleDateFormat("hh:mm a", Locale.US).format(liveSessionState.sleepStartMillis)
+                            } else ""
+                        }
+                        if (startTimeStr.isNotBlank()) {
+                            Text(
+                                text = "Started $startTimeStr",
+                                fontSize = 11.5.sp,
+                                color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Big Live Elapsed Time Display
+                    val elapsedFormatted = formatElapsedTimer(liveSessionState.elapsedSeconds)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = elapsedFormatted,
+                            fontSize = 42.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Live sleep elapsed • VitalSync sleep tracker is running",
+                            fontSize = 12.sp,
+                            color = if (isDark) CarbonDarkTextSecondary else Color(0xFF4B5563)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Scheduled Alarm Status Line
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isDark) CarbonDarkSurfaceVariant else Color.White.copy(alpha = 0.8f))
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val targetWakeFmt = formatTime12Hour(liveSessionState.targetWakeHour, liveSessionState.targetWakeMinute)
+                            Text(
+                                text = if (liveSessionState.alarmEnabled) "⏰ Wake-up Alarm: $targetWakeFmt" else "🔕 Alarm: Disabled",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF1F2937)
+                            )
+
+                            if (liveSessionState.isSnoozed) {
+                                val snoozeCountdown = formatSnoozeRemaining(liveSessionState.snoozeUntilMillis)
+                                Text(
+                                    text = "Rings in $snoozeCountdown",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFD97706)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Action Buttons based on alarm ringing / snooze / normal tracking
+                    if (liveSessionState.isAlarmRinging) {
+                        // Alarm Ringing -> Show Snooze (2 min) & Turn Off / Awake buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    sleepSessionManager.snoozeAlarm(context)
+                                    Toast.makeText(context, "💤 Alarm snoozed for 2 minutes", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFF59E0B),
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Text(
+                                    text = "💤 Snooze (2 min)",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Button(
+                                onClick = {
+                                    sleepSessionManager.turnOffAlarmAndLog(context) { rec ->
+                                        isRecordedSaved = true
+                                        loggedDurationMinutes = rec.durationMinutes
+                                        loggedBedtime = rec.bedtime
+                                        loggedWakeTime = rec.wakeTime
+                                        parseFormattedTimeToHourMinute(rec.bedtime)?.let { (h, m) -> bedHour = h; bedMinute = m }
+                                        parseFormattedTimeToHourMinute(rec.wakeTime)?.let { (h, m) -> wakeHour = h; wakeMinute = m }
+                                        showSuccessToast = true
+                                        sleepHistory = (listOf(
+                                            SleepLogEntryDto(
+                                                date = rec.dateString,
+                                                durationMinutes = rec.durationMinutes,
+                                                sleepScore = rec.sleepScore,
+                                                quality = rec.qualityLabel
+                                            )
+                                        ) + sleepHistory.filterNot { it.date == rec.dateString }).take(7)
+                                        onSleepLogged()
+                                    }
+                                    Toast.makeText(context, "☀️ Good morning! Sleep logged successfully", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier
+                                    .weight(1.2f)
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = VitalTealDark,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Text(
+                                    text = "☀️ Turn Off / Awake",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    } else if (liveSessionState.isSnoozed) {
+                        // Snoozed State -> Allow Turn Off early or let it ring again
+                        Button(
+                            onClick = {
+                                sleepSessionManager.turnOffAlarmAndLog(context) { rec ->
+                                    isRecordedSaved = true
+                                    loggedDurationMinutes = rec.durationMinutes
+                                    loggedBedtime = rec.bedtime
+                                    loggedWakeTime = rec.wakeTime
+                                    parseFormattedTimeToHourMinute(rec.bedtime)?.let { (h, m) -> bedHour = h; bedMinute = m }
+                                    parseFormattedTimeToHourMinute(rec.wakeTime)?.let { (h, m) -> wakeHour = h; wakeMinute = m }
+                                    showSuccessToast = true
+                                    sleepHistory = (listOf(
+                                        SleepLogEntryDto(
+                                            date = rec.dateString,
+                                            durationMinutes = rec.durationMinutes,
+                                            sleepScore = rec.sleepScore,
+                                            quality = rec.qualityLabel
+                                        )
+                                    ) + sleepHistory.filterNot { it.date == rec.dateString }).take(7)
+                                    onSleepLogged()
+                                }
+                                Toast.makeText(context, "☀️ Good morning! Sleep logged successfully", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = VitalTealDark,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text(
+                                text = "☀️ Turn Off Alarm & Log Sleep",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
+                        // Normal Active Session -> Early Wake ("Stop Sleep")
+                        Button(
+                            onClick = {
+                                sleepSessionManager.stopSleepEarly(context) { rec ->
+                                    isRecordedSaved = true
+                                    loggedDurationMinutes = rec.durationMinutes
+                                    loggedBedtime = rec.bedtime
+                                    loggedWakeTime = rec.wakeTime
+                                    parseFormattedTimeToHourMinute(rec.bedtime)?.let { (h, m) -> bedHour = h; bedMinute = m }
+                                    parseFormattedTimeToHourMinute(rec.wakeTime)?.let { (h, m) -> wakeHour = h; wakeMinute = m }
+                                    showSuccessToast = true
+                                    sleepHistory = (listOf(
+                                        SleepLogEntryDto(
+                                            date = rec.dateString,
+                                            durationMinutes = rec.durationMinutes,
+                                            sleepScore = rec.sleepScore,
+                                            quality = rec.qualityLabel
+                                        )
+                                    ) + sleepHistory.filterNot { it.date == rec.dateString }).take(7)
+                                    onSleepLogged()
+                                }
+                                Toast.makeText(context, "☀️ Sleep session saved!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFBE185D), // Deep Rose / Berry
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text(
+                                text = "☀️ Stop Sleep (I'm Awake)",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // ---------------------------------------------------------------------
+        // SEPARATE BEDTIME REMINDER & WIND-DOWN CARD
+        // ---------------------------------------------------------------------
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = if (isDark) CarbonDarkSurface else Color.White),
+            border = BorderStroke(1.dp, if (isDark) CarbonDarkBorder else Color.Transparent),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "🛌 Bedtime Reminder",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                        )
+                        Text(
+                            text = "Get alerted when it's time to wind down for bed",
+                            fontSize = 12.sp,
+                            color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+
+                    // Bedtime Reminder Toggle Pill
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(
+                                if (bedtimeReminderEnabled) VitalTealDark.copy(alpha = 0.15f)
+                                else if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)
+                            )
+                            .clickable {
+                                bedtimeReminderEnabled = !bedtimeReminderEnabled
+                                sleepSessionManager.saveBedtimeReminder(
+                                    context = context,
+                                    enabled = bedtimeReminderEnabled,
+                                    hour = bedtimeHour,
+                                    minute = bedtimeMinute,
+                                    mode = bedtimeReminderMode
+                                )
+                                Toast.makeText(
+                                    context,
+                                    if (bedtimeReminderEnabled) "🌙 Bedtime reminder turned ON" else "🔕 Bedtime reminder turned OFF",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = if (bedtimeReminderEnabled) "🔔 Reminder ON" else "🔕 Reminder OFF",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (bedtimeReminderEnabled) VitalTealDark else (if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B))
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                val formattedBedtimeReminder = remember(bedtimeHour, bedtimeMinute) {
+                    formatTime12Hour(bedtimeHour, bedtimeMinute)
+                }
+
+                // Bedtime Picker Card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            if (bedtimeReminderEnabled) (if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF8FAFC))
+                            else (if (isDark) CarbonDarkSurfaceVariant.copy(alpha = 0.5f) else Color(0xFFF1F5F9))
+                        )
+                        .clickable {
+                            TimePickerDialog(
+                                context,
+                                { _, h, m ->
+                                    bedtimeHour = h
+                                    bedtimeMinute = m
+                                    if (bedtimeReminderEnabled) {
+                                        sleepSessionManager.saveBedtimeReminder(
+                                            context = context,
+                                            enabled = true,
+                                            hour = h,
+                                            minute = m,
+                                            mode = bedtimeReminderMode
+                                        )
+                                    }
+                                },
+                                bedtimeHour,
+                                bedtimeMinute,
+                                false
+                            ).show()
+                        }
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = "🕒", fontSize = 14.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Target Bedtime",
+                                    fontSize = 12.sp,
+                                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = formattedBedtimeReminder,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                            )
+                        }
+
+                        Text(
+                            text = if (bedtimeReminderEnabled) "Tap to change ✎" else "Reminder off",
+                            fontSize = 12.sp,
+                            color = if (bedtimeReminderEnabled) VitalTealDark else (if (isDark) CarbonDarkTextSecondary else Color(0xFF94A3B8)),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Reminder Alert Mode Selector: Notification vs Alarm
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Alert Type:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B)
+                    )
+
+                    // Notification Mode Chip
+                    val isNotifMode = bedtimeReminderMode == "notification"
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isNotifMode) VitalTealDark.copy(alpha = 0.15f)
+                                else if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)
+                            )
+                            .clickable {
+                                bedtimeReminderMode = "notification"
+                                if (bedtimeReminderEnabled) {
+                                    sleepSessionManager.saveBedtimeReminder(
+                                        context = context,
+                                        enabled = true,
+                                        hour = bedtimeHour,
+                                        minute = bedtimeMinute,
+                                        mode = "notification"
+                                    )
+                                }
+                            }
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = "💬 Notification",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isNotifMode) VitalTealDark else (if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B))
+                        )
+                    }
+
+                    // Alarm / Chime Mode Chip
+                    val isAlarmMode = bedtimeReminderMode == "alarm"
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isAlarmMode) VitalTealDark.copy(alpha = 0.15f)
+                                else if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)
+                            )
+                            .clickable {
+                                bedtimeReminderMode = "alarm"
+                                if (bedtimeReminderEnabled) {
+                                    sleepSessionManager.saveBedtimeReminder(
+                                        context = context,
+                                        enabled = true,
+                                        hour = bedtimeHour,
+                                        minute = bedtimeMinute,
+                                        mode = "alarm"
+                                    )
+                                }
+                            }
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = "🔔 Alarm Chime",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isAlarmMode) VitalTealDark else (if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B))
+                        )
                     }
                 }
             }
@@ -520,11 +1274,14 @@ fun SleepDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(text = "Calculated Total Sleep:", fontSize = 13.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF475569))
+                        val manualQuality = remember(manualCalculatedSleepMinutes) {
+                            SleepColorStandards.getPresentation(manualCalculatedSleepMinutes)
+                        }
                         Text(
-                            text = "$formattedDurationStr • ${qualityPresentation.status}",
+                            text = "$formattedManualDurationStr • ${manualQuality.status}",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDark) CarbonDarkPurpleAccent else qualityPresentation.primaryColor
+                            color = if (isDark) CarbonDarkPurpleAccent else manualQuality.primaryColor
                         )
                     }
                 }
@@ -534,27 +1291,31 @@ fun SleepDetailScreen(
                 // Confirm & Log Sleep Session Button
                 Button(
                     onClick = {
-                        if (totalSleepMinutes <= 0) {
+                        if (manualCalculatedSleepMinutes <= 0) {
                             Toast.makeText(context, "Please select a sleep duration greater than 0 minutes.", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
-                        val derivedScore = SleepColorStandards.deriveSleepScore(totalSleepMinutes)
-                        val tierLabel = qualityPresentation.qualityLabel
+                        val derivedScore = SleepColorStandards.deriveSleepScore(manualCalculatedSleepMinutes)
+                        val manualPres = SleepColorStandards.getPresentation(manualCalculatedSleepMinutes)
+                        val tierLabel = manualPres.qualityLabel
                         val record = SleepRecord(
                             bedtime = formattedBedtime,
                             wakeTime = formattedWakeTime,
-                            durationMinutes = totalSleepMinutes,
+                            durationMinutes = manualCalculatedSleepMinutes,
                             sleepScore = derivedScore,
                             qualityLabel = tierLabel,
                             dateString = todayDate
                         )
                         repository.saveSleepRecord(record)
                         isRecordedSaved = true
+                        loggedDurationMinutes = manualCalculatedSleepMinutes
+                        loggedBedtime = formattedBedtime
+                        loggedWakeTime = formattedWakeTime
                         showSuccessToast = true
                         sleepHistory = (listOf(
                             SleepLogEntryDto(
                                 date = todayDate,
-                                durationMinutes = totalSleepMinutes,
+                                durationMinutes = manualCalculatedSleepMinutes,
                                 sleepScore = derivedScore,
                                 quality = tierLabel
                             )
@@ -572,7 +1333,7 @@ fun SleepDetailScreen(
                                             dateString = todayDate,
                                             bedtime = formattedBedtime,
                                             wakeTime = formattedWakeTime,
-                                            durationMinutes = totalSleepMinutes,
+                                            durationMinutes = manualCalculatedSleepMinutes,
                                             sleepScore = derivedScore,
                                             qualityLabel = tierLabel
                                         )
@@ -610,7 +1371,7 @@ fun SleepDetailScreen(
                             }
                             Toast.makeText(
                                 context,
-                                if (synced) "🌙 Sleep logged: $formattedDurationStr ($tierLabel)"
+                                if (synced) "🌙 Sleep logged: $formattedManualDurationStr ($tierLabel)"
                                 else "🌙 Saved locally ($tierLabel); server sync unavailable",
                                 Toast.LENGTH_SHORT
                             ).show()
@@ -798,10 +1559,10 @@ fun SleepDetailScreen(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // Stage Breakdown List with Standardized High-Contrast Colors
-                val deepStr = "${(totalSleepMinutes * 0.22f).toInt() / 60}h ${(totalSleepMinutes * 0.22f).toInt() % 60}m"
-                val lightStr = "${(totalSleepMinutes * 0.52f).toInt() / 60}h ${(totalSleepMinutes * 0.52f).toInt() % 60}m"
-                val remStr = "${(totalSleepMinutes * 0.21f).toInt() / 60}h ${(totalSleepMinutes * 0.21f).toInt() % 60}m"
-                val awakeStr = "${(totalSleepMinutes * 0.05f).toInt()}m"
+                val deepStr = "${(displaySleepMinutes * 0.22f).toInt() / 60}h ${(displaySleepMinutes * 0.22f).toInt() % 60}m"
+                val lightStr = "${(displaySleepMinutes * 0.52f).toInt() / 60}h ${(displaySleepMinutes * 0.52f).toInt() % 60}m"
+                val remStr = "${(displaySleepMinutes * 0.21f).toInt() / 60}h ${(displaySleepMinutes * 0.21f).toInt() % 60}m"
+                val awakeStr = "${(displaySleepMinutes * 0.05f).toInt()}m"
 
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SleepStageRow(label = "Deep Sleep (Physical Repair)", duration = deepStr, color = SleepColorStandards.StageDeep, isDark = isDark)
@@ -895,7 +1656,11 @@ fun SleepDetailScreen(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Your calculated sleep duration of $formattedDurationStr matches your 8h daily recovery target well. Maintain this sleep schedule for optimal energy.",
+                    text = if (isRecordedSaved && displaySleepMinutes > 0) {
+                        "Your recorded sleep duration of $formattedDisplayDurationStr matches your 8h daily recovery target well. Maintain this sleep schedule for optimal energy."
+                    } else {
+                        "No sleep recorded for today yet. Use the Live Sleep Tracker or Manual Log to record your sleep session."
+                    },
                     fontSize = 13.sp,
                     color = if (isDark) CarbonDarkTextPrimary else Color(0xFF374151)
                 )
@@ -906,6 +1671,52 @@ fun SleepDetailScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    // Reset Sleep Confirmation Dialog
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = {
+                Text(
+                    text = "Reset Today's Sleep Data?",
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                )
+            },
+            text = {
+                Text(
+                    text = "This will clear today's logged sleep session and reset duration back to 0h across local storage and the server database.",
+                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF4B5563)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showResetDialog = false
+                        sleepSessionManager.resetSleepData(context, todayDate) {
+                            isRecordedSaved = false
+                            loggedDurationMinutes = 0
+                            loggedBedtime = null
+                            loggedWakeTime = null
+                            repository.clearSleepRecord(todayDate)
+                            sleepHistory = sleepHistory.filterNot { it.date == todayDate }
+                            onSleepLogged()
+                        }
+                        Toast.makeText(context, "Sleep data reset to 0h", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                ) {
+                    Text("Reset to 0h", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
+                    Text("Cancel", color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280))
+                }
+            },
+            containerColor = if (isDark) CarbonDarkSurface else Color.White
+        )
     }
 }
 
@@ -925,6 +1736,20 @@ private fun parseFormattedTimeToHourMinute(timeStr: String): Pair<Int, Int>? {
     } catch (_: Exception) {
         null
     }
+}
+
+private fun formatElapsedTimer(totalSeconds: Long): String {
+    val hrs = totalSeconds / 3600
+    val mins = (totalSeconds % 3600) / 60
+    val secs = totalSeconds % 60
+    return String.format(Locale.US, "%02d:%02d:%02d", hrs, mins, secs)
+}
+
+private fun formatSnoozeRemaining(snoozeUntilMillis: Long): String {
+    val remainingSecs = ((snoozeUntilMillis - System.currentTimeMillis()) / 1000L).coerceAtLeast(0L)
+    val mins = remainingSecs / 60
+    val secs = remainingSecs % 60
+    return String.format(Locale.US, "%02d:%02d", mins, secs)
 }
 
 @Composable

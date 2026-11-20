@@ -44,6 +44,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import com.simats.vitalsync.util.SleepSessionManager
 import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
 import android.net.Uri
@@ -224,10 +226,29 @@ enum class ScreenState {
 }
 
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        val pendingNavigation = MutableStateFlow<String?>(null)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        checkSleepNavigation(intent)
+    }
+
+    private fun checkSleepNavigation(intent: Intent?) {
+        val nav = intent?.getStringExtra("navigate_to")
+        if (nav == "sleep" || intent?.action == SleepSessionManager.ACTION_OPEN_SLEEP) {
+            pendingNavigation.value = "sleep"
+        }
+    }
+
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        checkSleepNavigation(intent)
         
         // Configure edge-to-edge system bars so content and themes flow properly
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -430,6 +451,14 @@ class MainActivity : ComponentActivity() {
                 ).firstOrNull { it.isNotBlank() }
 
                 var currentScreen by rememberSaveable { mutableStateOf(ScreenState.SPLASH) }
+
+                val targetNav by MainActivity.pendingNavigation.collectAsState()
+                LaunchedEffect(targetNav) {
+                    if (targetNav == "sleep") {
+                        currentScreen = ScreenState.SLEEP_DETAIL
+                        MainActivity.pendingNavigation.value = null
+                    }
+                }
                 var isNewUser by rememberSaveable { mutableStateOf(false) }
                 var activeReadingType by remember { mutableStateOf(VitalReadingType.HEART_RATE) }
                 var homeInitialTab by rememberSaveable { mutableIntStateOf(0) }

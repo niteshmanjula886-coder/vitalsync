@@ -157,6 +157,10 @@ class FitnessRepository private constructor(context: Context) {
         prefs.edit().putString("key_sleep_record_${record.dateString}", obj.toString()).apply()
     }
 
+    fun clearSleepRecord(dateStr: String) {
+        prefs.edit().remove("key_sleep_record_$dateStr").apply()
+    }
+
     // ACTIVITY SESSIONS PERSISTENCE
     fun getActivitySessionRecords(): List<ActivitySessionRecord> {
         val jsonStr = prefs.getString("key_activity_session_records", null) ?: return emptyList()
