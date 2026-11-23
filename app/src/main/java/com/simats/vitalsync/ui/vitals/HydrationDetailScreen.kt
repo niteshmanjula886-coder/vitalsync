@@ -316,16 +316,6 @@ fun HydrationDetailScreen(
                     color = MaterialTheme.colorScheme.onBackground
                 )
             }
-
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)),
-                contentAlignment = Alignment.Center
-            ) {
-                CalendarIcon(modifier = Modifier.size(18.dp))
-            }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -542,10 +532,10 @@ fun HydrationDetailScreen(
                     onClick = { addWaterMl(250) },
                     modifier = Modifier.weight(1f).height(46.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = VitalTealDark)
+                    colors = ButtonDefaults.buttonColors(containerColor = secondaryBtnContainer, contentColor = secondaryBtnContent)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.WaterDrop, contentDescription = null, modifier = Modifier.size(15.dp), tint = Color.White)
+                        Icon(Icons.Rounded.WaterDrop, contentDescription = null, modifier = Modifier.size(15.dp), tint = secondaryBtnContent)
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(text = "+250 ml", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
@@ -616,24 +606,22 @@ fun HydrationDetailScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Weekly hydration history",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Strict Log-Calculated Average Summary
-                    Text(
-                        text = "Avg: $weeklyAverageFormatted",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F9F7A),
-                        textAlign = TextAlign.End
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Weekly hydration history",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
+                            maxLines = 1
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Avg: $weeklyAverageFormatted",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))

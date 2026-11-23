@@ -133,16 +133,6 @@ fun VitalSignsScreen(
                         color = MaterialTheme.colorScheme.onBackground
                     )
                 }
-
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CalendarIcon(modifier = Modifier.size(18.dp))
-                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

@@ -10,6 +10,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.simats.vitalsync.MainActivity
+import com.simats.vitalsync.R
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -356,7 +357,7 @@ object NotificationReminderEngine {
             )
 
             val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setSmallIcon(R.drawable.ic_stat_vitalsync)
                 .setContentTitle(title)
                 .setContentText(message)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(message))

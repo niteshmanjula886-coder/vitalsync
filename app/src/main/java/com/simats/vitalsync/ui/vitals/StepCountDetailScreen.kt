@@ -124,6 +124,34 @@ fun StepCountDetailScreen(
     val remainingText = if (stepsCurrent <= 0) "No steps recorded today" else if (remainingSteps > 0) "${String.format(java.util.Locale.US, "%,d", remainingSteps)} steps remaining" else "Daily goal reached!"
     val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground || MaterialTheme.colorScheme.surface == CarbonDarkSurface
 
+    // Dynamic Step Count 3-tier colors by goal progress:
+    // Purple (#A855F7 / #9333EA) for 0% - 33%
+    // Yellow / Amber (#FACC15 / #EAB308) for 34% - 74%
+    // Green (#10B981 / #22C55E) for 75% - 100%+
+    val stepTierColor = remember(progressPercent, isDark) {
+        when {
+            progressPercent < 34 -> if (isDark) Color(0xFFA855F7) else Color(0xFF9333EA)
+            progressPercent < 75 -> if (isDark) Color(0xFFFACC15) else Color(0xFFEAB308)
+            else -> if (isDark) Color(0xFF10B981) else Color(0xFF22C55E)
+        }
+    }
+
+    val stepTierTextColor = remember(progressPercent, isDark) {
+        when {
+            progressPercent < 34 -> if (isDark) Color(0xFFC084FC) else Color(0xFF7E22CE)
+            progressPercent < 75 -> if (isDark) Color(0xFFFDE047) else Color(0xFFB45309)
+            else -> if (isDark) Color(0xFF34D399) else Color(0xFF15803D)
+        }
+    }
+
+    val stepTierStatusLabel = remember(progressPercent) {
+        when {
+            progressPercent < 34 -> "Early progress"
+            progressPercent < 75 -> "On track"
+            else -> "Goal reached"
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -167,16 +195,6 @@ fun StepCountDetailScreen(
                         fontWeight = FontWeight.Bold,
                         color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                     )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CalendarIcon(modifier = Modifier.size(18.dp))
                 }
             }
 
@@ -240,7 +258,7 @@ fun StepCountDetailScreen(
                                     style = Stroke(width = strokePx)
                                 )
                                 drawArc(
-                                    color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
+                                    color = stepTierColor,
                                     startAngle = -90f,
                                     sweepAngle = animatedGaugeAngle,
                                     useCenter = false,
@@ -255,12 +273,13 @@ fun StepCountDetailScreen(
                                     text = "$progressPercent%",
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                                    color = stepTierTextColor
                                 )
                                 Text(
-                                    text = "daily goal",
+                                    text = stepTierStatusLabel,
                                     fontSize = 10.sp,
-                                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
+                                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
@@ -272,12 +291,12 @@ fun StepCountDetailScreen(
                                 text = if (stepsCurrent > 0) String.format(java.util.Locale.US, "%,d", stepsCurrent) else "--",
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = stepTierTextColor
                             )
                             Text(
                                 text = "steps",
                                 fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = stepTierColor,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(2.dp))
@@ -288,7 +307,7 @@ fun StepCountDetailScreen(
                                 Text(
                                     text = "Goal: ${String.format(java.util.Locale.US, "%,d", stepsGoal)} steps",
                                     fontSize = 12.sp,
-                                    color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
+                                    color = stepTierColor,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.width(3.dp))
@@ -296,13 +315,13 @@ fun StepCountDetailScreen(
                                     imageVector = Icons.Rounded.Edit,
                                     contentDescription = "Edit Goal",
                                     modifier = Modifier.size(12.dp),
-                                    tint = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                                    tint = stepTierColor
                                 )
                             }
                             Text(
                                 text = remainingText,
                                 fontSize = 12.sp,
-                                color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
+                                color = stepTierColor,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -664,13 +683,13 @@ fun StepCountDetailScreen(
                                     text = dayData.dayNumber,
                                     fontSize = 12.sp,
                                     fontWeight = if (dayData.isToday) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (dayData.isToday) (if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)) else Color(0xFF9CA3AF)
+                                    color = if (dayData.isToday) stepTierColor else Color(0xFF9CA3AF)
                                 )
                                 Text(
                                     text = dayData.dayName.take(1),
                                     fontSize = 10.sp,
                                     fontWeight = if (dayData.isToday) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (dayData.isToday) (if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)) else Color(0xFF9CA3AF).copy(alpha = 0.7f)
+                                    color = if (dayData.isToday) stepTierColor else Color(0xFF9CA3AF).copy(alpha = 0.7f)
                                 )
                             }
                         }

@@ -45,7 +45,7 @@ class VitalSyncFirebaseMessagingService : FirebaseMessagingService() {
         }
 
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_vitalsync)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)

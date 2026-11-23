@@ -7,10 +7,13 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.simats.vitalsync.MainActivity
+import com.simats.vitalsync.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -147,6 +150,14 @@ class SleepTrackerService : Service() {
                 enableLights(true)
                 enableVibration(true)
                 setBypassDnd(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                val audioAttributes = AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .build()
+                val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                setSound(alarmUri, audioAttributes)
             }
             manager.createNotificationChannel(alarmChannel)
         }
@@ -185,7 +196,7 @@ class SleepTrackerService : Service() {
         )
 
         return NotificationCompat.Builder(this, TRACKER_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_stat_vitalsync)
             .setContentTitle("VitalSync Sleep Tracker")
             .setContentText(contentText)
             .setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
@@ -215,7 +226,7 @@ class SleepTrackerService : Service() {
         )
 
         return NotificationCompat.Builder(this, TRACKER_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_stat_vitalsync)
             .setContentTitle("Sleep Alarm Snoozed")
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
@@ -248,12 +259,13 @@ class SleepTrackerService : Service() {
         )
 
         return NotificationCompat.Builder(this, ALARM_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_stat_vitalsync)
             .setContentTitle("Wake Up! Alarm is Ringing")
             .setContentText("Good morning! Time to wake up and start your day.")
             .setStyle(NotificationCompat.BigTextStyle().bigText("Good morning! Time to wake up and start your day."))
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setContentIntent(openAppIntent)
             .setFullScreenIntent(openAppIntent, true)

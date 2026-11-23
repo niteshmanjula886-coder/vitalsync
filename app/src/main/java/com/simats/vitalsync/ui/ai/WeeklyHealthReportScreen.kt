@@ -163,16 +163,6 @@ fun WeeklyHealthReportScreen(
                         color = MaterialTheme.colorScheme.onBackground
                     )
                 }
-
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CalendarIcon(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.primary)
-                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))

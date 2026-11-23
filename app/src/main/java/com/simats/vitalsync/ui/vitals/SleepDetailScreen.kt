@@ -370,33 +370,20 @@ fun SleepDetailScreen(
                 )
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isRecordedSaved || loggedDurationMinutes > 0) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFFEE2E2))
-                            .clickable { showResetDialog = true }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = "↺ Reset (0h)",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFDC2626)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-
+            if (isRecordedSaved || loggedDurationMinutes > 0) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9)),
-                    contentAlignment = Alignment.Center
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFFEE2E2))
+                        .clickable { showResetDialog = true }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    CalendarIcon(modifier = Modifier.size(18.dp))
+                    Text(
+                        text = "↺ Reset (0h)",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFDC2626)
+                    )
                 }
             }
         }
@@ -461,54 +448,22 @@ fun SleepDetailScreen(
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Rounded.Bedtime,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = if (isDark) CarbonDarkPurpleAccent else qualityPresentation.badgeTextColor
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "${qualityPresentation.status} • ${qualityPresentation.qualityLabel}",
-                            fontSize = 13.sp,
-                            color = if (isDark) CarbonDarkPurpleAccent else qualityPresentation.badgeTextColor,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(if (isDark) CarbonDarkPurplePill else (if (isRecordedSaved) Color.White else Color(0xFFF1F5F9)))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (isRecordedSaved) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(11.dp),
-                                        tint = if (isDark) CarbonDarkPurpleText else qualityPresentation.badgeTextColor
-                                    )
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                }
-                                Text(
-                                    text = if (isRecordedSaved) "Logged" else "No Data",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDark) CarbonDarkPurpleText else (if (isRecordedSaved) qualityPresentation.badgeTextColor else Color(0xFF64748B))
-                                )
-                            }
-                        }
-                    }
+                    Icon(
+                        imageVector = Icons.Rounded.Bedtime,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = if (isDark) CarbonDarkPurpleAccent else qualityPresentation.badgeTextColor
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = qualityPresentation.qualityLabel,
+                        fontSize = 13.sp,
+                        color = if (isDark) CarbonDarkPurpleAccent else qualityPresentation.badgeTextColor,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -934,10 +889,13 @@ fun SleepDetailScreen(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = if (liveSessionState.alarmEnabled) "Wake-up Alarm: $targetWakeFmt" else "Wake-up Alarm: Disabled",
+                                        text = if (liveSessionState.alarmEnabled) "Wake-up Alarm: ${targetWakeFmt.replace(" ", "\u00A0")}" else "Wake-up Alarm: Disabled",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF1F2937)
+                                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF1F2937),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
                                 }
 

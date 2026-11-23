@@ -235,6 +235,26 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         checkSleepNavigation(intent)
+        handleSleepLockScreenWake(intent)
+    }
+
+    private fun handleSleepLockScreenWake(intent: Intent?) {
+        val isSleepAlarm = intent?.action == SleepSessionManager.ACTION_OPEN_SLEEP ||
+                SleepSessionManager.getInstance(applicationContext).sessionState.value.isAlarmRinging
+        if (isSleepAlarm) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(true)
+                setTurnScreenOn(true)
+            } else {
+                @Suppress("DEPRECATION")
+                window.addFlags(
+                    android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+                )
+            }
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
     }
 
     private fun checkSleepNavigation(intent: Intent?) {
@@ -249,6 +269,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         checkSleepNavigation(intent)
+        handleSleepLockScreenWake(intent)
         
         // Configure edge-to-edge system bars so content and themes flow properly
         WindowCompat.setDecorFitsSystemWindows(window, false)

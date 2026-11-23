@@ -441,6 +441,48 @@ class SleepSessionManager private constructor(private val appContext: Context) {
         onComplete?.invoke()
     }
 
+    /**
+     * Checks whether exact alarm scheduling is allowed on this device (Android 12+ / API 31+).
+     */
+    fun canScheduleExactAlarms(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+            alarmManager?.canScheduleExactAlarms() ?: false
+        } else {
+            true
+        }
+    }
+
+    /**
+     * Restores and reschedules pending alarms on device reboot (BOOT_COMPLETED)
+     * or application update (MY_PACKAGE_REPLACED).
+     */
+    fun rescheduleAllActiveAlarms(context: Context) {
+        val state = loadStateFromPrefs()
+        _sessionState.value = state
+        Log.d(TAG, "rescheduleAllActiveAlarms: isActive=${state.isActive}, alarmEnabled=${state.alarmEnabled}, bedtimeEnabled=${isBedtimeReminderEnabled()}")
+
+        // 1. Reschedule live wake-up alarm if a sleep session was active when the device restarted
+        if (state.isActive) {
+            startTicker()
+            SleepTrackerService.start(context)
+            if (state.alarmEnabled) {
+                val triggerMillis = computeNextWakeTimeMillis(state.targetWakeHour, state.targetWakeMinute)
+                scheduleExactAlarm(context, triggerMillis, ACTION_WAKE_UP_ALARM, ALARM_REQ_CODE_WAKE)
+                Log.d(TAG, "Restored active sleep session wake alarm for ${state.targetWakeHour}:${state.targetWakeMinute}")
+            }
+        }
+
+        // 2. Reschedule bedtime reminder if enabled
+        if (isBedtimeReminderEnabled()) {
+            val bedtimeHour = getBedtimeReminderHour()
+            val bedtimeMinute = getBedtimeReminderMinute()
+            val triggerMillis = computeNextBedtimeMillis(bedtimeHour, bedtimeMinute)
+            scheduleExactAlarm(context, triggerMillis, ACTION_BEDTIME_REMINDER, ALARM_REQ_CODE_BEDTIME)
+            Log.d(TAG, "Restored bedtime reminder alarm for $bedtimeHour:$bedtimeMinute")
+        }
+    }
+
     private fun scheduleExactAlarm(context: Context, triggerMillis: Long, action: String, reqCode: Int) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val intent = Intent(context, SleepAlarmReceiver::class.java).apply {
@@ -472,27 +514,37 @@ class SleepSessionManager private constructor(private val appContext: Context) {
                 return
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (alarmManager.canScheduleExactAlarms()) {
+            if (canScheduleExactAlarms(context)) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
                 } else {
-                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+                    alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
                 }
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
             } else {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
-            }
-        } catch (e: SecurityException) {
-            Log.w(TAG, "SecurityException scheduling exact alarm, falling back to setAndAllowWhileIdle: ${e.message}")
-            try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
                 } else {
                     alarmManager.set(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
                 }
+            }
+        } catch (e: SecurityException) {
+            Log.w(TAG, "SecurityException scheduling exact alarm, falling back: ${e.message}")
+            try {
+                if (canScheduleExactAlarms(context)) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+                    } else {
+                        alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+                    }
+                } else {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+                    } else {
+                        alarmManager.set(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+                    }
+                }
             } catch (ex: Exception) {
-                Log.e(TAG, "Fatal failure scheduling alarm: ${ex.message}", ex)
+                Log.e(TAG, "Fatal failure scheduling alarm fallback: ${ex.message}", ex)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error scheduling alarm, falling back to setAndAllowWhileIdle: ${e.message}", e)
