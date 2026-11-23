@@ -36,6 +36,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -181,7 +184,7 @@ fun WorkoutTrackingScreen(
                     Text(
                         text = when {
                             isTimerRunning -> "• Active Workout"
-                            isWorkoutStarted -> "⏸ Paused"
+                            isWorkoutStarted -> "• Paused"
                             else -> "Ready to Start"
                         },
                         fontSize = 11.sp,
@@ -210,7 +213,16 @@ fun WorkoutTrackingScreen(
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = "🏋️ Full Body Workout", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6B7280))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.FitnessCenter,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color(0xFF6B7280)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Full Body Workout", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6B7280))
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -348,7 +360,12 @@ fun WorkoutTrackingScreen(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = if (isResting) "⏸" else "▶", fontSize = 18.sp, color = Color.White)
+                            Icon(
+                                imageVector = if (isResting) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                contentDescription = if (isResting) "Pause" else "Play",
+                                modifier = Modifier.size(18.dp),
+                                tint = Color.White
+                            )
                         }
 
                         Spacer(modifier = Modifier.width(12.dp))
@@ -437,12 +454,21 @@ fun WorkoutTrackingScreen(
                         shape = RoundedCornerShape(16.dp),
                         border = BorderStroke(1.5.dp, VitalTealPrimary)
                     ) {
-                        Text(
-                            text = if (isTimerRunning) "⏸ PAUSE" else "▶ RESUME",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = VitalTealDark
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (isTimerRunning) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = VitalTealDark
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isTimerRunning) "PAUSE" else "RESUME",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = VitalTealDark
+                            )
+                        }
                     }
 
                     Button(
@@ -459,11 +485,20 @@ fun WorkoutTrackingScreen(
                             contentColor = Color.White
                         )
                     ) {
-                        Text(
-                            text = "⏹ FINISH",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.Stop,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "FINISH",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -492,12 +527,23 @@ private fun SetRow(setNum: String, reps: String, weight: String, isDone: Boolean
                 .background(if (isDone) Color(0xFFDCFCE7) else Color(0xFFF1F5F9))
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-            Text(
-                text = if (isDone) "✓ Done" else "Pending",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isDone) Color(0xFF15803D) else Color(0xFF64748B)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isDone) {
+                    Icon(
+                        imageVector = Icons.Rounded.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = Color(0xFF15803D)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                }
+                Text(
+                    text = if (isDone) "Done" else "Pending",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDone) Color(0xFF15803D) else Color(0xFF64748B)
+                )
+            }
         }
     }
 }

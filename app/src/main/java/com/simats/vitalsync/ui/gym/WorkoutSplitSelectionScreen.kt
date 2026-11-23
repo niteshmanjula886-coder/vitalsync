@@ -24,6 +24,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -148,9 +152,11 @@ fun WorkoutSplitSelectionScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = getSplitIcon(split),
-                                    fontSize = 18.sp
+                                Icon(
+                                    imageVector = getSplitIcon(split),
+                                    contentDescription = split.displayName,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = VitalTealDark
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -214,16 +220,16 @@ fun WorkoutSplitSelectionScreen(
     }
 }
 
-private fun getSplitIcon(split: WorkoutSplit): String {
+private fun getSplitIcon(split: WorkoutSplit): ImageVector {
     return when (split) {
-        WorkoutSplit.PUSH -> "🏋️"
-        WorkoutSplit.PULL -> "🧗"
-        WorkoutSplit.LEGS -> "🦵"
-        WorkoutSplit.HIIT -> "⏱️"
-        WorkoutSplit.UPPER_BODY -> "💪"
-        WorkoutSplit.LOWER_BODY -> "🏃"
-        WorkoutSplit.FULL_BODY -> "🔥"
-        WorkoutSplit.CUSTOM -> "⚡"
+        WorkoutSplit.PUSH -> Icons.Rounded.FitnessCenter
+        WorkoutSplit.PULL -> Icons.Rounded.FitnessCenter
+        WorkoutSplit.LEGS -> Icons.Rounded.DirectionsRun
+        WorkoutSplit.HIIT -> Icons.Rounded.Timer
+        WorkoutSplit.UPPER_BODY -> Icons.Rounded.FitnessCenter
+        WorkoutSplit.LOWER_BODY -> Icons.Rounded.DirectionsRun
+        WorkoutSplit.FULL_BODY -> Icons.Rounded.LocalFireDepartment
+        WorkoutSplit.CUSTOM -> Icons.Rounded.Bolt
     }
 }
 

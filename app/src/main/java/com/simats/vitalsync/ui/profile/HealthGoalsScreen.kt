@@ -29,6 +29,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -231,7 +234,12 @@ fun HealthGoalsScreen(
                     .padding(16.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "🎯", fontSize = 16.sp)
+                    Icon(
+                        imageVector = Icons.Rounded.TrackChanges,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Active Goal: $selectedGoalTitle. Your daily telemetry and profile targets adapt to this focus.",

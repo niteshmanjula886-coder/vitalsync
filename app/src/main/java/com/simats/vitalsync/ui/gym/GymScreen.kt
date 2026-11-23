@@ -33,6 +33,10 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -172,7 +176,7 @@ fun GymScreen(
             ) {
                 Column {
                     Text(
-                        text = "Gym & Fitness 🏋️",
+                        text = "Gym & Fitness",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -199,11 +203,11 @@ fun GymScreen(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 val tabs = listOf(
-                    "🏋️ Workouts",
-                    "🥗 Nutrition",
-                    "📈 Analytics"
+                    Triple("Workouts", Icons.Rounded.FitnessCenter, 0),
+                    Triple("Nutrition", Icons.Rounded.Restaurant, 1),
+                    Triple("Analytics", Icons.Rounded.ShowChart, 2)
                 )
-                tabs.forEachIndexed { index, label ->
+                tabs.forEach { (label, icon, index) ->
                     val isSelected = uiState.selectedTab == index
                     val tabBgColor by animateColorAsState(
                         targetValue = if (isSelected) VitalTealDark else Color.Transparent,
@@ -223,13 +227,25 @@ fun GymScreen(
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = label,
-                            fontSize = 12.5.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = tabTextColor,
-                            maxLines = 1
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp),
+                                tint = tabTextColor
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = label,
+                                fontSize = 12.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = tabTextColor,
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
             }
@@ -391,11 +407,13 @@ private fun WorkoutsTabContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = if (uiState.isWorkoutTimerRunning) "⏸ " else "▶ ",
-                                fontSize = 12.sp,
-                                color = Color.White
+                            Icon(
+                                imageVector = if (uiState.isWorkoutTimerRunning) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                contentDescription = if (uiState.isWorkoutTimerRunning) "Pause" else "Play",
+                                modifier = Modifier.size(14.dp),
+                                tint = Color.White
                             )
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = timerFormatted,
                                 fontSize = 15.sp,
@@ -421,7 +439,14 @@ private fun WorkoutsTabContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "⏱ Rest: ", fontSize = 12.sp, color = Color(0xFFA7F3D0), fontWeight = FontWeight.Medium)
+                        Icon(
+                            imageVector = Icons.Rounded.Timer,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = Color(0xFFA7F3D0)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "Rest: ", fontSize = 12.sp, color = Color(0xFFA7F3D0), fontWeight = FontWeight.Medium)
                         Text(
                             text = if (uiState.restTimerSeconds > 0) restFormatted else "Ready",
                             fontSize = 13.5.sp,
@@ -601,11 +626,11 @@ private fun WorkoutsTabContent(
                                     .clickable { viewModel.removeCustomSplit(split) },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = "✕",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "Remove split",
+                                    modifier = Modifier.size(10.dp),
+                                    tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -650,7 +675,12 @@ private fun WorkoutsTabContent(
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = "🏋️", fontSize = 32.sp)
+                    Icon(
+                        imageVector = Icons.Rounded.FitnessCenter,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "No Exercises in ${uiState.selectedSplit}",
@@ -693,12 +723,21 @@ private fun WorkoutsTabContent(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "${getExerciseEmoji(we.exercise.targetMuscle)} ${we.exercise.name}",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onBackground
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = getExerciseVector(we.exercise.targetMuscle),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = VitalPrimaryMint
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = we.exercise.name,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onBackground
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = "Target: ${we.exercise.targetMuscle}",
@@ -712,7 +751,12 @@ private fun WorkoutsTabContent(
                                     onClick = { viewModel.removeExerciseFromSplit(uiState.selectedSplit, exIndex) },
                                     modifier = Modifier.size(28.dp)
                                 ) {
-                                    Text(text = "✕", fontSize = 14.sp, color = Color(0xFF9CA3AF))
+                                    Icon(
+                                        imageVector = Icons.Rounded.Close,
+                                        contentDescription = "Remove exercise",
+                                        modifier = Modifier.size(16.dp),
+                                        tint = Color(0xFF9CA3AF)
+                                    )
                                 }
                             }
 
@@ -925,7 +969,7 @@ private fun WorkoutsTabContent(
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(text = "Saving Workout...", fontSize = 15.sp, fontWeight = FontWeight.Bold)
             } else {
-                Text(text = "Finish & Save Workout ✓", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text(text = "Finish & Save Workout", fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -966,7 +1010,12 @@ private fun WorkoutsTabContent(
                         .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = "📝", fontSize = 28.sp)
+                    Icon(
+                        imageVector = Icons.Rounded.Description,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "No Workouts Logged Today",
@@ -1032,7 +1081,12 @@ private fun WorkoutsTabContent(
                                 },
                                 modifier = Modifier.size(28.dp)
                             ) {
-                                Text(text = "🗑️", fontSize = 14.sp)
+                                Icon(
+                                    imageVector = Icons.Rounded.DeleteOutline,
+                                    contentDescription = "Delete Workout",
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
                             }
                         }
 
@@ -1041,32 +1095,69 @@ private fun WorkoutsTabContent(
                         // Stats Summary Row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "⏱ ${workout.durationMinutes} mins",
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Text(
-                                text = "🏋️ ${workout.totalVolumeKg.toInt()} kg",
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Text(
-                                text = "📊 ${workout.totalSets} sets",
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Text(
-                                text = "🔥 ${workout.estimatedCaloriesBurned} kcal",
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = VitalPrimaryMint
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Timer,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "${workout.durationMinutes} mins",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.FitnessCenter,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "${workout.totalVolumeKg.toInt()} kg",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.BarChart,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "${workout.totalSets} sets",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.LocalFireDepartment,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = VitalPrimaryMint
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "${workout.estimatedCaloriesBurned} kcal",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = VitalPrimaryMint
+                                )
+                            }
                         }
 
                         // Completed exercises breakdown (strictly completed only)
@@ -1362,12 +1453,21 @@ private fun NutritionTabContent(
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "⚖️ Body Weight (Auto)",
-                            fontSize = 12.sp,
-                            fontWeight = if (isBodyWeight) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isBodyWeight) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.MonitorWeight,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = if (isBodyWeight) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Body Weight (Auto)",
+                                fontSize = 12.sp,
+                                fontWeight = if (isBodyWeight) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isBodyWeight) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
 
                     Box(
@@ -1379,12 +1479,21 @@ private fun NutritionTabContent(
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "✏️ Custom Manual",
-                            fontSize = 12.sp,
-                            fontWeight = if (!isBodyWeight) FontWeight.Bold else FontWeight.Medium,
-                            color = if (!isBodyWeight) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.Edit,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = if (!isBodyWeight) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Custom Manual",
+                                fontSize = 12.sp,
+                                fontWeight = if (!isBodyWeight) FontWeight.Bold else FontWeight.Medium,
+                                color = if (!isBodyWeight) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 
@@ -1405,16 +1514,27 @@ private fun NutritionTabContent(
                                 color = MaterialTheme.colorScheme.onBackground
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "✎ Edit",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = VitalPrimaryMint,
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
                                     .clickable { showWeightDialog = true }
                                     .padding(horizontal = 4.dp, vertical = 2.dp)
-                            )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Edit,
+                                    contentDescription = "Edit Weight",
+                                    modifier = Modifier.size(12.dp),
+                                    tint = VitalPrimaryMint
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "Edit",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = VitalPrimaryMint
+                                )
+                            }
                         }
 
                         Text(
@@ -1600,7 +1720,12 @@ private fun NutritionTabContent(
                 modifier = Modifier.padding(14.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                Text(text = "✨", fontSize = 18.sp)
+                Icon(
+                    imageVector = Icons.Rounded.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = VitalPrimaryMint
+                )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Text(
@@ -1662,11 +1787,11 @@ private fun NutritionTabContent(
                 ) {
                     mealTypes.forEach { mt ->
                         val isSelected = uiState.selectedMealType.equals(mt, ignoreCase = true)
-                        val chipLabel = when (mt) {
-                            "Breakfast" -> "🍳 Breakfast"
-                            "Lunch" -> "🥗 Lunch"
-                            "Dinner" -> "🍲 Dinner"
-                            else -> "🍎 Snacks"
+                        val chipIcon = when (mt) {
+                            "Breakfast" -> Icons.Rounded.FreeBreakfast
+                            "Lunch" -> Icons.Rounded.LunchDining
+                            "Dinner" -> Icons.Rounded.DinnerDining
+                            else -> Icons.Rounded.Fastfood
                         }
                         Box(
                             modifier = Modifier
@@ -1675,12 +1800,21 @@ private fun NutritionTabContent(
                                 .clickable { viewModel.updateFoodInputs(mealType = mt) }
                                 .padding(horizontal = 12.dp, vertical = 7.dp)
                         ) {
-                            Text(
-                                text = chipLabel,
-                                fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = chipIcon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = mt,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -1780,7 +1914,16 @@ private fun NutritionTabContent(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(text = "Analyzing...", fontSize = 13.sp)
                         } else {
-                            Text(text = "Analyze & Log ✨", fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = "Analyze & Log", fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Rounded.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp),
+                                    tint = Color.White
+                                )
+                            }
                         }
                     }
 
@@ -1831,10 +1974,10 @@ private fun NutritionTabContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         val categorySlots = listOf(
-            Triple("Breakfast", "🍳", "Morning fuel"),
-            Triple("Lunch", "🥗", "Midday sustenance"),
-            Triple("Dinner", "🍲", "Evening recovery"),
-            Triple("Snacks", "🍎", "Pre/post-workout & snacks")
+            Triple("Breakfast", Icons.Rounded.FreeBreakfast, "Morning fuel"),
+            Triple("Lunch", Icons.Rounded.LunchDining, "Midday sustenance"),
+            Triple("Dinner", Icons.Rounded.DinnerDining, "Evening recovery"),
+            Triple("Snacks", Icons.Rounded.Fastfood, "Pre/post-workout & snacks")
         )
 
         categorySlots.forEach { (catName, icon, sub) ->
@@ -1991,7 +2134,7 @@ private fun MacroBar(label: String, current: Float, target: Float, unit: String,
 @Composable
 private fun MealCategorySectionCard(
     categoryName: String,
-    icon: String,
+    icon: ImageVector,
     subtitle: String,
     meals: List<GymNutritionLogDto>,
     isExpanded: Boolean,
@@ -2031,7 +2174,12 @@ private fun MealCategorySectionCard(
                             .background(VitalTealDark.copy(alpha = 0.1f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = icon, fontSize = 20.sp)
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = VitalTealDark
+                        )
                     }
 
                     Spacer(modifier = Modifier.width(10.dp))
@@ -2071,10 +2219,11 @@ private fun MealCategorySectionCard(
                     onClick = onToggleExpand,
                     modifier = Modifier.size(28.dp)
                 ) {
-                    Text(
-                        text = if (isExpanded) "▲" else "▼",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -2143,11 +2292,11 @@ private fun MealItemRow(
                     onClick = onDelete,
                     modifier = Modifier.size(26.dp)
                 ) {
-                    Text(
-                        text = "✕",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = "Delete meal",
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
             }
@@ -2186,12 +2335,21 @@ private fun MealItemRow(
 
             if (meal.aiFeedback.isNotBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "💡 ${meal.aiFeedback}",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 14.sp
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Lightbulb,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = meal.aiFeedback,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 14.sp
+                    )
+                }
             }
         }
     }
@@ -2245,9 +2403,18 @@ private fun AnalyticsTabContent(
                             .clip(RoundedCornerShape(10.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                             .clickable { viewModel.changeAnalyticsDay(-1, userId, userEmail) }
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
                     ) {
-                        Text(text = "◀ Prev", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.ChevronLeft,
+                                contentDescription = "Previous Day",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(text = "Prev", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        }
                     }
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -2272,9 +2439,18 @@ private fun AnalyticsTabContent(
                             .clip(RoundedCornerShape(10.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                             .clickable { viewModel.changeAnalyticsDay(1, userId, userEmail) }
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
                     ) {
-                        Text(text = "Next ▶", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "Next", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Icon(
+                                imageVector = Icons.Rounded.ChevronRight,
+                                contentDescription = "Next Day",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
 
@@ -2398,7 +2574,12 @@ private fun AnalyticsTabContent(
                         .padding(18.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = "🛌", fontSize = 26.sp)
+                    Icon(
+                        imageVector = Icons.Rounded.Bedtime,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Rest Day",
@@ -2563,16 +2744,16 @@ private fun AnalyticsMetricCard(
     }
 }
 
-private fun getExerciseEmoji(muscle: String): String {
+private fun getExerciseVector(muscle: String): ImageVector {
     return when {
-        muscle.contains("Chest", ignoreCase = true) -> "🏋️"
-        muscle.contains("Back", ignoreCase = true) || muscle.contains("Lats", ignoreCase = true) -> "🚣"
-        muscle.contains("Leg", ignoreCase = true) || muscle.contains("Quad", ignoreCase = true) || muscle.contains("Glute", ignoreCase = true) -> "🦵"
-        muscle.contains("Bicep", ignoreCase = true) || muscle.contains("Arm", ignoreCase = true) -> "💪"
-        muscle.contains("Tricep", ignoreCase = true) -> "⚡"
-        muscle.contains("Shoulder", ignoreCase = true) || muscle.contains("Delt", ignoreCase = true) -> "🎯"
-        muscle.contains("Cardio", ignoreCase = true) || muscle.contains("HIIT", ignoreCase = true) -> "🏃"
-        muscle.contains("Abs", ignoreCase = true) || muscle.contains("Core", ignoreCase = true) -> "🧘"
-        else -> "🔥"
+        muscle.contains("Chest", ignoreCase = true) -> Icons.Rounded.FitnessCenter
+        muscle.contains("Back", ignoreCase = true) || muscle.contains("Lats", ignoreCase = true) -> Icons.Rounded.Rowing
+        muscle.contains("Leg", ignoreCase = true) || muscle.contains("Quad", ignoreCase = true) || muscle.contains("Glute", ignoreCase = true) -> Icons.Rounded.DirectionsRun
+        muscle.contains("Bicep", ignoreCase = true) || muscle.contains("Arm", ignoreCase = true) -> Icons.Rounded.FitnessCenter
+        muscle.contains("Tricep", ignoreCase = true) -> Icons.Rounded.Bolt
+        muscle.contains("Shoulder", ignoreCase = true) || muscle.contains("Delt", ignoreCase = true) -> Icons.Rounded.Adjust
+        muscle.contains("Cardio", ignoreCase = true) || muscle.contains("HIIT", ignoreCase = true) -> Icons.Rounded.DirectionsRun
+        muscle.contains("Abs", ignoreCase = true) || muscle.contains("Core", ignoreCase = true) -> Icons.Rounded.SelfImprovement
+        else -> Icons.Rounded.FitnessCenter
     }
 }

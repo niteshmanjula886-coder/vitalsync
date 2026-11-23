@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -190,8 +192,15 @@ fun WeeklyNutritionMealTrendSection(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.BarChart,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "📊 Weekly Meal Trends",
+                            text = "Weekly Meal Trends",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onBackground
@@ -251,11 +260,19 @@ fun WeeklyNutritionMealTrendSection(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
-                            Text(
-                                text = metric.icon,
-                                fontSize = 11.sp
+                            val metricIcon = when (metric) {
+                                NutritionTrendMetric.CALORIES -> Icons.Rounded.LocalFireDepartment
+                                NutritionTrendMetric.PROTEIN -> Icons.Rounded.FitnessCenter
+                                NutritionTrendMetric.CARBS -> Icons.Rounded.BakeryDining
+                                NutritionTrendMetric.FATS -> Icons.Rounded.Opacity
+                            }
+                            Icon(
+                                imageVector = metricIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(13.dp),
+                                tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.width(3.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = metric.label,
                                 fontSize = 11.5.sp,
@@ -483,9 +500,16 @@ fun WeeklyNutritionMealTrendSection(
                         // Day status pill
                         val (statusText, statusBg, statusColor) = when {
                             selectedVal <= 0f -> Triple("No Meals Logged", MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f), MaterialTheme.colorScheme.onSurfaceVariant)
-                            kotlin.math.abs(selectedVal - currentTarget) <= (currentTarget * 0.15f) -> Triple("✓ On Target ($dayPct%)", Color(0xFFE8F6F0), VitalPrimaryMint)
-                            selectedVal > currentTarget -> Triple("▲ Over Target ($dayPct%)", Color(0xFFFFECEE), Color(0xFFE11D48))
-                            else -> Triple("⚠️ Under Target ($dayPct%)", Color(0xFFFEF3C7), Color(0xFFD97706))
+                            kotlin.math.abs(selectedVal - currentTarget) <= (currentTarget * 0.15f) -> Triple("On Target ($dayPct%)", Color(0xFFE8F6F0), VitalPrimaryMint)
+                            selectedVal > currentTarget -> Triple("Over Target ($dayPct%)", Color(0xFFFFECEE), Color(0xFFE11D48))
+                            else -> Triple("Under Target ($dayPct%)", Color(0xFFFEF3C7), Color(0xFFD97706))
+                        }
+
+                        val statusIcon = when {
+                            selectedVal <= 0f -> null
+                            kotlin.math.abs(selectedVal - currentTarget) <= (currentTarget * 0.15f) -> Icons.Rounded.CheckCircle
+                            selectedVal > currentTarget -> Icons.Rounded.ArrowUpward
+                            else -> Icons.Rounded.Warning
                         }
 
                         Box(
@@ -494,12 +518,23 @@ fun WeeklyNutritionMealTrendSection(
                                 .background(statusBg)
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
-                            Text(
-                                text = statusText,
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = statusColor
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (statusIcon != null) {
+                                    Icon(
+                                        imageVector = statusIcon,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(11.dp),
+                                        tint = statusColor
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                }
+                                Text(
+                                    text = statusText,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = statusColor
+                                )
+                            }
                         }
                     }
 
@@ -590,7 +625,12 @@ fun WeeklyNutritionMealTrendSection(
                     .padding(12.dp)
             ) {
                 Row(verticalAlignment = Alignment.Top) {
-                    Text(text = "💡", fontSize = 15.sp)
+                    Icon(
+                        imageVector = Icons.Rounded.Lightbulb,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = VitalPrimaryMint
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(

@@ -75,7 +75,7 @@ object NotificationReminderEngine {
                 action = ACTION_HYDRATION_REMINDER,
                 hour = h,
                 minute = m,
-                title = "Hydration Reminder 💧",
+                title = "Hydration Reminder",
                 message = "Time for a fresh glass of water! Drink up to keep your body energized and hydrated."
             )
             Log.d(TAG, "Hydration manual reminder scheduled for $timeStr.")
@@ -85,7 +85,7 @@ object NotificationReminderEngine {
                 alarmId = NOTIF_ID_HYDRATION,
                 action = ACTION_HYDRATION_REMINDER,
                 intervalMs = ONE_HOUR_INTERVAL_MS,
-                title = "Hydration Reminder 💧",
+                title = "Hydration Reminder",
                 message = "Time for a fresh glass of water! Drink up to keep your body energized and hydrated."
             )
             Log.d(TAG, "Hydration hourly reminder scheduled (every 60 minutes).")
@@ -118,7 +118,7 @@ object NotificationReminderEngine {
                 action = ACTION_STEPS_REMINDER,
                 hour = h,
                 minute = m,
-                title = "Steps Reminder 👟",
+                title = "Steps Reminder",
                 message = "Time to get moving! Take a short walk and stay on track for your daily step goal."
             )
             Log.d(TAG, "Steps manual reminder scheduled for $timeStr.")
@@ -128,7 +128,7 @@ object NotificationReminderEngine {
                 alarmId = NOTIF_ID_STEPS,
                 action = ACTION_STEPS_REMINDER,
                 intervalMs = ONE_HOUR_INTERVAL_MS,
-                title = "Steps Reminder 👟",
+                title = "Steps Reminder",
                 message = "Time to get moving! Take a short walk and stay on track for your daily step goal."
             )
             Log.d(TAG, "Steps hourly reminder scheduled (every 60 minutes).")
@@ -363,6 +363,19 @@ object NotificationReminderEngine {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
+
+            if (notificationId == NOTIF_ID_SLEEP) {
+                val stopIntent = Intent(context, SleepAlarmReceiver::class.java).apply {
+                    action = SleepSessionManager.ACTION_STOP_BEDTIME
+                }
+                val stopPending = PendingIntent.getBroadcast(
+                    context,
+                    SleepSessionManager.ALARM_REQ_CODE_BEDTIME + 10,
+                    stopIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop Bedtime", stopPending)
+            }
 
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             manager?.notify(notificationId, builder.build())

@@ -30,6 +30,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -168,7 +171,7 @@ fun RunningTrackingScreen(
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = if (!telemetry.isPaused) "• In progress" else "⏸ Paused",
+                        text = if (!telemetry.isPaused) "• In progress" else "• Paused",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (!telemetry.isPaused) {
@@ -188,8 +191,15 @@ fun RunningTrackingScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.DirectionsRun,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "🏃 Outdoor Run",
+                        text = "Outdoor Run",
                         fontSize = 13.sp,
                         color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
                     )
@@ -241,16 +251,29 @@ fun RunningTrackingScreen(
                         }
                         .padding(horizontal = 16.dp, vertical = 6.dp)
                 ) {
-                    Text(
-                        text = if (telemetry.isPaused) "▶ Resume" else "⏸ Pause",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (telemetry.isPaused) {
-                            if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
-                        } else {
-                            if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
-                        }
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (telemetry.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = if (telemetry.isPaused) {
+                                if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
+                            } else {
+                                if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (telemetry.isPaused) "Resume" else "Pause",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (telemetry.isPaused) {
+                                if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
+                            } else {
+                                if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                            }
+                        )
+                    }
                 }
             }
 

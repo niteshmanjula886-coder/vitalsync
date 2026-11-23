@@ -31,6 +31,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -164,7 +168,12 @@ fun HealthPermissionsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "❤️", fontSize = 24.sp)
+                        Icon(
+                            imageVector = Icons.Rounded.Favorite,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = Color(0xFFEF4444)
+                        )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(text = "Health Connect", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color(0xFF86EFAC) else Color(0xFF111827))
@@ -200,7 +209,7 @@ fun HealthPermissionsScreen(
                     PermissionToggleRow(
                         title = "Vital Signs",
                         desc = "Heart rate, blood pressure, and SpO2",
-                        icon = "❤️",
+                        icon = Icons.Rounded.Favorite,
                         checked = vitalSignsPermission
                     ) { vitalSignsPermission = it }
 
@@ -209,7 +218,7 @@ fun HealthPermissionsScreen(
                     PermissionToggleRow(
                         title = "Activity",
                         desc = "Steps, distance, and active calories",
-                        icon = "🏃‍♂️",
+                        icon = Icons.Rounded.DirectionsRun,
                         checked = activityPermission
                     ) { activityPermission = it }
 
@@ -218,7 +227,7 @@ fun HealthPermissionsScreen(
                     PermissionToggleRow(
                         title = "Sleep",
                         desc = "Sleep duration and sleep stages",
-                        icon = "🌙",
+                        icon = Icons.Rounded.Bedtime,
                         checked = sleepPermission
                     ) { sleepPermission = it }
 
@@ -227,7 +236,7 @@ fun HealthPermissionsScreen(
                     PermissionToggleRow(
                         title = "Hydration",
                         desc = "Daily water intake",
-                        icon = "💧",
+                        icon = Icons.Rounded.WaterDrop,
                         checked = hydrationPermission
                     ) { hydrationPermission = it }
                 }
@@ -249,7 +258,7 @@ fun HealthPermissionsScreen(
                     PermissionToggleRow(
                         title = "Write Health Data",
                         desc = "Allow VitalSync to write workouts and nutrition entries to Health Connect",
-                        icon = "📝",
+                        icon = Icons.Rounded.EditNote,
                         checked = writeHealthDataPermission
                     ) {
                         writeHealthDataPermission = it
@@ -321,7 +330,7 @@ private fun SectionHeader(title: String) {
 private fun PermissionToggleRow(
     title: String,
     desc: String,
-    icon: String,
+    icon: ImageVector,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
@@ -334,7 +343,12 @@ private fun PermissionToggleRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            Text(text = icon, fontSize = 20.sp)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)

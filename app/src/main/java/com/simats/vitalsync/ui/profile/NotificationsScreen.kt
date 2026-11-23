@@ -26,6 +26,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -154,7 +158,7 @@ fun NotificationsScreen(
         if (notifications.isEmpty() && !isLoading) {
             // Default sample notifications if none fetched yet
             NotificationCard(
-                icon = "💧",
+                icon = Icons.Rounded.WaterDrop,
                 title = "Time to drink water",
                 description = "Your hydration goal is 62% complete.",
                 time = "5 min ago",
@@ -162,7 +166,7 @@ fun NotificationsScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
             NotificationCard(
-                icon = "🏃‍♂️",
+                icon = Icons.Rounded.DirectionsRun,
                 title = "Activity Reminder",
                 description = "You have 1,755 steps left to hit your goal.",
                 time = "28 min ago",
@@ -170,7 +174,7 @@ fun NotificationsScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
             NotificationCard(
-                icon = "🌙",
+                icon = Icons.Rounded.Bedtime,
                 title = "Sleep Reminder",
                 description = "Your scheduled bedtime is in 30 minutes.",
                 time = "Yesterday • Read",
@@ -178,7 +182,7 @@ fun NotificationsScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
             NotificationCard(
-                icon = "✨",
+                icon = Icons.Rounded.AutoAwesome,
                 title = "AI Wellness Update",
                 description = "Your weekly wellness report is ready to view.",
                 time = "Yesterday • Read",
@@ -204,21 +208,20 @@ fun NotificationsScreen(
     }
 }
 
-private fun resolveNotificationIcon(iconStr: String?, title: String): String {
-    if (!iconStr.isNullOrBlank() && iconStr.length <= 4) return iconStr
+private fun resolveNotificationIcon(iconStr: String?, title: String): ImageVector {
     val lower = title.lowercase()
     return when {
-        lower.contains("water") || lower.contains("drink") || lower.contains("hydrat") -> "💧"
-        lower.contains("step") || lower.contains("activity") || lower.contains("walk") -> "🏃‍♂️"
-        lower.contains("sleep") || lower.contains("bed") -> "🌙"
-        lower.contains("heart") || lower.contains("pulse") || lower.contains("bp") -> "❤️"
-        else -> "✨"
+        lower.contains("water") || lower.contains("drink") || lower.contains("hydrat") -> Icons.Rounded.WaterDrop
+        lower.contains("step") || lower.contains("activity") || lower.contains("walk") -> Icons.Rounded.DirectionsRun
+        lower.contains("sleep") || lower.contains("bed") -> Icons.Rounded.Bedtime
+        lower.contains("heart") || lower.contains("pulse") || lower.contains("bp") -> Icons.Rounded.Favorite
+        else -> Icons.Rounded.AutoAwesome
     }
 }
 
 @Composable
 private fun NotificationCard(
-    icon: String,
+    icon: ImageVector,
     title: String,
     description: String,
     time: String,
@@ -247,7 +250,12 @@ private fun NotificationCard(
                     .background(MaterialTheme.colorScheme.secondary),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = icon, fontSize = 20.sp)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
             }
 
             Spacer(modifier = Modifier.width(14.dp))

@@ -28,6 +28,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -167,7 +171,7 @@ fun VersionScreen(
                     if (features.isNotEmpty()) {
                         features.forEachIndexed { idx, feature ->
                             VersionFeatureRow(
-                                icon = "✨",
+                                icon = Icons.Rounded.AutoAwesome,
                                 title = "Feature Update",
                                 desc = feature
                             )
@@ -177,7 +181,7 @@ fun VersionScreen(
                         }
                     } else {
                         VersionFeatureRow(
-                            icon = "📊",
+                            icon = Icons.Rounded.BarChart,
                             title = "Core Health Metrics",
                             desc = "Heart rate, blood pressure, SpO2, steps, hydration, sleep, and workouts."
                         )
@@ -185,7 +189,7 @@ fun VersionScreen(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
 
                         VersionFeatureRow(
-                            icon = "🤖",
+                            icon = Icons.Rounded.Psychology,
                             title = "Personalized Insights",
                             desc = "Smart health trends analysis and wellness score calculation."
                         )
@@ -193,7 +197,7 @@ fun VersionScreen(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
 
                         VersionFeatureRow(
-                            icon = "📡",
+                            icon = Icons.Rounded.Bluetooth,
                             title = "Bluetooth Device Sync",
                             desc = "Pair smartwatches and fitness trackers for continuous telemetry sync."
                         )
@@ -219,7 +223,16 @@ fun VersionScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "📦 Build type", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.Inventory2,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = "Build type", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        }
                         Text(text = buildType, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
@@ -230,7 +243,16 @@ fun VersionScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "🏷️ Release", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.LocalOffer,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = "Release", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        }
                         Text(text = versionName, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -293,12 +315,17 @@ private fun SectionHeader(title: String) {
 
 @Composable
 private fun VersionFeatureRow(
-    icon: String,
+    icon: ImageVector,
     title: String,
     desc: String
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(text = icon, fontSize = 18.sp)
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
         Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)

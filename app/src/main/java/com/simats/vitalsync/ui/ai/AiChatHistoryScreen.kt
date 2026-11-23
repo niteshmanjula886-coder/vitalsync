@@ -27,6 +27,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -149,7 +152,14 @@ fun AiChatHistoryScreen(
                     focusedBorderColor = VitalTealPrimary,
                     unfocusedBorderColor = Color(0xFFE5E7EB)
                 ),
-                trailingIcon = { Text("🔍", fontSize = 16.sp) }
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Rounded.Search,
+                        contentDescription = "Search",
+                        modifier = Modifier.size(18.dp),
+                        tint = Color(0xFF9CA3AF)
+                    )
+                }
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -195,7 +205,12 @@ fun AiChatHistoryScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text(text = "💬", fontSize = 18.sp)
+                                    Icon(
+                                        imageVector = Icons.Rounded.ChatBubbleOutline,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = VitalTealDark
+                                    )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
@@ -216,14 +231,15 @@ fun AiChatHistoryScreen(
                                     }
                                 }
 
-                                Text(
-                                    text = "🗑️",
-                                    fontSize = 14.sp,
+                                Icon(
+                                    imageVector = Icons.Rounded.DeleteOutline,
+                                    contentDescription = "Delete conversation",
                                     modifier = Modifier
-                                        .padding(start = 8.dp)
+                                        .size(18.dp)
                                         .clickable {
                                             conversation.id.toIntOrNull()?.let { onDeleteSession(it) }
-                                        }
+                                        },
+                                    tint = Color(0xFFEF4444)
                                 )
                             }
 

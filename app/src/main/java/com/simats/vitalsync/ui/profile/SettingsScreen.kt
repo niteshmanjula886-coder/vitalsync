@@ -32,6 +32,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.DarkMode
 import com.simats.vitalsync.ui.theme.AppThemeMode
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -192,8 +196,8 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     val modes = listOf(
-                        Triple(AppThemeMode.LIGHT, "Light", "☀️"),
-                        Triple(AppThemeMode.DARK, "Dark", "🌙")
+                        Triple(AppThemeMode.LIGHT, "Light", Icons.Rounded.LightMode),
+                        Triple(AppThemeMode.DARK, "Dark", Icons.Rounded.DarkMode)
                     )
                     modes.forEach { (mode, label, icon) ->
                         val isSelected = (themeMode == mode)
@@ -216,9 +220,11 @@ fun SettingsScreen(
                                 modifier = Modifier.padding(vertical = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(
-                                    text = icon,
-                                    fontSize = 18.sp
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = label,
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(

@@ -30,6 +30,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -164,14 +168,23 @@ fun StartActivityScreen(
                         .clickable { onRefreshStatsClick() }
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text(
-                        text = "🔄 Refresh Stats",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
-                        maxLines = 1,
-                        softWrap = false
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = "Refresh Stats",
+                            modifier = Modifier.size(12.dp),
+                            tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Refresh Stats",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
             }
 
@@ -207,7 +220,7 @@ fun StartActivityScreen(
                     // Walking Stat Row
                     ActivityStatRowItem(
                         title = "Walking",
-                        icon = "🚶",
+                        icon = Icons.Rounded.DirectionsWalk,
                         duration = walkingStats.durationFormatted,
                         distance = walkingStats.distanceKmFormatted,
                         calories = walkingStats.caloriesFormatted,
@@ -222,7 +235,7 @@ fun StartActivityScreen(
                     // Running Stat Row
                     ActivityStatRowItem(
                         title = "Running",
-                        icon = "🏃",
+                        icon = Icons.Rounded.DirectionsRun,
                         duration = runningStats.durationFormatted,
                         distance = runningStats.distanceKmFormatted,
                         calories = runningStats.caloriesFormatted,
@@ -237,7 +250,7 @@ fun StartActivityScreen(
                     // Cycling Stat Row
                     ActivityStatRowItem(
                         title = "Cycling",
-                        icon = "🚴",
+                        icon = Icons.Rounded.DirectionsBike,
                         duration = cyclingStats.durationFormatted,
                         distance = cyclingStats.distanceKmFormatted,
                         calories = cyclingStats.caloriesFormatted,
@@ -258,12 +271,21 @@ fun StartActivityScreen(
                     .padding(vertical = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "📜 View Live Activity Session History",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.History,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "View Live Activity Session History",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -279,7 +301,7 @@ fun StartActivityScreen(
                 ActivityOptionCard(
                     title = "Walking",
                     subtitle = "Outdoor & treadmill",
-                    icon = "🚶",
+                    icon = Icons.Rounded.DirectionsWalk,
                     isSelected = selectedType == ActivityType.WALKING,
                     onClick = { selectedType = ActivityType.WALKING },
                     isDark = isDark,
@@ -289,7 +311,7 @@ fun StartActivityScreen(
                 ActivityOptionCard(
                     title = "Running",
                     subtitle = "Outdoor & treadmill",
-                    icon = "🏃",
+                    icon = Icons.Rounded.DirectionsRun,
                     isSelected = selectedType == ActivityType.RUNNING,
                     onClick = { selectedType = ActivityType.RUNNING },
                     isDark = isDark,
@@ -303,7 +325,7 @@ fun StartActivityScreen(
             ActivityOptionCard(
                 title = "Cycling",
                 subtitle = "Outdoor & stationary bike",
-                icon = "🚴",
+                icon = Icons.Rounded.DirectionsBike,
                 isSelected = selectedType == ActivityType.CYCLING,
                 onClick = { selectedType = ActivityType.CYCLING },
                 isDark = isDark,
@@ -585,7 +607,7 @@ fun StartActivityScreen(
 @Composable
 private fun ActivityStatRowItem(
     title: String,
-    icon: String,
+    icon: ImageVector,
     duration: String,
     distance: String,
     calories: String,
@@ -600,7 +622,12 @@ private fun ActivityStatRowItem(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = icon, fontSize = 20.sp)
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                modifier = Modifier.size(20.dp),
+                tint = if (isDark) Color(0xFF34D399) else VitalTealDark
+            )
             Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
@@ -656,7 +683,7 @@ private fun SectionHeader(title: String, isDark: Boolean = false) {
 private fun ActivityOptionCard(
     title: String,
     subtitle: String,
-    icon: String,
+    icon: ImageVector,
     isSelected: Boolean,
     onClick: () -> Unit,
     isDark: Boolean = false,
@@ -688,7 +715,16 @@ private fun ActivityOptionCard(
                 .padding(16.dp)
         ) {
             Column {
-                Text(text = icon, fontSize = 22.sp)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    modifier = Modifier.size(22.dp),
+                    tint = if (isSelected) {
+                        if (isDark) Color(0xFF34D399) else VitalTealPrimary
+                    } else {
+                        if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
+                    }
+                )
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = title,

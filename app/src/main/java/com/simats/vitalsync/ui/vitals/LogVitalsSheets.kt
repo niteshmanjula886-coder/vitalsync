@@ -31,6 +31,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -450,7 +453,12 @@ internal fun VitalMedicalAlertBanner(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.Top
         ) {
-            Text(text = "⚠️", fontSize = 18.sp)
+            Icon(
+                imageVector = Icons.Rounded.WarningAmber,
+                contentDescription = "Alert",
+                modifier = Modifier.size(18.dp),
+                tint = if (isDark) Color(0xFFF87171) else Color(0xFF991B1B)
+            )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = message,
@@ -489,12 +497,21 @@ internal fun VitalOllamaGuidanceCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "✦ VitalSync AI Analysis",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDark) CarbonDarkPurpleAccent else Color(0xFF6D28D9)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = if (isDark) CarbonDarkPurpleAccent else Color(0xFF6D28D9)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "VitalSync AI Analysis",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) CarbonDarkPurpleAccent else Color(0xFF6D28D9)
+                    )
+                }
 
                 if (isLoading) {
                     Box(
@@ -538,12 +555,21 @@ internal fun VitalOllamaGuidanceCard(
                     .padding(horizontal = 14.dp, vertical = 11.dp)
             ) {
                 Column {
-                    Text(
-                        text = "🏃 Recommended Activity",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color(0xFF34D399) else Color(0xFF065F46)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.DirectionsRun,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = if (isDark) Color(0xFF34D399) else Color(0xFF065F46)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Recommended Activity",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color(0xFF34D399) else Color(0xFF065F46)
+                        )
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = recommendedActivity,
@@ -564,12 +590,21 @@ internal fun VitalOllamaGuidanceCard(
                     .padding(horizontal = 14.dp, vertical = 11.dp)
             ) {
                 Column {
-                    Text(
-                        text = "💡 Recovery Tip",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color(0xFFFBBF24) else Color(0xFF92400E)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.Lightbulb,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = if (isDark) Color(0xFFFBBF24) else Color(0xFF92400E)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Recovery Tip",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color(0xFFFBBF24) else Color(0xFF92400E)
+                        )
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = lifestyleTip,

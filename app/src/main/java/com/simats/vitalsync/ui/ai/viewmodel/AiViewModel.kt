@@ -334,9 +334,9 @@ class AiViewModel(
             val formatted = if (rawError.startsWith("VitalSync AI", ignoreCase = true) ||
                 rawError.startsWith("Unable to reach", ignoreCase = true)
             ) {
-                "⚠️ $rawError"
+                rawError
             } else {
-                "⚠️ Unable to reach VitalSync AI: $rawError"
+                "Unable to reach VitalSync AI: $rawError"
             }
             val errorNotice = ChatMessage(
                 id = UUID.randomUUID().toString(),

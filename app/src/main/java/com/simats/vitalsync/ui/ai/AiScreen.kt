@@ -27,6 +27,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -271,12 +275,21 @@ fun AiScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "VitalSync AI ✨",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "VitalSync AI",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        imageVector = Icons.Rounded.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = Color(0xFFF59E0B)
+                    )
+                }
 
                 IconButton(
                     onClick = onAskAiClick,
@@ -424,11 +437,26 @@ fun AiScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    StepActionRow(icon = "👟", text = "Take a 15-minute walk today.")
+                    StepActionRow(
+                        icon = Icons.Rounded.DirectionsWalk,
+                        iconTint = Color(0xFF0284C7),
+                        containerColor = Color(0xFFE0F2FE),
+                        text = "Take a 15-minute walk today."
+                    )
                     Spacer(modifier = Modifier.height(14.dp))
-                    StepActionRow(icon = "🌙", text = "Maintain a consistent bedtime.")
+                    StepActionRow(
+                        icon = Icons.Rounded.Bedtime,
+                        iconTint = Color(0xFFD97706),
+                        containerColor = Color(0xFFFEF3C7),
+                        text = "Maintain a consistent bedtime."
+                    )
                     Spacer(modifier = Modifier.height(14.dp))
-                    StepActionRow(icon = "💧", text = "Drink another glass of water.")
+                    StepActionRow(
+                        icon = Icons.Rounded.WaterDrop,
+                        iconTint = Color(0xFF0284C7),
+                        containerColor = Color(0xFFE0F2FE),
+                        text = "Drink another glass of water."
+                    )
                 }
             }
 
@@ -542,7 +570,9 @@ private fun TrendCard(
 
 @Composable
 private fun StepActionRow(
-    icon: String,
+    icon: ImageVector,
+    iconTint: Color,
+    containerColor: Color,
     text: String
 ) {
     Row(
@@ -553,10 +583,15 @@ private fun StepActionRow(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFF3E8FF)),
+                .background(containerColor),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = icon, fontSize = 16.sp)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = iconTint
+            )
         }
 
         Spacer(modifier = Modifier.width(14.dp))

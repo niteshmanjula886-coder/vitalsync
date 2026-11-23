@@ -30,6 +30,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -141,7 +145,7 @@ fun RemindersScreen(
             if (reminders.isEmpty() && !isLoading) {
                 // Fallback default visual reminders
                 ReminderCard(
-                    icon = "💧",
+                    icon = Icons.Rounded.WaterDrop,
                     title = "Drink Water",
                     schedule = "Every day",
                     time = "8:00 AM",
@@ -150,7 +154,7 @@ fun RemindersScreen(
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 ReminderCard(
-                    icon = "🏃‍♂️",
+                    icon = Icons.Rounded.FitnessCenter,
                     title = "Exercise",
                     schedule = "Mon–Fri",
                     time = "6:00 PM",
@@ -159,7 +163,7 @@ fun RemindersScreen(
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 ReminderCard(
-                    icon = "🌙",
+                    icon = Icons.Rounded.Bedtime,
                     title = "Sleep",
                     schedule = "Every day",
                     time = "10:30 PM",
@@ -168,7 +172,7 @@ fun RemindersScreen(
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 ReminderCard(
-                    icon = "💊",
+                    icon = Icons.Rounded.Medication,
                     title = "Medication",
                     schedule = "Every day",
                     time = "9:00 AM",
@@ -219,21 +223,21 @@ fun RemindersScreen(
     }
 }
 
-private fun getReminderIcon(title: String, type: String?): String {
+private fun getReminderIcon(title: String, type: String?): ImageVector {
     val lower = (title + " " + (type ?: "")).lowercase()
     return when {
-        lower.contains("water") || lower.contains("hydrate") -> "💧"
-        lower.contains("exercise") || lower.contains("workout") || lower.contains("gym") || lower.contains("run") -> "🏃‍♂️"
-        lower.contains("sleep") || lower.contains("bed") -> "🌙"
-        lower.contains("med") || lower.contains("pill") -> "💊"
-        lower.contains("heart") || lower.contains("vital") || lower.contains("bp") -> "❤️"
-        else -> "⏰"
+        lower.contains("water") || lower.contains("hydrate") -> Icons.Rounded.WaterDrop
+        lower.contains("exercise") || lower.contains("workout") || lower.contains("gym") || lower.contains("run") -> Icons.Rounded.FitnessCenter
+        lower.contains("sleep") || lower.contains("bed") -> Icons.Rounded.Bedtime
+        lower.contains("med") || lower.contains("pill") -> Icons.Rounded.Medication
+        lower.contains("heart") || lower.contains("vital") || lower.contains("bp") -> Icons.Rounded.Favorite
+        else -> Icons.Rounded.Alarm
     }
 }
 
 @Composable
 private fun ReminderCard(
-    icon: String,
+    icon: ImageVector,
     title: String,
     schedule: String,
     time: String,
@@ -261,7 +265,12 @@ private fun ReminderCard(
                             .background(MaterialTheme.colorScheme.secondary),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = icon, fontSize = 18.sp)
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))

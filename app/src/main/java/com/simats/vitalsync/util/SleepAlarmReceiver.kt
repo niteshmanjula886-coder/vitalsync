@@ -15,7 +15,8 @@ class SleepAlarmReceiver : BroadcastReceiver() {
         val sessionManager = SleepSessionManager.getInstance(context)
 
         when (action) {
-            SleepSessionManager.ACTION_WAKE_UP_ALARM -> {
+            SleepSessionManager.ACTION_WAKE_UP_ALARM,
+            SleepSessionManager.ACTION_SNOOZE_ALARM_FIRED -> {
                 sessionManager.onAlarmFired(context)
             }
             SleepSessionManager.ACTION_SNOOZE_ALARM -> {
@@ -29,6 +30,9 @@ class SleepAlarmReceiver : BroadcastReceiver() {
             }
             SleepSessionManager.ACTION_BEDTIME_REMINDER -> {
                 sessionManager.onBedtimeReminderTriggered(context)
+            }
+            SleepSessionManager.ACTION_STOP_BEDTIME -> {
+                sessionManager.stopBedtimeAlert(context)
             }
         }
     }

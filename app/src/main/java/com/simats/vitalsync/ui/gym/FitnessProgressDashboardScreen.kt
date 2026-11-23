@@ -110,7 +110,7 @@ fun FitnessProgressDashboardScreen(
             Spacer(modifier = Modifier.width(8.dp))
 
             Text(
-                text = "Fitness & Nutrition Analytics 📈",
+                text = "Fitness & Nutrition Analytics",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF111827)

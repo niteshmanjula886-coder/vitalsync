@@ -33,6 +33,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -156,7 +160,12 @@ fun ChangePasswordScreen(
                         modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "⚠️", fontSize = 16.sp)
+                        Icon(
+                            imageVector = Icons.Rounded.WarningAmber,
+                            contentDescription = "Error",
+                            modifier = Modifier.size(16.dp),
+                            tint = Color(0xFF991B1B)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = activeError,
@@ -182,7 +191,12 @@ fun ChangePasswordScreen(
                         modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "✅", fontSize = 16.sp)
+                        Icon(
+                            imageVector = Icons.Rounded.CheckCircle,
+                            contentDescription = "Success",
+                            modifier = Modifier.size(16.dp),
+                            tint = Color(0xFF166534)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = successMessage,

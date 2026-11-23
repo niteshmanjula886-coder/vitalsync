@@ -27,6 +27,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Laptop
+import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Watch
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -129,7 +134,12 @@ fun LoginSessionsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(text = "📱", fontSize = 22.sp)
+                            Icon(
+                                imageVector = Icons.Rounded.PhoneAndroid,
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
@@ -179,7 +189,7 @@ fun LoginSessionsScreen(
 
             if (otherSessions.isNotEmpty()) {
                 otherSessions.forEachIndexed { idx, s ->
-                    val icon = if (s.deviceName.lowercase().contains("watch")) "⌚" else "💻"
+                    val icon = if (s.deviceName.lowercase().contains("watch")) Icons.Rounded.Watch else Icons.Rounded.Laptop
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
@@ -198,7 +208,12 @@ fun LoginSessionsScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text(text = icon, fontSize = 22.sp)
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(22.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(
@@ -240,7 +255,12 @@ fun LoginSessionsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(text = "⌚", fontSize = 22.sp)
+                            Icon(
+                                imageVector = Icons.Rounded.Watch,
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(

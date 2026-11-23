@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -136,13 +137,21 @@ fun FoodDetailsScreen(
             Spacer(modifier = Modifier.height(6.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val (badgeColor, categoryLabel) = when (foodItem.category) {
+                    FoodCategory.NON_VEG -> Color(0xFFEF4444) to "Non-Vegetarian"
+                    FoodCategory.EGG -> Color(0xFFF59E0B) to "Egg"
+                    FoodCategory.VEGAN -> Color(0xFF10B981) to "Vegan"
+                    else -> Color(0xFF22C55E) to "Vegetarian"
+                }
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(badgeColor)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = when (foodItem.category) {
-                        FoodCategory.NON_VEG -> "🔴 Non-Vegetarian"
-                        FoodCategory.EGG -> "🟡 Egg"
-                        FoodCategory.VEGAN -> "🌱 Vegan"
-                        else -> "🟢 Vegetarian"
-                    },
+                    text = categoryLabel,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color(0xFF6B7280)

@@ -38,6 +38,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -200,13 +203,22 @@ fun ActiveWorkoutSessionScreen(
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = if (isSessionTimerRunning) "⏸" else "▶",
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(end = 4.dp)
+                        Icon(
+                            imageVector = if (isSessionTimerRunning) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = if (isSessionTimerRunning) "Pause" else "Play",
+                            modifier = Modifier.size(14.dp),
+                            tint = if (isSessionTimerRunning) Color(0xFF15803D) else Color(0xFFD97706)
                         )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.Timer,
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp),
+                            tint = if (isSessionTimerRunning) Color(0xFF15803D) else Color(0xFFD97706)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (isSessionTimerRunning) "⏱️ $formattedWorkoutTimer" else "Paused ($formattedWorkoutTimer)",
+                            text = if (isSessionTimerRunning) formattedWorkoutTimer else "Paused ($formattedWorkoutTimer)",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isSessionTimerRunning) Color(0xFF15803D) else Color(0xFFD97706)
@@ -290,7 +302,14 @@ fun ActiveWorkoutSessionScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "⏱️ Rest & Recover", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            Icon(
+                                imageVector = Icons.Rounded.Timer,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = VitalTealDark
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Rest & Recover", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                             Spacer(modifier = Modifier.width(8.dp))
 
                             Box(
@@ -305,25 +324,45 @@ fun ActiveWorkoutSessionScreen(
                                     }
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
-                                Text(
-                                    text = if (isRestTimerActive) "⏸ Pause" else "▶ Play",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isRestTimerActive) Color(0xFF15803D) else Color(0xFFD97706)
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = if (isRestTimerActive) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = if (isRestTimerActive) Color(0xFF15803D) else Color(0xFFD97706)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = if (isRestTimerActive) "Pause" else "Play",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isRestTimerActive) Color(0xFF15803D) else Color(0xFFD97706)
+                                    )
+                                }
                             }
                         }
 
-                        Text(
-                            text = "Custom ✏️",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F9F7A),
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.clickable {
                                 customRestInputText = restTimerConfigSeconds.toString()
                                 showCustomRestDialog = true
                             }
-                        )
+                        ) {
+                            Text(
+                                text = "Custom",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F9F7A)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Icon(
+                                imageVector = Icons.Rounded.Edit,
+                                contentDescription = "Edit Custom",
+                                modifier = Modifier.size(13.dp),
+                                tint = Color(0xFF0F9F7A)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -622,7 +661,7 @@ fun ActiveWorkoutSessionScreen(
     }
 }
 
-// 🔲 Custom Compact Numeric Input Field for Table Grid Cells
+// Custom Compact Numeric Input Field for Table Grid Cells
 @Composable
 private fun CompactNumericInputField(
     value: String,

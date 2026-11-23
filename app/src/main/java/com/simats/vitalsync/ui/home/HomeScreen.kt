@@ -984,7 +984,7 @@ private fun VitalCard(
     }
 }
 
-// 🔮 Interactive Parabolic Arc Jumping & Drag/Swipe Circular Bubble Navigation Bar
+// Interactive Parabolic Arc Jumping & Drag/Swipe Circular Bubble Navigation Bar
 @Composable
 private fun HomeBottomNavigationBar(
     selectedTab: Int,
@@ -1084,7 +1084,7 @@ private fun HomeBottomNavigationBar(
                             )
                         }
                 ) {
-                    // 🔮 Active Selected Circular Bubble
+                    // Active Selected Circular Bubble
                     Box(
                         modifier = Modifier
                             .size(40.dp)
@@ -1174,7 +1174,7 @@ private fun HomeBottomNavigationBar(
     }
 }
 
-// 💓 Interactive Heart Pulse Beat Animation Component for Navigation Bar
+// Interactive Heart Pulse Beat Animation Component for Navigation Bar
 @Composable
 private fun AnimatedVitalsNavIcon(
     isSelected: Boolean,
@@ -1222,7 +1222,7 @@ private fun AnimatedVitalsNavIcon(
     }
 }
 
-// 💪 Flexed Biceps Emoji Structure Component for Gym Navigation
+// Flexed Biceps Vector Structure Component for Gym Navigation
 @Composable
 private fun AnimatedGymNavIcon(
     isSelected: Boolean,
@@ -1321,7 +1321,7 @@ private fun AnimatedGymNavIcon(
     }
 }
 
-// 👤 Emoji-Style Person Structure Waving "Hi!" Component for Navigation Bar
+// Person Vector Structure Waving "Hi!" Component for Navigation Bar
 @Composable
 private fun AnimatedProfileNavIcon(
     isSelected: Boolean,
@@ -1381,7 +1381,7 @@ private fun AnimatedProfileNavIcon(
             color = color
         )
 
-        // 3. Emoji Person Raised Waving Arm & Hand ("Hi!") 👋
+        // 3. Person Raised Waving Arm & Hand ("Hi!")
         if (isSelected) {
             val shoulderX = w * 0.62f
             val shoulderY = h * 0.65f
@@ -1429,7 +1429,7 @@ private fun AnimatedProfileNavIcon(
     }
 }
 
-// 🏠 Brown House with Black Animated Chimney Smoke Puff Component for Navigation Bar
+// House with Animated Chimney Smoke Puff Component for Navigation Bar
 @Composable
 private fun AnimatedHomeNavIcon(
     isSelected: Boolean,
@@ -1531,7 +1531,7 @@ private fun AnimatedHomeNavIcon(
     }
 }
 
-// 🔮 Interactive Pulsating AI Sparkle Star Animation Component for Navigation Bar
+// Interactive Pulsating AI Sparkle Star Animation Component for Navigation Bar
 @Composable
 private fun AnimatedAiNavSparkleIcon(
     isSelected: Boolean,

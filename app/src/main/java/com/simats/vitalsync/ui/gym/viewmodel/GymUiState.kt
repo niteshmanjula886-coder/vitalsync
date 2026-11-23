@@ -43,11 +43,11 @@ data class GymProgressUiState(
     val errorMessage: String? = null
 )
 
-enum class NutritionTrendMetric(val label: String, val unit: String, val icon: String) {
-    CALORIES("Calories", "kcal", "🔥"),
-    PROTEIN("Protein", "g", "🥩"),
-    CARBS("Carbs", "g", "🍞"),
-    FATS("Fats", "g", "🥑")
+enum class NutritionTrendMetric(val label: String, val unit: String, val icon: String = "") {
+    CALORIES("Calories", "kcal", ""),
+    PROTEIN("Protein", "g", ""),
+    CARBS("Carbs", "g", ""),
+    FATS("Fats", "g", "")
 }
 
 // =============================================================================

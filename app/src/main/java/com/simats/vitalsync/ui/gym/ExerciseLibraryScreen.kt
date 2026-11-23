@@ -28,6 +28,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -159,7 +162,14 @@ fun ExerciseLibraryScreen(
                     focusedBorderColor = VitalTealPrimary,
                     unfocusedBorderColor = Color(0xFFE5E7EB)
                 ),
-                trailingIcon = { Text("🔍", fontSize = 16.sp) }
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Rounded.Search,
+                        contentDescription = "Search",
+                        modifier = Modifier.size(18.dp),
+                        tint = Color(0xFF9CA3AF)
+                    )
+                }
             )
 
             Spacer(modifier = Modifier.height(14.dp))

@@ -186,7 +186,7 @@ class SleepTrackerService : Service() {
 
         return NotificationCompat.Builder(this, TRACKER_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("🌙 VitalSync Sleep Tracker")
+            .setContentTitle("VitalSync Sleep Tracker")
             .setContentText(contentText)
             .setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -216,7 +216,7 @@ class SleepTrackerService : Service() {
 
         return NotificationCompat.Builder(this, TRACKER_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("💤 Sleep Alarm Snoozed")
+            .setContentTitle("Sleep Alarm Snoozed")
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -249,7 +249,7 @@ class SleepTrackerService : Service() {
 
         return NotificationCompat.Builder(this, ALARM_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("⏰ Wake Up! Alarm is Ringing")
+            .setContentTitle("Wake Up! Alarm is Ringing")
             .setContentText("Good morning! Time to wake up and start your day.")
             .setStyle(NotificationCompat.BigTextStyle().bigText("Good morning! Time to wake up and start your day."))
             .setCategory(NotificationCompat.CATEGORY_ALARM)

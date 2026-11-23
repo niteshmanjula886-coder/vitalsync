@@ -50,6 +50,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -333,17 +336,25 @@ fun HydrationDetailScreen(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 12.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(if (isDark) Color(0xFF142E1F) else Color(0xFFDCFCE7))
                     .padding(horizontal = 16.dp, vertical = 10.dp),
-                contentAlignment = Alignment.Center
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
+                Icon(
+                    imageVector = Icons.Rounded.WaterDrop,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = if (isDark) Color(0xFF86EFAC) else Color(0xFF15803D)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "💧 +$lastLoggedAmountMl ml added to your hydration log!",
+                    text = "+$lastLoggedAmountMl ml added to your hydration log!",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isDark) Color(0xFF86EFAC) else Color(0xFF15803D)
@@ -376,12 +387,28 @@ fun HydrationDetailScreen(
                         }
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text(
-                        text = "🎯 Target: ${String.format(Locale.US, "%,d", dailyTargetMl)} ml ✏️",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.TrackChanges,
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp),
+                            tint = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Target: ${String.format(Locale.US, "%,d", dailyTargetMl)} ml",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.Edit,
+                            contentDescription = "Edit Target",
+                            modifier = Modifier.size(12.dp),
+                            tint = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -477,16 +504,27 @@ fun HydrationDetailScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Text(
-                text = "+ Custom ml ✏️",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.clickable {
                     customInputMlText = "150"
                     showCustomMlDialog = true
                 }
-            )
+            ) {
+                Text(
+                    text = "+ Custom ml",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Icon(
+                    imageVector = Icons.Rounded.Edit,
+                    contentDescription = "Custom ml",
+                    modifier = Modifier.size(13.dp),
+                    tint = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -506,7 +544,11 @@ fun HydrationDetailScreen(
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = VitalTealDark)
                 ) {
-                    Text(text = "💧 +250 ml", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.WaterDrop, contentDescription = null, modifier = Modifier.size(15.dp), tint = Color.White)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "+250 ml", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
 
                 Button(
@@ -515,7 +557,11 @@ fun HydrationDetailScreen(
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = secondaryBtnContainer, contentColor = secondaryBtnContent)
                 ) {
-                    Text(text = "🥛 +500 ml", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.LocalCafe, contentDescription = null, modifier = Modifier.size(15.dp), tint = secondaryBtnContent)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "+500 ml", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 
@@ -529,7 +575,11 @@ fun HydrationDetailScreen(
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = secondaryBtnContainer, contentColor = secondaryBtnContent)
                 ) {
-                    Text(text = "🍾 +750 ml", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.LocalDrink, contentDescription = null, modifier = Modifier.size(15.dp), tint = secondaryBtnContent)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "+750 ml", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
 
                 Button(
@@ -541,7 +591,11 @@ fun HydrationDetailScreen(
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = secondaryBtnContainer, contentColor = secondaryBtnContent)
                 ) {
-                    Text(text = "✨ Custom ml", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Tune, contentDescription = null, modifier = Modifier.size(15.dp), tint = secondaryBtnContent)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "Custom ml", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -861,7 +915,12 @@ fun HydrationDetailScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = "⏰", fontSize = 16.sp)
+                                Icon(
+                                    imageVector = Icons.Rounded.Alarm,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = if (isDark) Color(0xFF86EFAC) else Color(0xFF0F9F7A)
+                                )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "Scheduled at $reminderTime",
@@ -929,7 +988,12 @@ fun HydrationDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "✨", fontSize = 16.sp)
+                        Icon(
+                            imageVector = Icons.Rounded.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "AI Hydration Insight",
@@ -981,7 +1045,12 @@ fun HydrationDetailScreen(
                         .padding(horizontal = 12.dp, vertical = 10.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "💡", fontSize = 13.sp)
+                        Icon(
+                            imageVector = Icons.Rounded.Lightbulb,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = if (isDark) Color(0xFF86EFAC) else Color(0xFF166534)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = liveHydAdvice,

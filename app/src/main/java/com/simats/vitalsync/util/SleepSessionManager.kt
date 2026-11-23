@@ -41,6 +41,7 @@ data class SleepSessionState(
     val isSnoozed: Boolean = false,
     val snoozeUntilMillis: Long = 0L,
     val snoozeCount: Int = 0,
+    val isBedtimeRinging: Boolean = false,
     val lastCompletedRecord: SleepRecord? = null
 )
 
@@ -56,9 +57,11 @@ class SleepSessionManager private constructor(private val appContext: Context) {
 
         const val ACTION_WAKE_UP_ALARM = "com.simats.vitalsync.ACTION_WAKE_UP_ALARM"
         const val ACTION_SNOOZE_ALARM = "com.simats.vitalsync.ACTION_SNOOZE_ALARM"
+        const val ACTION_SNOOZE_ALARM_FIRED = "com.simats.vitalsync.ACTION_SNOOZE_ALARM_FIRED"
         const val ACTION_TURN_OFF_ALARM = "com.simats.vitalsync.ACTION_TURN_OFF_ALARM"
         const val ACTION_STOP_SLEEP = "com.simats.vitalsync.ACTION_STOP_SLEEP"
         const val ACTION_BEDTIME_REMINDER = "com.simats.vitalsync.ACTION_BEDTIME_REMINDER"
+        const val ACTION_STOP_BEDTIME = "com.simats.vitalsync.ACTION_STOP_BEDTIME"
         const val ACTION_OPEN_SLEEP = "com.simats.vitalsync.ACTION_OPEN_SLEEP"
 
         const val ALARM_REQ_CODE_WAKE = 7001
@@ -106,6 +109,7 @@ class SleepSessionManager private constructor(private val appContext: Context) {
         val isSnoozed = prefs.getBoolean("key_is_snoozed", false)
         val snoozeUntilMillis = prefs.getLong("key_snooze_until_millis", 0L)
         val snoozeCount = prefs.getInt("key_snooze_count", 0)
+        val isBedtimeRinging = prefs.getBoolean("key_is_bedtime_ringing", false)
 
         val elapsed = if (isActive && startMillis > 0L) {
             (System.currentTimeMillis() - startMillis) / 1000L
@@ -121,7 +125,8 @@ class SleepSessionManager private constructor(private val appContext: Context) {
             isAlarmRinging = isAlarmRinging,
             isSnoozed = isSnoozed,
             snoozeUntilMillis = snoozeUntilMillis,
-            snoozeCount = snoozeCount
+            snoozeCount = snoozeCount,
+            isBedtimeRinging = isBedtimeRinging
         )
     }
 
@@ -136,6 +141,7 @@ class SleepSessionManager private constructor(private val appContext: Context) {
             putBoolean("key_is_snoozed", state.isSnoozed)
             putLong("key_snooze_until_millis", state.snoozeUntilMillis)
             putInt("key_snooze_count", state.snoozeCount)
+            putBoolean("key_is_bedtime_ringing", state.isBedtimeRinging)
             apply()
         }
     }
@@ -280,9 +286,9 @@ class SleepSessionManager private constructor(private val appContext: Context) {
         _sessionState.value = snoozedState
 
         // Schedule next snooze alarm
-        scheduleExactAlarm(context, snoozeUntil, ACTION_SNOOZE_ALARM, ALARM_REQ_CODE_SNOOZE)
+        scheduleExactAlarm(context, snoozeUntil, ACTION_SNOOZE_ALARM_FIRED, ALARM_REQ_CODE_SNOOZE)
         SleepTrackerService.showSnoozedNotification(context, snoozeUntil)
-        Log.d(TAG, "Alarm snoozed for 2 minutes (Snooze #$newCount)")
+        Log.d(TAG, "Alarm snoozed for 2 minutes (Snooze #$newCount, will ring at $snoozeUntil)")
     }
 
     /**
@@ -448,6 +454,24 @@ class SleepSessionManager private constructor(private val appContext: Context) {
         )
 
         try {
+            // For wake-up and snooze alarms, use setAlarmClock which guarantees exact wakeup through Doze
+            if (action == ACTION_WAKE_UP_ALARM || action == ACTION_SNOOZE_ALARM_FIRED) {
+                val showIntent = Intent(context, com.simats.vitalsync.MainActivity::class.java).apply {
+                    this.action = ACTION_OPEN_SLEEP
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+                val showPending = PendingIntent.getActivity(
+                    context,
+                    reqCode + 100,
+                    showIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerMillis, showPending)
+                alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+                Log.d(TAG, "Scheduled alarm via setAlarmClock for triggerMillis=$triggerMillis, action=$action")
+                return
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (alarmManager.canScheduleExactAlarms()) {
                     alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
@@ -471,7 +495,16 @@ class SleepSessionManager private constructor(private val appContext: Context) {
                 Log.e(TAG, "Fatal failure scheduling alarm: ${ex.message}", ex)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error scheduling alarm: ${e.message}", e)
+            Log.e(TAG, "Error scheduling alarm, falling back to setAndAllowWhileIdle: ${e.message}", e)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+                } else {
+                    alarmManager.set(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "Fatal secondary fallback failure: ${ex.message}", ex)
+            }
         }
     }
 
@@ -483,7 +516,7 @@ class SleepSessionManager private constructor(private val appContext: Context) {
         alarmManager.cancel(wakePending)
         wakePending.cancel()
 
-        val snoozeIntent = Intent(context, SleepAlarmReceiver::class.java).apply { action = ACTION_SNOOZE_ALARM }
+        val snoozeIntent = Intent(context, SleepAlarmReceiver::class.java).apply { action = ACTION_SNOOZE_ALARM_FIRED }
         val snoozePending = PendingIntent.getBroadcast(context, ALARM_REQ_CODE_SNOOZE, snoozeIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         alarmManager.cancel(snoozePending)
         snoozePending.cancel()
@@ -491,20 +524,88 @@ class SleepSessionManager private constructor(private val appContext: Context) {
         Log.d(TAG, "Cancelled all pending wake and snooze alarms.")
     }
 
-    private fun computeNextWakeTimeMillis(hour: Int, minute: Int): Long {
-        val now = System.currentTimeMillis()
+    fun computeNextWakeTimeMillis(hour: Int, minute: Int, referenceMillis: Long = System.currentTimeMillis()): Long {
         val calendar = Calendar.getInstance().apply {
-            timeInMillis = now
+            timeInMillis = referenceMillis
             set(Calendar.HOUR_OF_DAY, hour)
             set(Calendar.MINUTE, minute)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
-            // If the time is already past today, advance to next day
-            if (timeInMillis <= now) {
+            // If the time is already past or equal to reference time, advance to next day (overnight rollover)
+            if (timeInMillis <= referenceMillis) {
                 add(Calendar.DAY_OF_YEAR, 1)
             }
         }
         return calendar.timeInMillis
+    }
+
+    /**
+     * Formats countdown until the next alarm trigger in Clock app style:
+     * e.g., "Ring in 19 hours 44 minutes", "Ring in 7 hours", "Ring in 45 minutes", or "Ring in less than 1 minute".
+     */
+    fun formatAlarmCountdown(hour: Int, minute: Int, nowMillis: Long = System.currentTimeMillis()): String {
+        val triggerMillis = computeNextWakeTimeMillis(hour, minute, nowMillis)
+        val diffMs = (triggerMillis - nowMillis).coerceAtLeast(0L)
+
+        val totalMinutes = (diffMs + 59_999L) / (1000 * 60)
+        val hours = totalMinutes / 60
+        val minutes = totalMinutes % 60
+
+        return when {
+            hours > 0 && minutes > 0 -> "Ring in $hours hour${if (hours > 1) "s" else ""} $minutes minute${if (minutes > 1) "s" else ""}"
+            hours > 0 && minutes == 0L -> "Ring in $hours hour${if (hours > 1) "s" else ""}"
+            hours == 0L && minutes > 0L -> "Ring in $minutes minute${if (minutes > 1) "s" else ""}"
+            else -> "Ring in less than 1 minute"
+        }
+    }
+
+    /**
+     * Updates the wake-up alarm time and/or enabled state while a sleep session is actively running (or idle).
+     * Reschedules AlarmManager, updates persistent state, and notifies foreground service without interrupting
+     * the sleep timer or sleep start time.
+     */
+    fun updateWakeAlarm(
+        context: Context,
+        newWakeHour: Int,
+        newWakeMinute: Int,
+        newAlarmEnabled: Boolean = true
+    ) {
+        val current = _sessionState.value
+
+        // 1. Cancel previous pending alarm
+        cancelPendingAlarms(context)
+
+        // 2. Silence if currently ringing
+        if (current.isAlarmRinging) {
+            SleepAlarmSoundPlayer.stop()
+        }
+
+        // 3. Reschedule exact alarm if enabled
+        if (newAlarmEnabled) {
+            val triggerMillis = computeNextWakeTimeMillis(newWakeHour, newWakeMinute)
+            scheduleExactAlarm(context, triggerMillis, ACTION_WAKE_UP_ALARM, ALARM_REQ_CODE_WAKE)
+            Log.d(TAG, "Wake-up alarm rescheduled for $newWakeHour:$newWakeMinute (in ${(triggerMillis - System.currentTimeMillis())/1000/60} mins)")
+        } else {
+            Log.d(TAG, "Wake-up alarm disabled")
+        }
+
+        // 4. Update session state while preserving active sleep session and elapsed time
+        val updatedState = current.copy(
+            targetWakeHour = newWakeHour,
+            targetWakeMinute = newWakeMinute,
+            alarmEnabled = newAlarmEnabled,
+            isAlarmRinging = false,
+            isSnoozed = false,
+            snoozeUntilMillis = 0L
+        )
+
+        saveStateToPrefs(updatedState)
+        _sessionState.value = updatedState
+
+        // 5. Update foreground service notification if active
+        if (current.isActive) {
+            SleepTrackerService.start(context)
+        }
     }
 
     // -------------------------------------------------------------
@@ -571,12 +672,14 @@ class SleepSessionManager private constructor(private val appContext: Context) {
         NotificationReminderEngine.postNotification(
             context = context,
             notificationId = NotificationReminderEngine.NOTIF_ID_SLEEP,
-            title = "🌙 Bedtime Reminder",
+            title = "Bedtime Reminder",
             message = "It's $timeFmt! Time to wind down and get ready for restful sleep."
         )
 
         if (mode == "alarm") {
             SleepAlarmSoundPlayer.play(context)
+            _sessionState.update { it.copy(isBedtimeRinging = true) }
+            prefs.edit().putBoolean("key_is_bedtime_ringing", true).apply()
         }
 
         // Reschedule for next day if still enabled
@@ -584,5 +687,22 @@ class SleepSessionManager private constructor(private val appContext: Context) {
             val nextTrigger = computeNextBedtimeMillis(hour, minute)
             scheduleExactAlarm(context, nextTrigger, ACTION_BEDTIME_REMINDER, ALARM_REQ_CODE_BEDTIME)
         }
+    }
+
+    /**
+     * Silences any playing bedtime alarm chime, cancels bedtime reminder notification,
+     * and clears the isBedtimeRinging flag.
+     */
+    fun stopBedtimeAlert(context: Context) {
+        SleepAlarmSoundPlayer.stop()
+        try {
+            val notifManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+            notifManager?.cancel(NotificationReminderEngine.NOTIF_ID_SLEEP)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error cancelling bedtime notification: ${e.message}")
+        }
+        _sessionState.update { it.copy(isBedtimeRinging = false) }
+        prefs.edit().putBoolean("key_is_bedtime_ringing", false).apply()
+        Log.d(TAG, "Bedtime alert stopped and silenced.")
     }
 }

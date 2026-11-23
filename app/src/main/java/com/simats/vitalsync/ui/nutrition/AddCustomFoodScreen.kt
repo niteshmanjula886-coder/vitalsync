@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -159,11 +160,12 @@ fun AddCustomFoodScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(
-                    FoodCategory.VEG to "🟢 Veg",
-                    FoodCategory.NON_VEG to "🔴 Non-Veg",
-                    FoodCategory.EGG to "🟡 Egg",
-                    FoodCategory.VEGAN to "🌱 Vegan"
-                ).forEach { (cat, label) ->
+                    FoodCategory.VEG to ("Veg" to Color(0xFF22C55E)),
+                    FoodCategory.NON_VEG to ("Non-Veg" to Color(0xFFEF4444)),
+                    FoodCategory.EGG to ("Egg" to Color(0xFFF59E0B)),
+                    FoodCategory.VEGAN to ("Vegan" to Color(0xFF10B981))
+                ).forEach { (cat, info) ->
+                    val (label, dotColor) = info
                     val isSelected = selectedCategory == cat
                     Box(
                         modifier = Modifier
@@ -174,12 +176,21 @@ fun AddCustomFoodScreen(
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = label,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isSelected) Color.White else Color(0xFF4B5563)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSelected) Color.White else dotColor)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = label,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) Color.White else Color(0xFF4B5563)
+                            )
+                        }
                     }
                 }
             }

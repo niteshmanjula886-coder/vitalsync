@@ -33,6 +33,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -134,20 +138,23 @@ fun HelpSupportScreen(
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
                 ExpandableSupportRow(
-                    title = "❤️ Wellness Tracking",
+                    title = "Wellness Tracking",
                     description = "Track your daily vitals including Heart Rate, Blood Pressure, SpO2, Step Count, Activity, Sleep, and Hydration. VitalSync automatically analyzes your trends over time to give you a personalized Wellness Score out of 100.",
+                    icon = Icons.Rounded.Favorite,
                     isDark = isDark
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 16.dp))
                 ExpandableSupportRow(
-                    title = "📡 Devices & Synchronization",
+                    title = "Devices & Synchronization",
                     description = "Seamlessly sync with your Smart Watch, Fitness Band, Pulse Oximeter, or Health Connect. Your readings update automatically in real-time so your health profile is always up to date.",
+                    icon = Icons.Rounded.Devices,
                     isDark = isDark
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 16.dp))
                 ExpandableSupportRow(
-                    title = "🛡️ Account & Privacy",
+                    title = "Account & Privacy",
                     description = "Your health data is encrypted and stored securely on your device. You have full control over data sharing, biometric security, and account management from your Privacy & Security settings.",
+                    icon = Icons.Rounded.Security,
                     isDark = isDark
                 )
             }
@@ -167,14 +174,16 @@ fun HelpSupportScreen(
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
                 ExpandableSupportRow(
-                    title = "📖 Getting Started with VitalSync",
+                    title = "Getting Started with VitalSync",
                     description = "Welcome to VitalSync! Start by completing your profile setup, logging your first reading or workout session, setting up daily reminders, and asking VitalSync AI for personalized health insights.",
+                    icon = Icons.Rounded.MenuBook,
                     isDark = isDark
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 16.dp))
                 ExpandableSupportRow(
-                    title = "⌚ Connect Your First Device",
+                    title = "Connect Your First Device",
                     description = "Go to Connected Devices under Profile settings, ensure Bluetooth is turned on, tap Connect next to your wearable device, and follow the simple pairing prompt to sync your health data.",
+                    icon = Icons.Rounded.Watch,
                     isDark = isDark
                 )
             }
@@ -201,7 +210,12 @@ fun HelpSupportScreen(
                 .padding(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "ℹ️", fontSize = 16.sp)
+                Icon(
+                    imageVector = Icons.Rounded.Info,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = if (isDark) Color(0xFF86EFAC) else Color(0xFF065F46)
+                )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = "For urgent medical concerns, contact local emergency services. App support cannot provide medical advice.",
@@ -220,6 +234,7 @@ fun HelpSupportScreen(
 private fun ExpandableSupportRow(
     title: String,
     description: String,
+    icon: ImageVector? = null,
     isDark: Boolean = false
 ) {
     var isExpanded by remember { mutableStateOf(false) }
@@ -235,12 +250,23 @@ private fun ExpandableSupportRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                }
+                Text(
+                    text = title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
             ChevronIcon(
                 isExpanded = isExpanded,
                 modifier = Modifier.size(16.dp)
@@ -300,7 +326,16 @@ private fun ExpandableContactSupportCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(text = "💬 Contact Support", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.ChatBubbleOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Contact Support", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = "We're here to help with app questions", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(2.dp))
@@ -328,9 +363,27 @@ private fun ExpandableContactSupportCard(
                             .padding(14.dp)
                     ) {
                         Column {
-                            Text(text = "📧 Email: $emailSupport", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color(0xFF86EFAC) else Color(0xFF111827))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Email,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = if (isDark) Color(0xFF86EFAC) else Color(0xFF111827)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(text = "Email: $emailSupport", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color(0xFF86EFAC) else Color(0xFF111827))
+                            }
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = "💬 In-App Helpdesk: Active 24/7", fontSize = 12.sp, color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A), fontWeight = FontWeight.SemiBold)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.HeadsetMic,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(text = "In-App Helpdesk: Active 24/7", fontSize = 12.sp, color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A), fontWeight = FontWeight.SemiBold)
+                            }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(text = "Response Time: Under 24 hours. Our dedicated health-tech support team is ready to assist you!", fontSize = 12.sp, color = if (isDark) Color(0xFFD1FAE5) else Color(0xFF4B5563))
                         }
@@ -369,7 +422,20 @@ private fun ExpandableContactSupportCard(
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = VitalTealDark)
                     ) {
-                        Text(text = if (inquirySent) "Inquiry Sent ✓" else "Send Inquiry", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        if (inquirySent) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Check,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(text = "Inquiry Sent", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        } else {
+                            Text(text = "Send Inquiry", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
                     }
                 }
             }

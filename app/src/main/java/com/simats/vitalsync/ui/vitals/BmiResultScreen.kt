@@ -28,6 +28,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -195,7 +198,7 @@ fun BmiResultScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "BMI Calculated Successfully 🎉",
+                text = "BMI Calculated Successfully",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF111827),
@@ -270,12 +273,21 @@ fun BmiResultScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFF7C3AED)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "✨ Health Insight",
+                        text = "Health Insight",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF7C3AED)
                     )
+                }
 
                     Spacer(modifier = Modifier.height(6.dp))
 

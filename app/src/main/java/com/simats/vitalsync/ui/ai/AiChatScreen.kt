@@ -47,6 +47,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -296,11 +297,11 @@ fun AiChatScreen(
                                 },
                                 modifier = Modifier.size(36.dp)
                             ) {
-                                Text(
-                                    text = "☰",
-                                    fontSize = 20.sp,
-                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
-                                    fontWeight = FontWeight.Bold
+                                Icon(
+                                    imageVector = Icons.Rounded.Menu,
+                                    contentDescription = "Menu",
+                                    modifier = Modifier.size(22.dp),
+                                    tint = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                                 )
                             }
 
@@ -313,14 +314,19 @@ fun AiChatScreen(
                                     .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFEDE9FE)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = "🩺", fontSize = 17.sp)
+                                Icon(
+                                    imageVector = Icons.Rounded.HealthAndSafety,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
+                                )
                             }
 
                             Spacer(modifier = Modifier.width(8.dp))
 
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "VitalSync AI ✨",
+                                    text = "VitalSync AI",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
@@ -357,9 +363,11 @@ fun AiChatScreen(
                                 onClick = { viewModel.startNewChat() },
                                 modifier = Modifier.size(36.dp)
                             ) {
-                                Text(
-                                    text = "✏️",
-                                    fontSize = 16.sp
+                                Icon(
+                                    imageVector = Icons.Rounded.Edit,
+                                    contentDescription = "New Chat",
+                                    modifier = Modifier.size(18.dp),
+                                    tint = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
                                 )
                             }
 
@@ -430,7 +438,12 @@ fun AiChatScreen(
                                 .padding(horizontal = 20.dp, vertical = 22.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = "🩺", fontSize = 28.sp)
+                            Icon(
+                                imageVector = Icons.Rounded.HealthAndSafety,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
+                            )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "How can I help today?",
@@ -566,12 +579,21 @@ fun AiChatScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(
-                                            text = "✨ VitalSync AI",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
-                                        )
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.AutoAwesome,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp),
+                                                tint = if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "VitalSync AI",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
+                                            )
+                                        }
 
                                         if (msg.timeText.isNotBlank()) {
                                             Text(
@@ -766,9 +788,11 @@ private fun ChatSessionsDrawerContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "💬",
-                    fontSize = 20.sp
+                Icon(
+                    imageVector = Icons.Rounded.ChatBubbleOutline,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = VitalTealDark
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -782,11 +806,11 @@ private fun ChatSessionsDrawerContent(
                 onClick = onCloseDrawer,
                 modifier = Modifier.size(32.dp)
             ) {
-                Text(
-                    text = "✕",
-                    fontSize = 16.sp,
-                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
-                    fontWeight = FontWeight.Bold
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = "Close",
+                    modifier = Modifier.size(18.dp),
+                    tint = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
                 )
             }
         }
@@ -802,12 +826,21 @@ private fun ChatSessionsDrawerContent(
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(containerColor = if (isDark) CarbonDarkAccent else VitalTealDark)
         ) {
-            Text(
-                text = "✏️  + New Chat",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Rounded.Edit,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = Color.White
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "+ New Chat",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -842,7 +875,12 @@ private fun ChatSessionsDrawerContent(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "📋", fontSize = 28.sp)
+                    Icon(
+                        imageVector = Icons.Rounded.Assignment,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp),
+                        tint = Color(0xFF9CA3AF)
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "No saved conversations yet.\nTap '+ New Chat' to begin!",
@@ -907,9 +945,11 @@ private fun ChatSessionsDrawerContent(
                                 onClick = { onDeleteSession(sess.id) },
                                 modifier = Modifier.size(28.dp)
                             ) {
-                                Text(
-                                    text = "🗑️",
-                                    fontSize = 13.sp
+                                Icon(
+                                    imageVector = Icons.Rounded.DeleteOutline,
+                                    contentDescription = "Delete",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = Color(0xFFEF4444)
                                 )
                             }
                         }
@@ -1006,12 +1046,21 @@ fun TypingIndicatorBubble(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "✨ VitalSync AI",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "VitalSync AI",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
+                        )
+                    }
 
                     Text(
                         text = "Thinking...",
@@ -1062,7 +1111,7 @@ fun TypingIndicatorBubble(
     }
 }
 
-// 🔮 Ultra-Vivid Futuristic Glowing Violet/Magenta/Cyan AI Particle Orb Animation
+// Ultra-Vivid Futuristic Glowing Violet/Magenta/Cyan AI Particle Orb Animation
 @Composable
 fun AiVoiceSphereAnimation(
     modifier: Modifier = Modifier,

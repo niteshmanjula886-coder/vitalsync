@@ -68,11 +68,11 @@ data class FoodItem(
     val isCustom: Boolean = false
 )
 
-enum class MealCategory(val displayName: String, val icon: String) {
-    BREAKFAST("Breakfast", "🍳"),
-    LUNCH("Lunch", "🥗"),
-    DINNER("Dinner", "🍲"),
-    SNACKS("Snacks", "🍎")
+enum class MealCategory(val displayName: String, val icon: String = "") {
+    BREAKFAST("Breakfast", ""),
+    LUNCH("Lunch", ""),
+    DINNER("Dinner", ""),
+    SNACKS("Snacks", "")
 }
 
 data class MealEntry(

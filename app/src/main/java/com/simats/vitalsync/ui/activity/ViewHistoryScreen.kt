@@ -27,6 +27,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -213,7 +216,12 @@ fun ViewHistoryScreen(
                         .padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = "📜", fontSize = 42.sp)
+                    Icon(
+                        imageVector = Icons.Rounded.HistoryEdu,
+                        contentDescription = null,
+                        modifier = Modifier.size(42.dp),
+                        tint = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF)
+                    )
 
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -239,10 +247,10 @@ fun ViewHistoryScreen(
         } else {
             filteredRecords.forEach { record ->
                 val icon = when {
-                    record.activityType.contains("Walk", ignoreCase = true) -> "🚶"
-                    record.activityType.contains("Run", ignoreCase = true) -> "🏃"
-                    record.activityType.contains("Cycle", ignoreCase = true) || record.activityType.contains("Bike", ignoreCase = true) -> "🚴"
-                    else -> "⚡"
+                    record.activityType.contains("Walk", ignoreCase = true) -> Icons.Rounded.DirectionsWalk
+                    record.activityType.contains("Run", ignoreCase = true) -> Icons.Rounded.DirectionsRun
+                    record.activityType.contains("Cycle", ignoreCase = true) || record.activityType.contains("Bike", ignoreCase = true) -> Icons.Rounded.DirectionsBike
+                    else -> Icons.Rounded.Bolt
                 }
 
                 val durationStr = FitnessRepository.formatDurationDynamic(record.durationSeconds)
@@ -272,7 +280,12 @@ fun ViewHistoryScreen(
                             modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = icon, fontSize = 22.sp)
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = record.activityType,
+                                modifier = Modifier.size(22.dp),
+                                tint = if (isDark) Color(0xFF34D399) else VitalTealDark
+                            )
 
                             Spacer(modifier = Modifier.width(12.dp))
 

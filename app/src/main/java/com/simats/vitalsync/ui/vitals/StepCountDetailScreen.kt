@@ -39,6 +39,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -118,7 +121,7 @@ fun StepCountDetailScreen(
     val progressPercent = if (stepsGoal > 0 && stepsCurrent > 0) ((stepsCurrent.toFloat() / stepsGoal) * 100).toInt() else 0
     val targetGaugeAngle = (progressPercent.coerceIn(0, 100) / 100f) * 360f
     val remainingSteps = (stepsGoal - stepsCurrent).coerceAtLeast(0)
-    val remainingText = if (stepsCurrent <= 0) "No steps recorded today" else if (remainingSteps > 0) "${String.format(java.util.Locale.US, "%,d", remainingSteps)} steps remaining" else "Daily goal reached! 🎉"
+    val remainingText = if (stepsCurrent <= 0) "No steps recorded today" else if (remainingSteps > 0) "${String.format(java.util.Locale.US, "%,d", remainingSteps)} steps remaining" else "Daily goal reached!"
     val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground || MaterialTheme.colorScheme.surface == CarbonDarkSurface
 
     Column(
@@ -278,13 +281,24 @@ fun StepCountDetailScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Goal: ${String.format(java.util.Locale.US, "%,d", stepsGoal)} steps ✏️",
-                                fontSize = 12.sp,
-                                color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
-                                fontWeight = FontWeight.Bold,
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.clickable { onEditGoalClick() }
-                            )
+                            ) {
+                                Text(
+                                    text = "Goal: ${String.format(java.util.Locale.US, "%,d", stepsGoal)} steps",
+                                    fontSize = 12.sp,
+                                    color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Icon(
+                                    imageVector = Icons.Rounded.Edit,
+                                    contentDescription = "Edit Goal",
+                                    modifier = Modifier.size(12.dp),
+                                    tint = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                                )
+                            }
                             Text(
                                 text = remainingText,
                                 fontSize = 12.sp,
@@ -466,7 +480,12 @@ fun StepCountDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(text = "⏰", fontSize = 16.sp)
+                                    Icon(
+                                        imageVector = Icons.Rounded.Alarm,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                                    )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "Scheduled at $reminderTime",

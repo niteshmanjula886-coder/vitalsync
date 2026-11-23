@@ -98,9 +98,11 @@
             <intent-filter>
                 <action android:name="com.simats.vitalsync.ACTION_WAKE_UP_ALARM" />
                 <action android:name="com.simats.vitalsync.ACTION_SNOOZE_ALARM" />
+                <action android:name="com.simats.vitalsync.ACTION_SNOOZE_ALARM_FIRED" />
                 <action android:name="com.simats.vitalsync.ACTION_TURN_OFF_ALARM" />
                 <action android:name="com.simats.vitalsync.ACTION_STOP_SLEEP" />
                 <action android:name="com.simats.vitalsync.ACTION_BEDTIME_REMINDER" />
+                <action android:name="com.simats.vitalsync.ACTION_STOP_BEDTIME" />
             </intent-filter>
         </receiver>
 

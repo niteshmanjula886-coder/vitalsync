@@ -26,6 +26,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -186,7 +190,12 @@ fun AboutVitalSyncScreen(
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "💖", fontSize = 18.sp)
+                    Icon(
+                        imageVector = Icons.Rounded.Favorite,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = Color(0xFFEF4444)
+                    )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(text = "Your health, in one place", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
@@ -197,7 +206,12 @@ fun AboutVitalSyncScreen(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 14.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "✨", fontSize = 18.sp)
+                    Icon(
+                        imageVector = Icons.Rounded.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = Color(0xFFF59E0B)
+                    )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(text = "Insights that make sense", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
@@ -221,9 +235,9 @@ fun AboutVitalSyncScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                AboutLinkRow("📄 Privacy Policy")
+                AboutLinkRow("Privacy Policy", Icons.Rounded.Description)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                AboutLinkRow("📜 Terms of Service")
+                AboutLinkRow("Terms of Service", Icons.Rounded.Article)
             }
         }
 
@@ -242,7 +256,7 @@ fun AboutVitalSyncScreen(
 }
 
 @Composable
-private fun AboutLinkRow(title: String) {
+private fun AboutLinkRow(title: String, icon: ImageVector) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -251,7 +265,16 @@ private fun AboutLinkRow(title: String) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+        }
         ChevronRightIcon(modifier = Modifier.size(16.dp))
     }
 }

@@ -21,6 +21,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +42,7 @@ import com.simats.vitalsync.ui.theme.CarbonDarkSurface
 import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
 import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
 import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
+import com.simats.vitalsync.ui.theme.CarbonDarkPurpleAccent
 
 @Composable
 fun AiInsightCard(
@@ -86,7 +90,12 @@ fun AiInsightCard(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(text = "✨", fontSize = 18.sp)
+                    Icon(
+                        imageVector = Icons.Rounded.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = if (isDark) CarbonDarkPurpleAccent else Color(0xFF7C3AED)
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "AI Health Insight",
@@ -223,9 +232,9 @@ fun AiInsightCard(
                 ?: "Keep building consistent movement, sleep, and hydration habits today."
 
             val (tipBg, tipTextColor, tipIcon) = when (effectiveTier) {
-                "ALERT" -> Triple(if (isDark) Color(0xFF2E1A1A) else Color(0xFFFEF2F2), if (isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B), "⚠️")
-                "NEEDS_ATTENTION" -> Triple(if (isDark) Color(0xFF292314) else Color(0xFFFFFBEB), if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E), "💡")
-                else -> Triple(if (isDark) Color(0xFF142923) else Color(0xFFF0FDF4), if (isDark) Color(0xFFA7F3D0) else Color(0xFF166534), "🎯")
+                "ALERT" -> Triple(if (isDark) Color(0xFF2E1A1A) else Color(0xFFFEF2F2), if (isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B), Icons.Rounded.WarningAmber)
+                "NEEDS_ATTENTION" -> Triple(if (isDark) Color(0xFF292314) else Color(0xFFFFFBEB), if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E), Icons.Rounded.Lightbulb)
+                else -> Triple(if (isDark) Color(0xFF142923) else Color(0xFFF0FDF4), if (isDark) Color(0xFFA7F3D0) else Color(0xFF166534), Icons.Rounded.TrackChanges)
             }
 
             Box(
@@ -239,7 +248,12 @@ fun AiInsightCard(
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = tipIcon, fontSize = 14.sp)
+                    Icon(
+                        imageVector = tipIcon,
+                        contentDescription = null,
+                        modifier = Modifier.size(15.dp),
+                        tint = tipTextColor
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -281,14 +295,25 @@ fun AiInsightCard(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Text(
-                    text = if (hasLoggedBiometrics) "• Grounded in Logged Vitals ✓" else "• Ready for Vitals Log",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (hasLoggedBiometrics) Color(0xFF0F9F7A) else Color(0xFF0284C7),
-                    maxLines = 1,
-                    softWrap = false
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (hasLoggedBiometrics) {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = Color(0xFF0F9F7A)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                    }
+                    Text(
+                        text = if (hasLoggedBiometrics) "Grounded in Logged Vitals" else "• Ready for Vitals Log",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (hasLoggedBiometrics) Color(0xFF0F9F7A) else Color(0xFF0284C7),
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
             }
         }
     }

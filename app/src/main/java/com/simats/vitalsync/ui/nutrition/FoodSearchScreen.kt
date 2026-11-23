@@ -17,7 +17,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -157,7 +161,14 @@ fun FoodSearchScreen(
                     focusedBorderColor = VitalTealPrimary,
                     unfocusedBorderColor = Color(0xFFE5E7EB)
                 ),
-                trailingIcon = { Text("🔍", fontSize = 16.sp) }
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Rounded.Search,
+                        contentDescription = "Search",
+                        modifier = Modifier.size(18.dp),
+                        tint = Color(0xFF9CA3AF)
+                    )
+                }
             )
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -224,13 +235,18 @@ fun FoodSearchScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(
-                                text = when (food.category) {
-                                    FoodCategory.NON_VEG -> "🔴"
-                                    FoodCategory.EGG -> "🟡"
-                                    else -> "🟢"
-                                },
-                                fontSize = 12.sp
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        when (food.category) {
+                                            FoodCategory.NON_VEG -> Color(0xFFEF4444)
+                                            FoodCategory.EGG -> Color(0xFFF59E0B)
+                                            FoodCategory.VEGAN -> Color(0xFF10B981)
+                                            else -> Color(0xFF22C55E)
+                                        }
+                                    )
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {

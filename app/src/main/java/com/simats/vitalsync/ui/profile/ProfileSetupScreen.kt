@@ -34,6 +34,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -547,11 +550,11 @@ private fun ProfileOptionBottomSheet(
                                 modifier = Modifier.weight(1f)
                             )
                             if (isSelected) {
-                                Text(
-                                    text = "✓",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = VitalTealDark
+                                Icon(
+                                    imageVector = Icons.Rounded.Check,
+                                    contentDescription = "Selected",
+                                    tint = VitalTealDark,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
