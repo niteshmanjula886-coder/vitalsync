@@ -1,3 +1,5 @@
+@file:Suppress("unused", "RedundantVisibilityModifier")
+
 package com.simats.vitalsync.data.sensor
 
 import android.content.Context
@@ -9,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
  */
 class PhoneWorkoutEngine private constructor(context: Context) {
 
-    private val service = WorkoutTrackingService.getInstance(context)
+    private val service: WorkoutTrackingService = WorkoutTrackingService.getInstance(context)
     val telemetry: StateFlow<WorkoutTelemetry> = service.telemetry
 
     companion object {
@@ -53,3 +55,4 @@ class PhoneWorkoutEngine private constructor(context: Context) {
         service.stopWorkout()
     }
 }
+
