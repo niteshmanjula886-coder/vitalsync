@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.gson)
     implementation("androidx.health.connect:connect-client:1.1.0-alpha11")
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("org.osmdroid:osmdroid-android:6.1.20")
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

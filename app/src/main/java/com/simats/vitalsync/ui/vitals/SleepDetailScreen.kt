@@ -638,12 +638,13 @@ fun SleepDetailScreen(
                             }
                             .padding(14.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            // Top Row: Header label on left, "Tap to change" on right
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Rounded.Alarm,
@@ -656,53 +657,68 @@ fun SleepDetailScreen(
                                         text = "Wake-Up Alarm Time",
                                         fontSize = 12.sp,
                                         color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B),
-                                        fontWeight = FontWeight.SemiBold
+                                        fontWeight = FontWeight.SemiBold,
+                                        softWrap = false,
+                                        maxLines = 1
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = formattedWakeTime,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
-                                )
-                                if (liveAlarmEnabled) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(if (isDark) Color(0xFF134E4A) else VitalTealDark.copy(alpha = 0.12f))
-                                            .padding(horizontal = 7.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = sleepSessionManager.formatAlarmCountdown(wakeHour, wakeMinute, currentTick),
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = if (isDark) Color(0xFF5EEAD4) else VitalTealDark
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(start = 8.dp)
+                                ) {
+                                    Text(
+                                        text = if (liveAlarmEnabled) "Tap to change" else "Alarm disabled",
+                                        fontSize = 12.sp,
+                                        color = if (liveAlarmEnabled) (if (isDark) Color(0xFF5EEAD4) else VitalTealDark) else (if (isDark) CarbonDarkTextSecondary else Color(0xFF94A3B8)),
+                                        fontWeight = FontWeight.Medium,
+                                        softWrap = false,
+                                        maxLines = 1
+                                    )
+                                    if (liveAlarmEnabled) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Rounded.Edit,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(13.dp),
+                                            tint = if (isDark) Color(0xFF5EEAD4) else VitalTealDark
                                         )
                                     }
                                 }
                             }
 
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Bottom Row: Large wake time + countdown badge
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(start = 8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Text(
-                                    text = if (liveAlarmEnabled) "Tap to change" else "Alarm disabled",
-                                    fontSize = 12.sp,
-                                    color = if (liveAlarmEnabled) (if (isDark) Color(0xFF5EEAD4) else VitalTealDark) else (if (isDark) CarbonDarkTextSecondary else Color(0xFF94A3B8)),
-                                    fontWeight = FontWeight.Medium,
+                                    text = formattedWakeTime,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
+                                    softWrap = false,
                                     maxLines = 1
                                 )
+
                                 if (liveAlarmEnabled) {
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(
-                                        imageVector = Icons.Rounded.Edit,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(13.dp),
-                                        tint = if (isDark) Color(0xFF5EEAD4) else VitalTealDark
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(if (isDark) Color(0xFF134E4A) else VitalTealDark.copy(alpha = 0.12f))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = sleepSessionManager.formatAlarmCountdown(wakeHour, wakeMinute, currentTick),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (isDark) Color(0xFF5EEAD4) else VitalTealDark,
+                                            softWrap = false,
+                                            maxLines = 1
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1410,6 +1426,7 @@ fun SleepDetailScreen(
                                 fontSize = 12.sp,
                                 color = if (bedtimeReminderEnabled) (if (isDark) Color(0xFF5EEAD4) else VitalTealDark) else (if (isDark) CarbonDarkTextSecondary else Color(0xFF94A3B8)),
                                 fontWeight = FontWeight.Medium,
+                                softWrap = false,
                                 maxLines = 1
                             )
                             if (bedtimeReminderEnabled) {

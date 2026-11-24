@@ -52,6 +52,9 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
     private var previousLocation: Location? = null
     private var accumulatedDistanceMeters: Double = 0.0
     private var currentSpeedKmh: Float = 0.0f
+    private val activeRoutePoints = mutableListOf<LocationCoordinate>()
+    private var currentGpsStatus = GpsSignalStatus.SEARCHING
+    private var lastLocationTimestamp: Long = 0L
 
     // Fallback Android LocationManager
     private val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
@@ -163,13 +166,30 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         accumulatedDistanceMeters = 0.0
         previousLocation = null
         currentSpeedKmh = 0.0f
+        lastLocationTimestamp = 0L
+        synchronized(activeRoutePoints) {
+            activeRoutePoints.clear()
+        }
 
         val hasFine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val hasCoarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
         if (!hasFine && !hasCoarse) {
             Log.w("GPS", "Location permissions missing for cycling tracking")
+            currentGpsStatus = GpsSignalStatus.NO_PERMISSION
+            _telemetry.update { it.copy(gpsSignalStatus = GpsSignalStatus.NO_PERMISSION) }
             return
+        }
+
+        val isGpsEnabled = locationManager?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true ||
+                locationManager?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) == true
+
+        if (!isGpsEnabled) {
+            currentGpsStatus = GpsSignalStatus.DISABLED
+            _telemetry.update { it.copy(gpsSignalStatus = GpsSignalStatus.DISABLED) }
+        } else {
+            currentGpsStatus = GpsSignalStatus.SEARCHING
+            _telemetry.update { it.copy(gpsSignalStatus = GpsSignalStatus.SEARCHING) }
         }
 
         try {
@@ -177,7 +197,7 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
 
             val locationRequest = LocationRequest.Builder(
                 Priority.PRIORITY_HIGH_ACCURACY,
-                1000L // Request updates every 1 second
+                1000L // 1-second cadence
             ).apply {
                 setMinUpdateIntervalMillis(500L)
                 setMinUpdateDistanceMeters(0.5f) // Sensitive to cycling movement
@@ -186,27 +206,7 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
             locationCallback = object : LocationCallback() {
                 override fun onLocationResult(result: LocationResult) {
                     val location = result.lastLocation ?: return
-
-                    // 1. Calculate Instantaneous Speed (m/s -> km/h)
-                    currentSpeedKmh = if (location.hasSpeed()) {
-                        val speed = location.speed * 3.6f
-                        if (speed < 1.0f) 0.0f else speed // Noise filter for micro-drift
-                    } else {
-                        0.0f
-                    }
-
-                    // 2. Accumulate Displacement (Distance)
-                    previousLocation?.let { prev ->
-                        val delta = prev.distanceTo(location) // distance in meters
-                        // Filter GPS drift: only accumulate if movement exceeds threshold and accuracy is acceptable
-                        if (delta > 0.8f && location.accuracy < 25f) {
-                            accumulatedDistanceMeters += delta.toDouble()
-                        }
-                    }
-                    previousLocation = location
-
-                    // Update reactive state
-                    updateCyclingTelemetry()
+                    handleNewLocation(location)
                 }
             }
 
@@ -217,6 +217,8 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
             )
         } catch (e: SecurityException) {
             Log.e("GPS", "Location permissions missing", e)
+            currentGpsStatus = GpsSignalStatus.NO_PERMISSION
+            _telemetry.update { it.copy(gpsSignalStatus = GpsSignalStatus.NO_PERMISSION) }
             startFallbackLocationUpdates()
         } catch (e: Exception) {
             Log.e("GPS", "FusedLocationProviderClient initialization failed, falling back to LocationManager", e)
@@ -224,25 +226,99 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         }
     }
 
+    private fun handleNewLocation(location: Location) {
+        val current = _telemetry.value
+        if (!current.isTracking) return
+
+        // 1. Evaluate GPS accuracy & signal status
+        val accuracy = if (location.hasAccuracy()) location.accuracy else 50f
+        val newStatus = when {
+            accuracy <= 15f -> GpsSignalStatus.LOCKED
+            accuracy <= 30f -> GpsSignalStatus.FAIR
+            else -> GpsSignalStatus.SEARCHING
+        }
+        currentGpsStatus = newStatus
+
+        // If currently paused, update position marker on map but do not accumulate distance or append to route
+        if (current.isPaused) {
+            currentSpeedKmh = 0.0f
+            _telemetry.update {
+                it.copy(
+                    currentLatitude = location.latitude,
+                    currentLongitude = location.longitude,
+                    currentBearing = if (location.hasBearing()) location.bearing else it.currentBearing,
+                    gpsAccuracyMeters = accuracy,
+                    gpsSignalStatus = newStatus,
+                    currentSpeedKmH = 0.0f
+                )
+            }
+            previousLocation = location
+            lastLocationTimestamp = location.time
+            return
+        }
+
+        // 2. Calculate Instantaneous Speed (m/s -> km/h) with fallback to delta distance / delta time
+        val prev = previousLocation
+        val nowTime = location.time
+        val timeDeltaSecs = if (prev != null && lastLocationTimestamp > 0L) {
+            ((nowTime - lastLocationTimestamp).coerceAtLeast(100L)) / 1000f
+        } else {
+            1.0f
+        }
+
+        val deltaMeters = prev?.distanceTo(location) ?: 0f
+
+        currentSpeedKmh = if (location.hasSpeed()) {
+            val speed = location.speed * 3.6f
+            if (speed < 0.8f) 0.0f else speed // Clamp stationary micro-drift
+        } else if (prev != null && timeDeltaSecs > 0f) {
+            val calculated = (deltaMeters / timeDeltaSecs) * 3.6f
+            if (calculated < 0.8f) 0.0f else calculated
+        } else {
+            0.0f
+        }
+
+        // 3. Accumulate Displacement (Distance) & Append to Route with Jitter and Teleport Filter
+        var validPointAdded = false
+        if (prev != null) {
+            val isAccurate = accuracy <= 35f
+            val isNotTeleport = (deltaMeters / timeDeltaSecs) < 25f // <= 90 km/h jump threshold
+            val isSignificantMove = deltaMeters >= 1.0f // ignore sub-meter noise
+
+            if (isAccurate && isNotTeleport && isSignificantMove) {
+                accumulatedDistanceMeters += deltaMeters.toDouble()
+                validPointAdded = true
+            }
+        } else {
+            // First fix: add initial starting coordinate
+            validPointAdded = true
+        }
+
+        if (validPointAdded) {
+            val coord = LocationCoordinate(
+                latitude = location.latitude,
+                longitude = location.longitude,
+                altitude = if (location.hasAltitude()) location.altitude else 0.0,
+                speedKmh = currentSpeedKmh,
+                timestamp = nowTime
+            )
+            synchronized(activeRoutePoints) {
+                activeRoutePoints.add(coord)
+            }
+        }
+
+        previousLocation = location
+        lastLocationTimestamp = nowTime
+
+        // 4. Update reactive state
+        updateCyclingTelemetry(location, accuracy, newStatus)
+    }
+
     private fun startFallbackLocationUpdates() {
         try {
             fallbackLocationListener = object : LocationListener {
                 override fun onLocationChanged(location: Location) {
-                    currentSpeedKmh = if (location.hasSpeed()) {
-                        val speed = location.speed * 3.6f
-                        if (speed < 1.0f) 0.0f else speed
-                    } else {
-                        0.0f
-                    }
-
-                    previousLocation?.let { prev ->
-                        val delta = prev.distanceTo(location)
-                        if (delta > 0.8f && location.accuracy < 25f) {
-                            accumulatedDistanceMeters += delta.toDouble()
-                        }
-                    }
-                    previousLocation = location
-                    updateCyclingTelemetry()
+                    handleNewLocation(location)
                 }
 
                 @Deprecated("Deprecated in Java")
@@ -266,9 +342,13 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
     /**
      * Updates cycling telemetry stateflow reactively upon GPS fix and timer tick.
      */
-    private fun updateCyclingTelemetry() {
+    private fun updateCyclingTelemetry(
+        latestLoc: Location? = null,
+        accuracy: Float = 0f,
+        gpsStatus: GpsSignalStatus = currentGpsStatus
+    ) {
         val current = _telemetry.value
-        if (!current.isTracking || current.isPaused || !current.activityType.equals("Cycling", ignoreCase = true)) return
+        if (!current.isTracking || !current.activityType.equals("Cycling", ignoreCase = true)) return
 
         val seconds = current.durationSeconds
         val distKm = if (accumulatedDistanceMeters > 0.0) {
@@ -280,11 +360,19 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         val durationHours = seconds / 3600f
         val avgSpeedKmh = if (durationHours > 0f && distKm > 0.005f) (distKm / durationHours) else 0.0f
 
-        val effectiveCurrentSpeed = if (currentSpeedKmh > 0f) currentSpeedKmh else 0.0f
+        val effectiveCurrentSpeed = if (!current.isPaused && currentSpeedKmh > 0f) currentSpeedKmh else 0.0f
 
-        // Calories calculated strictly from live cycling MET formula when movement or distance has occurred
-        val caloriesBurned = if (distKm > 0.005f || effectiveCurrentSpeed > 0f) {
-            val met = 6.8f // Cycling MET multiplier
+        // Dynamic MET calculation for cycling:
+        // Idle/stopped: 1.3 MET, Leisure (<16km/h): 4.5 MET, Moderate (16-20km/h): 6.8 MET, Vigorous (20-25km/h): 8.5 MET, Fast (>25km/h): 10.5 MET
+        val met = when {
+            effectiveCurrentSpeed <= 0.8f -> 1.3f
+            effectiveCurrentSpeed < 16.0f -> 4.5f
+            effectiveCurrentSpeed < 20.0f -> 6.8f
+            effectiveCurrentSpeed < 25.0f -> 8.5f
+            else -> 10.5f
+        }
+
+        val caloriesBurned = if (distKm > 0.005f || effectiveCurrentSpeed > 0f || seconds > 60) {
             ((met * 3.5f * activeUserWeightKg / 200f) * (seconds / 60f)).toInt()
         } else {
             0
@@ -309,6 +397,14 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
             "${formatDuration(remSecs)} remaining"
         }
 
+        val lat = latestLoc?.latitude ?: current.currentLatitude
+        val lng = latestLoc?.longitude ?: current.currentLongitude
+        val bearing = if (latestLoc?.hasBearing() == true) latestLoc.bearing else current.currentBearing
+
+        val routeSnapshot = synchronized(activeRoutePoints) {
+            activeRoutePoints.toList()
+        }
+
         _telemetry.update {
             it.copy(
                 steps = 0, // Steps deactivated for Cycling
@@ -319,7 +415,13 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
                 avgSpeedKmH = avgSpeedKmh,
                 progressRatio = progressRatio,
                 progressPercent = progressPct,
-                remainingFormatted = remainingFormatted
+                remainingFormatted = remainingFormatted,
+                currentLatitude = lat,
+                currentLongitude = lng,
+                currentBearing = bearing,
+                gpsAccuracyMeters = if (accuracy > 0f) accuracy else it.gpsAccuracyMeters,
+                gpsSignalStatus = gpsStatus,
+                routeCoordinates = routeSnapshot
             )
         }
     }
@@ -408,10 +510,13 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
     }
 
     fun pauseWorkout() {
-        _telemetry.update { it.copy(isPaused = true) }
+        currentSpeedKmh = 0.0f
+        _telemetry.update { it.copy(isPaused = true, currentSpeedKmH = 0.0f) }
     }
 
     fun resumeWorkout() {
+        previousLocation = null
+        lastLocationTimestamp = System.currentTimeMillis()
         _telemetry.update { it.copy(isPaused = false) }
     }
 
@@ -426,6 +531,10 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
             finalState.targetMinutes
         }
 
+        val routeSnapshot = synchronized(activeRoutePoints) {
+            activeRoutePoints.toList()
+        }
+
         val completed = CompletedWorkoutData(
             sessionUuid = if (activeUuid.isNotBlank()) activeUuid else UUID.randomUUID().toString(),
             activityType = finalState.activityType,
@@ -438,7 +547,8 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
             distanceKm = finalState.distanceKm,
             caloriesBurned = finalState.caloriesBurned,
             avgPace = finalState.avgPace,
-            trackingSource = if (finalState.activityType.equals("Cycling", ignoreCase = true)) "gps" else "phone_sensor"
+            trackingSource = if (finalState.activityType.equals("Cycling", ignoreCase = true)) "gps" else "phone_sensor",
+            routeCoordinates = routeSnapshot
         )
 
         stopWorkout()
@@ -468,8 +578,19 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         previousLocation = null
         accumulatedDistanceMeters = 0.0
         currentSpeedKmh = 0.0f
+        lastLocationTimestamp = 0L
+        synchronized(activeRoutePoints) {
+            activeRoutePoints.clear()
+        }
 
-        _telemetry.update { it.copy(isTracking = false, isPaused = false) }
+        _telemetry.update {
+            it.copy(
+                isTracking = false,
+                isPaused = false,
+                currentSpeedKmH = 0f,
+                routeCoordinates = emptyList()
+            )
+        }
     }
 
     override fun onSensorChanged(event: SensorEvent?) {

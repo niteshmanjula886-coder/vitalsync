@@ -26,6 +26,30 @@ data class ActivityStatsSummary(
     val caloriesFormatted: String
 )
 
+data class CyclingOverallStats(
+    val totalRides: Int = 0,
+    val totalDistanceKm: Float = 0f,
+    val totalCalories: Int = 0,
+    val totalDurationSeconds: Int = 0,
+    val totalDurationFormatted: String = "0m",
+    val avgDistanceKm: Float = 0f,
+    val avgSpeedKmh: Float = 0f,
+    val avgCalories: Int = 0,
+    val bestDistanceKm: Float = 0f,
+    val bestSpeedKmh: Float = 0f,
+    val bestDurationFormatted: String = "0m",
+    val weeklyBreakdown: List<CyclingDayMetric> = emptyList()
+)
+
+data class CyclingDayMetric(
+    val dayLabel: String,
+    val fullDate: String,
+    val isToday: Boolean,
+    val distanceKm: Float = 0f,
+    val calories: Int = 0,
+    val durationMinutes: Int = 0
+)
+
 data class SleepRecord(
     val bedtime: String,
     val wakeTime: String,
@@ -241,6 +265,72 @@ class FitnessRepository private constructor(context: Context) {
             durationFormatted = formatDurationDynamic(totalSecs),
             distanceKmFormatted = distanceFormatted,
             caloriesFormatted = "$totalCal kcal"
+        )
+    }
+
+    fun getDetailedCyclingStats(): CyclingOverallStats {
+        val records = getActivitySessionRecords().filter { it.activityType.equals("Cycling", ignoreCase = true) }
+        val totalRides = records.size
+        val totalSecs = records.sumOf { it.durationSeconds }
+        val totalKm = records.sumOf { it.distanceKm.toDouble() }.toFloat()
+        val totalCal = records.sumOf { it.caloriesBurned }
+
+        val avgDistance = if (totalRides > 0) totalKm / totalRides else 0f
+        val totalHours = totalSecs / 3600f
+        val avgSpeed = if (totalHours > 0f && totalKm > 0f) totalKm / totalHours else 0f
+        val avgCal = if (totalRides > 0) totalCal / totalRides else 0
+
+        val bestDistance = records.maxOfOrNull { it.distanceKm } ?: 0f
+        val bestSecs = records.maxOfOrNull { it.durationSeconds } ?: 0
+        val bestSpeed = records.maxOfOrNull { r ->
+            val h = r.durationSeconds / 3600f
+            if (h > 0f && r.distanceKm > 0f) r.distanceKm / h else 0f
+        } ?: 0f
+
+        // Weekly 7-day breakdown (last 7 days ending today)
+        val calendar = java.util.Calendar.getInstance()
+        val dayFormat = java.text.SimpleDateFormat("EEE", java.util.Locale.US)
+        val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val todayStr = dateFormat.format(calendar.time)
+
+        val breakdown = mutableListOf<CyclingDayMetric>()
+        for (i in 6 downTo 0) {
+            val dayCal = java.util.Calendar.getInstance()
+            dayCal.add(java.util.Calendar.DAY_OF_YEAR, -i)
+            val dateStr = dateFormat.format(dayCal.time)
+            val label = dayFormat.format(dayCal.time)
+            val isToday = (dateStr == todayStr)
+
+            val dayRecords = records.filter { it.dateString == dateStr }
+            val dayDist = dayRecords.sumOf { it.distanceKm.toDouble() }.toFloat()
+            val dayCalCount = dayRecords.sumOf { it.caloriesBurned }
+            val dayMin = dayRecords.sumOf { it.durationSeconds } / 60
+
+            breakdown.add(
+                CyclingDayMetric(
+                    dayLabel = label,
+                    fullDate = dateStr,
+                    isToday = isToday,
+                    distanceKm = dayDist,
+                    calories = dayCalCount,
+                    durationMinutes = dayMin
+                )
+            )
+        }
+
+        return CyclingOverallStats(
+            totalRides = totalRides,
+            totalDistanceKm = totalKm,
+            totalCalories = totalCal,
+            totalDurationSeconds = totalSecs,
+            totalDurationFormatted = formatDurationDynamic(totalSecs),
+            avgDistanceKm = avgDistance,
+            avgSpeedKmh = avgSpeed,
+            avgCalories = avgCal,
+            bestDistanceKm = bestDistance,
+            bestSpeedKmh = bestSpeed,
+            bestDurationFormatted = formatDurationDynamic(bestSecs),
+            weeklyBreakdown = breakdown
         )
     }
 

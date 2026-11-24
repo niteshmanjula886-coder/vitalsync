@@ -49,6 +49,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Vitalsync"
         android:usesCleartextTraffic="true">
+
+
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

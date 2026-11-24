@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Concept 24: Stylized V & Wave Curve Emblem (Frameless for Splash / Brand Display) -->
+
+    <!-- 1. Inner V (Mint Green meeting at center) -->
+    <path
+        android:pathData="M45.8,30.6 L54.0,53.0 L62.2,30.6"
+        android:strokeWidth="4.8"
+        android:strokeColor="#6EE7B7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="miter" />
+
+    <!-- 2. Left Outer Arm (Crisp Pure White) -->
+    <path
+        android:pathData="M27.3,30.6 L54.0,77.4"
+        android:strokeWidth="4.8"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="miter" />
+
+    <!-- 3. Right Outer Arm (Mint to Emerald Green Gradient) -->
+    <path
+        android:pathData="M80.7,30.6 L54.0,77.4"
+        android:strokeWidth="4.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="miter">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="80.7"
+                android:startY="30.6"
+                android:endX="54.0"
+                android:endY="77.4"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#6EE7B7" />
+                <item android:offset="1.0" android:color="#34D399" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 4. Top Left Cap (Connecting Outer and Inner Left Stroke) -->
+    <path
+        android:pathData="M27.3,30.6 L45.8,30.6"
+        android:strokeWidth="4.8"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
+
+    <!-- 5. Top Right Cap (Connecting Inner and Outer Right Stroke) -->
+    <path
+        android:pathData="M62.2,30.6 L80.7,30.6"
+        android:strokeWidth="4.8"
+        android:strokeColor="#6EE7B7"
+        android:strokeLineCap="round" />
+
+    <!-- 6. Bottom Apex Facet Fill (Clean Triangle Point below the wave) -->
+    <!-- Left Half: White / Light Slate -->
+    <path
+        android:pathData="M51.6,68.0 L54.0,77.4 L54.0,68.0 Z"
+        android:fillColor="#F8FAFC" />
+    <!-- Right Half: Mint / Emerald -->
+    <path
+        android:pathData="M54.0,68.0 L54.0,77.4 L56.4,68.0 Z"
+        android:fillColor="#34D399" />
+
+    <!-- 7. Wave Depth Shadow (Creates Crisp 3D Over-Under Separation across the V) -->
+    <path
+        android:pathData="M22.0,63.9 C32.0,63.9 44.0,56.6 54.0,56.6 C64.0,56.6 76.0,63.9 86.0,63.9"
+        android:strokeWidth="7.8"
+        android:strokeColor="#121619"
+        android:strokeLineCap="round" />
+
+    <!-- 8. Wave Curve (Smooth Glowing Mint/Teal Wave) -->
+    <path
+        android:pathData="M22.0,63.9 C32.0,63.9 44.0,56.6 54.0,56.6 C64.0,56.6 76.0,63.9 86.0,63.9"
+        android:strokeWidth="4.6"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="22.0"
+                android:startY="60.0"
+                android:endX="86.0"
+                android:endY="60.0"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#5EEAD4" />
+                <item android:offset="0.5" android:color="#6EE7B7" />
+                <item android:offset="1.0" android:color="#34D399" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+</vector>

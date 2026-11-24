@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">vitalsync</string>
+    <string name="google_maps_key">AIzaSyDummyKeyForGoogleMapsSdkInitialization</string>
 </resources>

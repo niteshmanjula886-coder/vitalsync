@@ -238,13 +238,13 @@ fun StepCountDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Ring Gauge
+                        // Ring Gauge with centered progress percentage and status label
                         Box(
-                            modifier = Modifier.size(90.dp),
+                            modifier = Modifier.size(98.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Canvas(modifier = Modifier.fillMaxSize()) {
-                                val strokePx = 9.dp.toPx()
+                                val strokePx = 8.5.dp.toPx()
                                 val arcSize = Size(size.width - strokePx, size.height - strokePx)
                                 val topLeft = Offset(strokePx / 2f, strokePx / 2f)
 
@@ -268,61 +268,92 @@ fun StepCountDetailScreen(
                                 )
                             }
 
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
                                 Text(
                                     text = "$progressPercent%",
-                                    fontSize = 22.sp,
+                                    fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = stepTierTextColor
+                                    color = stepTierTextColor,
+                                    softWrap = false,
+                                    maxLines = 1
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = stepTierStatusLabel,
                                     fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
                                     color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
-                                    fontWeight = FontWeight.Medium
+                                    softWrap = false,
+                                    maxLines = 1
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(20.dp))
+                        Spacer(modifier = Modifier.width(18.dp))
 
-                        Column {
-                            Text(
-                                text = if (stepsCurrent > 0) String.format(java.util.Locale.US, "%,d", stepsCurrent) else "--",
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = stepTierTextColor
-                            )
-                            Text(
-                                text = "steps",
-                                fontSize = 14.sp,
-                                color = stepTierColor,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
+                        // Right-Hand Step Summary Column with clean baseline and balanced vertical spacing
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.Bottom
+                            ) {
+                                Text(
+                                    text = if (stepsCurrent > 0) String.format(java.util.Locale.US, "%,d", stepsCurrent) else "--",
+                                    fontSize = 32.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = stepTierTextColor,
+                                    softWrap = false,
+                                    maxLines = 1
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "steps",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = stepTierColor,
+                                    modifier = Modifier.padding(bottom = 4.dp),
+                                    softWrap = false,
+                                    maxLines = 1
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.clickable { onEditGoalClick() }
                             ) {
                                 Text(
                                     text = "Goal: ${String.format(java.util.Locale.US, "%,d", stepsGoal)} steps",
-                                    fontSize = 12.sp,
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Bold,
                                     color = stepTierColor,
-                                    fontWeight = FontWeight.Bold
+                                    softWrap = false,
+                                    maxLines = 1
                                 )
-                                Spacer(modifier = Modifier.width(3.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
                                     imageVector = Icons.Rounded.Edit,
                                     contentDescription = "Edit Goal",
-                                    modifier = Modifier.size(12.dp),
+                                    modifier = Modifier.size(13.dp),
                                     tint = stepTierColor
                                 )
                             }
+
+                            Spacer(modifier = Modifier.height(3.dp))
+
                             Text(
                                 text = remainingText,
                                 fontSize = 12.sp,
-                                color = stepTierColor,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Medium,
+                                color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B),
+                                softWrap = false,
+                                maxLines = 1
                             )
                         }
                     }

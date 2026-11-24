@@ -49,6 +49,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.simats.vitalsync.R
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 import kotlinx.coroutines.delay
 
@@ -126,10 +129,10 @@ fun SplashScreen(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF022C22), // Deepest Dark Teal
-                        Color(0xFF064E3B), // Dark Emerald Green
-                        Color(0xFF047857), // Vivid Emerald Green
-                        Color(0xFF0D9488)  // Bright Teal Accent
+                        Color(0xFF0D1013), // Deep Obsidian Charcoal
+                        Color(0xFF121619), // Concept 24 Launch Screen Dark Canvas
+                        Color(0xFF181C20), // Ambient Charcoal
+                        Color(0xFF0F171A)  // Deep Subtle Teal-Charcoal Undertone
                     )
                 )
             )
@@ -149,42 +152,29 @@ fun SplashScreen(
         ) {
             Spacer(modifier = Modifier.weight(1f))
 
-            // Logo Box Container (Elevated Frosted Glass Card)
+            // Concept 24 Frameless Emblem (Seamlessly Integrated, No Square Box Frame)
             Box(
-                modifier = Modifier
-                    .size(118.dp)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.28f),
-                                Color.White.copy(alpha = 0.12f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(32.dp)
-                    )
-                    .border(
-                        width = 1.5.dp,
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.55f),
-                                Color.White.copy(alpha = 0.15f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(32.dp)
-                    ),
+                modifier = Modifier.size(118.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Heart with pulse inside
-                HeartWithPulseIcon(
-                    modifier = Modifier.size(60.dp)
-                )
+                // Ambient Radial Glow behind the emblem
+                Canvas(modifier = Modifier.size(118.dp)) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF34D399).copy(alpha = 0.20f),
+                                Color(0xFF10B981).copy(alpha = 0.06f),
+                                Color.Transparent
+                            ),
+                            radius = size.width * 0.48f
+                        )
+                    )
+                }
 
-                // Top right 4-point Sparkle icon
-                SparkleIcon(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 10.dp, end = 10.dp)
-                        .size(18.dp)
+                Image(
+                    painter = painterResource(id = R.drawable.ic_splash_emblem),
+                    contentDescription = "VitalSync Logo",
+                    modifier = Modifier.size(108.dp)
                 )
             }
 
@@ -306,95 +296,7 @@ private fun ConcentricBackgroundRings(pulseScale: Float) {
     }
 }
 
-@Composable
-private fun HeartWithPulseIcon(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val width = size.width
-        val height = size.height
 
-        // Heart Path
-        val heartPath = Path().apply {
-            moveTo(width * 0.5f, height * 0.80f)
-            cubicTo(
-                width * 0.15f, height * 0.58f,
-                width * 0.02f, height * 0.32f,
-                width * 0.25f, height * 0.16f
-            )
-            cubicTo(
-                width * 0.38f, height * 0.08f,
-                width * 0.48f, height * 0.18f,
-                width * 0.50f, height * 0.26f
-            )
-            cubicTo(
-                width * 0.52f, height * 0.18f,
-                width * 0.62f, height * 0.08f,
-                width * 0.75f, height * 0.16f
-            )
-            cubicTo(
-                width * 0.98f, height * 0.32f,
-                width * 0.85f, height * 0.58f,
-                width * 0.5f, height * 0.80f
-            )
-            close()
-        }
-
-        // Pulse line across the heart
-        val pulsePath = Path().apply {
-            moveTo(width * 0.12f, height * 0.48f)
-            lineTo(width * 0.32f, height * 0.48f)
-            lineTo(width * 0.40f, height * 0.36f)
-            lineTo(width * 0.48f, height * 0.62f)
-            lineTo(width * 0.56f, height * 0.28f)
-            lineTo(width * 0.64f, height * 0.54f)
-            lineTo(width * 0.70f, height * 0.48f)
-            lineTo(width * 0.88f, height * 0.48f)
-        }
-
-        // Draw Heart outline
-        drawPath(
-            path = heartPath,
-            color = Color.White,
-            style = Stroke(
-                width = 2.6.dp.toPx(),
-                cap = StrokeCap.Round,
-                join = StrokeJoin.Round
-            )
-        )
-
-        // Draw ECG line inside Heart
-        drawPath(
-            path = pulsePath,
-            color = Color.White,
-            style = Stroke(
-                width = 2.6.dp.toPx(),
-                cap = StrokeCap.Round,
-                join = StrokeJoin.Round
-            )
-        )
-    }
-}
-
-@Composable
-private fun SparkleIcon(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        val path = Path().apply {
-            moveTo(w * 0.5f, 0f)
-            quadraticTo(w * 0.5f, h * 0.5f, w, h * 0.5f)
-            quadraticTo(w * 0.5f, h * 0.5f, w * 0.5f, h)
-            quadraticTo(w * 0.5f, h * 0.5f, 0f, h * 0.5f)
-            quadraticTo(w * 0.5f, h * 0.5f, w * 0.5f, 0f)
-            close()
-        }
-
-        drawPath(
-            path = path,
-            color = Color.White
-        )
-    }
-}
 
 @Composable
 private fun EcPulseWave(
