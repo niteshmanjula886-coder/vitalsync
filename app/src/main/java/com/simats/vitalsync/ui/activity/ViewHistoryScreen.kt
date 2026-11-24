@@ -22,11 +22,15 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -68,17 +72,66 @@ fun ViewHistoryScreen(
     modifier: Modifier = Modifier,
     sessionRecords: List<ActivitySessionRecord> = emptyList(),
     initialFilter: String = "All",
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onClearHistoryClick: () -> Unit = {},
+    onDeleteRecordClick: (ActivitySessionRecord) -> Unit = {}
 ) {
     val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
     var selectedFilter by remember { mutableStateOf(initialFilter) }
+    var localRecords by remember(sessionRecords) { mutableStateOf(sessionRecords) }
+    var showClearConfirmDialog by remember { mutableStateOf(false) }
 
-    val filteredRecords = remember(selectedFilter, sessionRecords) {
+    val filteredRecords = remember(selectedFilter, localRecords) {
         if (selectedFilter.equals("All", ignoreCase = true)) {
-            sessionRecords
+            localRecords
         } else {
-            sessionRecords.filter { it.activityType.equals(selectedFilter, ignoreCase = true) }
+            localRecords.filter { it.activityType.equals(selectedFilter, ignoreCase = true) }
         }
+    }
+
+    if (showClearConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmDialog = false },
+            title = {
+                Text(
+                    text = "Clear Activity History",
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to remove all saved activity session records? This action cannot be undone.",
+                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF4B5563)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showClearConfirmDialog = false
+                        localRecords = emptyList()
+                        onClearHistoryClick()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFEF4444),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Clear All")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showClearConfirmDialog = false }
+                ) {
+                    Text(
+                        "Cancel",
+                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280)
+                    )
+                }
+            },
+            containerColor = if (isDark) CarbonDarkSurface else Color.White
+        )
     }
 
     Column(
@@ -113,8 +166,23 @@ fun ViewHistoryScreen(
                 text = "Live Activity Session History",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
+                modifier = Modifier.weight(1f)
             )
+
+            if (localRecords.isNotEmpty()) {
+                IconButton(
+                    onClick = { showClearConfirmDialog = true },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.DeleteOutline,
+                        contentDescription = "Clear History",
+                        tint = Color(0xFFEF4444),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -318,7 +386,7 @@ fun ViewHistoryScreen(
                             horizontalAlignment = Alignment.End,
                             modifier = Modifier
                                 .wrapContentWidth(Alignment.End)
-                                .widthIn(min = 80.dp)
+                                .widthIn(min = 72.dp)
                         ) {
                             Text(
                                 text = distanceStr,
@@ -335,6 +403,26 @@ fun ViewHistoryScreen(
                                 color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF),
                                 maxLines = 1,
                                 softWrap = false
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        IconButton(
+                            onClick = {
+                                localRecords = localRecords.filterNot {
+                                    (record.sessionUuid.isNotBlank() && it.sessionUuid == record.sessionUuid) ||
+                                    (it == record)
+                                }
+                                onDeleteRecordClick(record)
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.DeleteOutline,
+                                contentDescription = "Delete Session",
+                                tint = Color(0xFFEF4444),
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }

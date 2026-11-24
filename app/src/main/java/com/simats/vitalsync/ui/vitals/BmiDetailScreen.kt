@@ -29,8 +29,12 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,6 +61,22 @@ import com.simats.vitalsync.ui.theme.VitalsyncTheme
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+
+private data class BmiTipItem(
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
+    val iconBg: Color,
+    val iconTint: Color
+)
+
+private data class BmiTipsConfig(
+    val headerSubtitle: String,
+    val badgeText: String,
+    val badgeBg: Color,
+    val badgeColor: Color,
+    val tips: List<BmiTipItem>
+)
 
 @Composable
 fun BmiDetailScreen(
@@ -102,18 +122,166 @@ fun BmiDetailScreen(
         label = "BmiNeedleFractionAnimation"
     )
 
-    // Dynamic 6-month historical labels based on live system timestamps
-    val (monthLabels, trendSubtitle) = remember(liveBmi) {
-        val cal = Calendar.getInstance()
-        val sdf = SimpleDateFormat("MMM", Locale.US)
-        val list = mutableListOf<String>()
-        for (i in 5 downTo 0) {
-            val c = cal.clone() as Calendar
-            c.add(Calendar.MONTH, -i)
-            list.add(sdf.format(c.time))
+    // Dynamic actionable health & weight guidance adapted to BMI category
+    val tipsConfig = remember(liveBmi) {
+        when {
+            liveBmi < 18.5f -> {
+                val list = listOf(
+                    BmiTipItem(
+                        title = "Nutrient-Dense Caloric Surplus",
+                        description = "Aim for a moderate daily surplus of 300–500 kcal with wholesome, energy-dense foods such as nuts, avocados, whole grains, and olive oil.",
+                        icon = Icons.Rounded.Restaurant,
+                        iconBg = Color(0xFFE0F2FE),
+                        iconTint = Color(0xFF0284C7)
+                    ),
+                    BmiTipItem(
+                        title = "Progressive Resistance Training",
+                        description = "Engage in strength and compound exercises 3–4 times weekly to channel excess calories into functional lean muscle mass.",
+                        icon = Icons.Rounded.FitnessCenter,
+                        iconBg = Color(0xFFE0F2FE),
+                        iconTint = Color(0xFF0284C7)
+                    ),
+                    BmiTipItem(
+                        title = "Adequate High-Quality Protein",
+                        description = "Target 1.6–2.0 g of protein per kilogram of body weight each day to fuel muscle hypertrophy and cellular recovery.",
+                        icon = Icons.Rounded.Lightbulb,
+                        iconBg = Color(0xFFE0F2FE),
+                        iconTint = Color(0xFF0284C7)
+                    ),
+                    BmiTipItem(
+                        title = "Consistent Sleep & Recovery",
+                        description = "Prioritize 7–9 hours of restful sleep every night to optimize anabolic hormone release and physical regeneration.",
+                        icon = Icons.Rounded.Bedtime,
+                        iconBg = Color(0xFFE0F2FE),
+                        iconTint = Color(0xFF0284C7)
+                    )
+                )
+                BmiTipsConfig(
+                    headerSubtitle = "Guidance tailored for healthy weight gain",
+                    badgeText = "Healthy Surplus",
+                    badgeBg = Color(0xFFE0F2FE),
+                    badgeColor = Color(0xFF0284C7),
+                    tips = list
+                )
+            }
+            liveBmi <= 24.9f -> {
+                val list = listOf(
+                    BmiTipItem(
+                        title = "Balanced Macronutrient Equilibrium",
+                        description = "Maintain your current caloric balance with diverse whole foods, lean proteins, colorful vegetables, and healthy fats.",
+                        icon = Icons.Rounded.Restaurant,
+                        iconBg = Color(0xFFE8F6F0),
+                        iconTint = Color(0xFF0F9F7A)
+                    ),
+                    BmiTipItem(
+                        title = "Active Daily Cardio & Steps",
+                        description = "Aim for at least 150 minutes of moderate aerobic activity weekly alongside maintaining 8,000+ daily steps.",
+                        icon = Icons.Rounded.DirectionsRun,
+                        iconBg = Color(0xFFE8F6F0),
+                        iconTint = Color(0xFF0F9F7A)
+                    ),
+                    BmiTipItem(
+                        title = "Optimal Hydration Schedule",
+                        description = "Drink 2.5–3.0 liters of water daily to maintain peak metabolic function, cellular hydration, and sustained energy.",
+                        icon = Icons.Rounded.WaterDrop,
+                        iconBg = Color(0xFFE8F6F0),
+                        iconTint = Color(0xFF0F9F7A)
+                    ),
+                    BmiTipItem(
+                        title = "Routine Metabolic Consistency",
+                        description = "Keep consistent meal and exercise timing to prevent weight drift and support cardiovascular longevity.",
+                        icon = Icons.Rounded.CheckCircle,
+                        iconBg = Color(0xFFE8F6F0),
+                        iconTint = Color(0xFF0F9F7A)
+                    )
+                )
+                BmiTipsConfig(
+                    headerSubtitle = "Guidance tailored for weight maintenance",
+                    badgeText = "Optimal Maintenance",
+                    badgeBg = Color(0xFFE8F6F0),
+                    badgeColor = Color(0xFF0F9F7A),
+                    tips = list
+                )
+            }
+            liveBmi <= 29.9f -> {
+                val list = listOf(
+                    BmiTipItem(
+                        title = "Controlled Caloric Deficit",
+                        description = "Create a sustainable daily deficit of 300–500 kcal through mindful portion management and eliminating liquid calories.",
+                        icon = Icons.Rounded.LocalFireDepartment,
+                        iconBg = Color(0xFFFEF3C7),
+                        iconTint = Color(0xFFD97706)
+                    ),
+                    BmiTipItem(
+                        title = "High Fiber & Lean Protein",
+                        description = "Incorporate 25–35 g of dietary fiber and ample lean protein at each meal to enhance satiety and preserve lean muscle.",
+                        icon = Icons.Rounded.Restaurant,
+                        iconBg = Color(0xFFFEF3C7),
+                        iconTint = Color(0xFFD97706)
+                    ),
+                    BmiTipItem(
+                        title = "Progressive Daily Activity",
+                        description = "Elevate your step count toward 10,000 daily steps and include 30–45 minutes of brisk walking or cycling.",
+                        icon = Icons.Rounded.DirectionsWalk,
+                        iconBg = Color(0xFFFEF3C7),
+                        iconTint = Color(0xFFD97706)
+                    ),
+                    BmiTipItem(
+                        title = "Resistance Training Support",
+                        description = "Lift weights 2–3 times a week to keep your resting metabolic rate high while body fat decreases.",
+                        icon = Icons.Rounded.FitnessCenter,
+                        iconBg = Color(0xFFFEF3C7),
+                        iconTint = Color(0xFFD97706)
+                    )
+                )
+                BmiTipsConfig(
+                    headerSubtitle = "Guidance tailored for healthy weight reduction",
+                    badgeText = "Active Deficit",
+                    badgeBg = Color(0xFFFEF3C7),
+                    badgeColor = Color(0xFFD97706),
+                    tips = list
+                )
+            }
+            else -> {
+                val list = listOf(
+                    BmiTipItem(
+                        title = "Structured Caloric Reduction",
+                        description = "Focus on whole, unprocessed foods and a steady 500 kcal deficit to promote safe and sustainable fat loss.",
+                        icon = Icons.Rounded.LocalFireDepartment,
+                        iconBg = Color(0xFFFEE2E2),
+                        iconTint = Color(0xFFDC2626)
+                    ),
+                    BmiTipItem(
+                        title = "Low-Impact Cardio Movement",
+                        description = "Begin with joint-friendly exercises such as brisk walking, swimming, or stationary cycling 30 minutes daily.",
+                        icon = Icons.Rounded.DirectionsWalk,
+                        iconBg = Color(0xFFFEE2E2),
+                        iconTint = Color(0xFFDC2626)
+                    ),
+                    BmiTipItem(
+                        title = "Prioritize Protein & Fiber",
+                        description = "Eat vegetables, legumes, and lean poultry to stabilize blood glucose levels and prevent intense hunger spikes.",
+                        icon = Icons.Rounded.Restaurant,
+                        iconBg = Color(0xFFFEE2E2),
+                        iconTint = Color(0xFFDC2626)
+                    ),
+                    BmiTipItem(
+                        title = "Sleep & Stress Management",
+                        description = "Aim for 7–8 hours of consistent sleep and stress reduction practices to regulate cortisol and metabolic health.",
+                        icon = Icons.Rounded.Bedtime,
+                        iconBg = Color(0xFFFEE2E2),
+                        iconTint = Color(0xFFDC2626)
+                    )
+                )
+                BmiTipsConfig(
+                    headerSubtitle = "Guidance tailored for actionable weight loss",
+                    badgeText = "Weight Reduction",
+                    badgeBg = Color(0xFFFEE2E2),
+                    badgeColor = Color(0xFFDC2626),
+                    tips = list
+                )
+            }
         }
-        val initialEst = String.format(Locale.US, "%.1f", (liveBmi + 0.4f).coerceAtLeast(18.5f))
-        Pair(list, "Past 6 months · $initialEst → $liveBmiFormatted")
     }
 
     Column(
@@ -314,7 +482,7 @@ fun BmiDetailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // BMI Trend Chart Card
+            // Dynamic Recommended Tips Section
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -322,87 +490,87 @@ fun BmiDetailScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        text = "BMI history trend",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = trendSubtitle,
-                        fontSize = 12.sp,
-                        color = Color(0xFF9CA3AF)
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    var targetTrendProgress by remember { mutableFloatStateOf(0f) }
-                    LaunchedEffect(Unit) {
-                        targetTrendProgress = 1f
-                    }
-                    val trendProgress by animateFloatAsState(
-                        targetValue = targetTrendProgress,
-                        animationSpec = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
-                        label = "BmiTrendLineAnimation"
-                    )
-
-                    Canvas(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp)
-                    ) {
-                        val w = size.width
-                        val h = size.height
-
-                        val fullPath = Path().apply {
-                            moveTo(0f, h * 0.6f)
-                            cubicTo(w * 0.1f, h * 0.58f, w * 0.15f, h * 0.55f, w * 0.2f, h * 0.55f)
-                            cubicTo(w * 0.3f, h * 0.52f, w * 0.35f, h * 0.50f, w * 0.4f, h * 0.50f)
-                            cubicTo(w * 0.5f, h * 0.49f, w * 0.55f, h * 0.48f, w * 0.6f, h * 0.48f)
-                            cubicTo(w * 0.7f, h * 0.46f, w * 0.75f, h * 0.45f, w * 0.8f, h * 0.45f)
-                            cubicTo(w * 0.9f, h * 0.45f, w * 0.95f, h * 0.45f, w, h * 0.45f)
-                        }
-
-                        val pathMeasure = PathMeasure()
-                        pathMeasure.setPath(fullPath, false)
-                        val animatedPath = Path()
-                        pathMeasure.getSegment(0f, pathMeasure.length * trendProgress, animatedPath, true)
-
-                        if (trendProgress > 0f) {
-                            val fillPath = Path().apply {
-                                addPath(animatedPath)
-                                lineTo(w * trendProgress, h)
-                                lineTo(0f, h)
-                                close()
-                            }
-
-                            drawPath(
-                                path = fillPath,
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(Color(0x350F9F7A), Color(0x000F9F7A))
-                                )
-                            )
-
-                            drawPath(
-                                path = animatedPath,
-                                color = Color(0xFF0F9F7A),
-                                style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Real-time system calendar month labels
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        monthLabels.forEach { month ->
-                            Text(text = month, fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Recommended Tips",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = tipsConfig.headerSubtitle,
+                                fontSize = 12.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(tipsConfig.badgeBg)
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = tipsConfig.badgeText,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = tipsConfig.badgeColor
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    tipsConfig.tips.forEachIndexed { index, tip ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFF9FAFB))
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(tip.iconBg),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = tip.icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = tip.iconTint
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = tip.title,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1F2937)
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    text = tip.description,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF4B5563),
+                                    lineHeight = 17.sp
+                                )
+                            }
+                        }
+
+                        if (index < tipsConfig.tips.size - 1) {
+                            Spacer(modifier = Modifier.height(10.dp))
                         }
                     }
                 }

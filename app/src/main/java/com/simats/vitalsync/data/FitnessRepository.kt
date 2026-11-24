@@ -238,6 +238,44 @@ class FitnessRepository private constructor(context: Context) {
         prefs.edit().putString("key_activity_session_records", array.toString()).apply()
     }
 
+    fun deleteActivitySessionRecord(sessionUuid: String) {
+        if (sessionUuid.isBlank()) return
+        val currentList = getActivitySessionRecords().filterNot { it.sessionUuid == sessionUuid }
+        saveActivitySessionRecordsList(currentList)
+    }
+
+    fun deleteActivitySessionRecord(record: ActivitySessionRecord) {
+        val currentList = getActivitySessionRecords().filterNot {
+            (record.sessionUuid.isNotBlank() && it.sessionUuid == record.sessionUuid) ||
+            (it.activityType.equals(record.activityType, ignoreCase = true) &&
+             it.durationSeconds == record.durationSeconds &&
+             it.distanceKm == record.distanceKm &&
+             it.dateString == record.dateString)
+        }
+        saveActivitySessionRecordsList(currentList)
+    }
+
+    private fun saveActivitySessionRecordsList(records: List<ActivitySessionRecord>) {
+        val array = JSONArray()
+        for (r in records) {
+            val obj = JSONObject().apply {
+                put("activityType", r.activityType)
+                put("durationSeconds", r.durationSeconds)
+                put("distanceKm", r.distanceKm)
+                put("caloriesBurned", r.caloriesBurned)
+                put("dateString", r.dateString)
+                put("sessionUuid", r.sessionUuid)
+                put("targetType", r.targetType)
+                put("targetValue", r.targetValue)
+                put("steps", r.steps)
+                put("avgPace", r.avgPace)
+                put("trackingSource", r.trackingSource)
+            }
+            array.put(obj)
+        }
+        prefs.edit().putString("key_activity_session_records", array.toString()).apply()
+    }
+
     fun clearActivitySessionRecords() {
         prefs.edit().remove("key_activity_session_records").apply()
     }

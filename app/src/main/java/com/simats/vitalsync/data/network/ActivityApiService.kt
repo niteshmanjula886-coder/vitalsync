@@ -1,4 +1,4 @@
-﻿package com.simats.vitalsync.data.network
+package com.simats.vitalsync.data.network
 
 import com.simats.vitalsync.data.model.activity.ActivitySessionsResponse
 import com.simats.vitalsync.data.model.activity.ActivitySummaryResponse
@@ -59,6 +59,17 @@ interface ActivityApiService {
     suspend fun getHistory(
         @Query("email") email: String
     ): Response<HistoryResponse>
+
+    @POST("activity/clear_history.php")
+    suspend fun clearActivityHistory(
+        @Query("email") email: String
+    ): Response<BaseResponse>
+
+    @POST("activity/delete_session.php")
+    suspend fun deleteActivitySession(
+        @Query("email") email: String,
+        @Query("session_uuid") sessionUuid: String
+    ): Response<BaseResponse>
 }
 
 

@@ -254,6 +254,40 @@ class ActivityRepository(
         }
     }.flowOn(Dispatchers.IO)
 
+    /**
+     * Clear all recorded activity session history from server database
+     */
+    fun clearActivityHistory(email: String): Flow<Resource<String>> = flow {
+        emit(Resource.Loading)
+        try {
+            val response = apiService.clearActivityHistory(email)
+            if (response.isSuccessful && response.body()?.success == true) {
+                emit(Resource.Success(response.body()?.message ?: "Activity history removed successfully"))
+            } else {
+                emit(Resource.Error("Failed to remove activity history from server", response.code()))
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    /**
+     * Delete an individual recorded activity session by its UUID
+     */
+    fun deleteActivitySession(email: String, sessionUuid: String): Flow<Resource<String>> = flow {
+        emit(Resource.Loading)
+        try {
+            val response = apiService.deleteActivitySession(email, sessionUuid)
+            if (response.isSuccessful && response.body()?.success == true) {
+                emit(Resource.Success(response.body()?.message ?: "Activity session deleted successfully"))
+            } else {
+                emit(Resource.Error("Failed to delete activity session from server", response.code()))
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e))
+        }
+    }.flowOn(Dispatchers.IO)
+
     private fun parseErrorMessage(errorBody: ResponseBody?): String? {
         return try {
             val jsonString = errorBody?.string() ?: return null

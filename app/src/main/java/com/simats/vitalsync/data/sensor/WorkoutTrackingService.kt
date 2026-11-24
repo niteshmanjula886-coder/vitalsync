@@ -11,11 +11,14 @@ import android.hardware.SensorManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationAvailability
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -116,6 +119,7 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
 
         val isCycling = activityType.equals("Cycling", ignoreCase = true)
         val defaultPace = if (isCycling) "0.0 km/h" else "--:-- /km"
+        val prevTelemetry = _telemetry.value
 
         _telemetry.value = WorkoutTelemetry(
             activityType = activityType,
@@ -138,6 +142,15 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
                 String.format(Locale.US, "%.1f km remaining", targetDistanceKm)
             } else {
                 "${targetMinutes}m remaining"
+            },
+            currentLatitude = prevTelemetry.currentLatitude,
+            currentLongitude = prevTelemetry.currentLongitude,
+            currentBearing = prevTelemetry.currentBearing,
+            gpsAccuracyMeters = prevTelemetry.gpsAccuracyMeters,
+            gpsSignalStatus = if (prevTelemetry.gpsSignalStatus == GpsSignalStatus.DISABLED && isLocationEnabled()) {
+                GpsSignalStatus.SEARCHING
+            } else {
+                prevTelemetry.gpsSignalStatus
             }
         )
 
@@ -163,12 +176,14 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
      * Real-time GPS tracking for Cycling using Google Fused Location Provider Client.
      */
     fun startCyclingTracking() {
-        accumulatedDistanceMeters = 0.0
-        previousLocation = null
-        currentSpeedKmh = 0.0f
-        lastLocationTimestamp = 0L
-        synchronized(activeRoutePoints) {
-            activeRoutePoints.clear()
+        if (_telemetry.value.isTracking) {
+            accumulatedDistanceMeters = 0.0
+            previousLocation = null
+            currentSpeedKmh = 0.0f
+            lastLocationTimestamp = 0L
+            synchronized(activeRoutePoints) {
+                activeRoutePoints.clear()
+            }
         }
 
         val hasFine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -181,19 +196,33 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
             return
         }
 
-        val isGpsEnabled = locationManager?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true ||
-                locationManager?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) == true
-
-        if (!isGpsEnabled) {
+        if (!isLocationEnabled()) {
             currentGpsStatus = GpsSignalStatus.DISABLED
-            _telemetry.update { it.copy(gpsSignalStatus = GpsSignalStatus.DISABLED) }
-        } else {
+            _telemetry.update { it.copy(gpsSignalStatus = GpsSignalStatus.DISABLED, currentSpeedKmH = 0.0f) }
+            return
+        }
+
+        if (currentGpsStatus == GpsSignalStatus.DISABLED || currentGpsStatus == GpsSignalStatus.NO_PERMISSION) {
             currentGpsStatus = GpsSignalStatus.SEARCHING
             _telemetry.update { it.copy(gpsSignalStatus = GpsSignalStatus.SEARCHING) }
         }
 
         try {
             fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+            // Immediately acquire last known location for instant map centering & preview positioning
+            try {
+                fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
+                    if (lastLoc != null) {
+                        handleNewLocation(lastLoc)
+                    }
+                }
+            } catch (_: SecurityException) {}
+
+            // Remove existing callback if present before re-registering
+            locationCallback?.let {
+                try { fusedLocationClient.removeLocationUpdates(it) } catch (_: Exception) {}
+            }
 
             val locationRequest = LocationRequest.Builder(
                 Priority.PRIORITY_HIGH_ACCURACY,
@@ -205,8 +234,26 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
 
             locationCallback = object : LocationCallback() {
                 override fun onLocationResult(result: LocationResult) {
+                    if (!isLocationEnabled()) {
+                        stopLocationUpdates()
+                        return
+                    }
                     val location = result.lastLocation ?: return
                     handleNewLocation(location)
+                }
+
+                override fun onLocationAvailability(availability: LocationAvailability) {
+                    val deviceLocEnabled = isLocationEnabled()
+                    if (!deviceLocEnabled) {
+                        stopLocationUpdates()
+                    } else {
+                        // Location is ON in settings. Even if availability.isLocationAvailable is temporarily false
+                        // while searching for satellite fix indoors or warming up, do not detach callback or mark DISABLED.
+                        if (currentGpsStatus == GpsSignalStatus.DISABLED || currentGpsStatus == GpsSignalStatus.NO_PERMISSION) {
+                            currentGpsStatus = GpsSignalStatus.SEARCHING
+                            _telemetry.update { it.copy(gpsSignalStatus = GpsSignalStatus.SEARCHING) }
+                        }
+                    }
                 }
             }
 
@@ -228,7 +275,10 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
 
     private fun handleNewLocation(location: Location) {
         val current = _telemetry.value
-        if (!current.isTracking) return
+        if (!isLocationEnabled()) {
+            stopLocationUpdates()
+            return
+        }
 
         // 1. Evaluate GPS accuracy & signal status
         val accuracy = if (location.hasAccuracy()) location.accuracy else 50f
@@ -239,7 +289,27 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         }
         currentGpsStatus = newStatus
 
-        // If currently paused, update position marker on map but do not accumulate distance or append to route
+        // 2. Preview Mode: When not actively tracking (before user presses "Start Ride"),
+        // update live GPS coordinates, bearing, and accuracy so the map and rider marker center immediately,
+        // without accumulating distance, calories, or route points.
+        if (!current.isTracking) {
+            currentSpeedKmh = 0.0f
+            _telemetry.update {
+                it.copy(
+                    currentLatitude = location.latitude,
+                    currentLongitude = location.longitude,
+                    currentBearing = if (location.hasBearing()) location.bearing else it.currentBearing,
+                    gpsAccuracyMeters = accuracy,
+                    gpsSignalStatus = newStatus,
+                    currentSpeedKmH = 0.0f
+                )
+            }
+            previousLocation = location
+            lastLocationTimestamp = location.time
+            return
+        }
+
+        // 3. Paused Mode: update position marker on map but do not accumulate distance or append to route
         if (current.isPaused) {
             currentSpeedKmh = 0.0f
             _telemetry.update {
@@ -433,6 +503,12 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
                 delay(1000L)
                 val current = _telemetry.value
                 if (current.isTracking && !current.isPaused) {
+                    if (current.activityType.equals("Cycling", ignoreCase = true)) {
+                        if (!isLocationEnabled()) {
+                            stopLocationUpdates()
+                        }
+                    }
+
                     val newSecs = current.durationSeconds + 1
                     _telemetry.update {
                         it.copy(
@@ -555,11 +631,7 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         return completed
     }
 
-    fun stopWorkout() {
-        timerJob?.cancel()
-        timerJob = null
-        sensorManager?.unregisterListener(this)
-
+    fun stopLocationUpdates() {
         locationCallback?.let { callback ->
             try {
                 if (::fusedLocationClient.isInitialized) {
@@ -576,21 +648,62 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         }
         fallbackLocationListener = null
         previousLocation = null
-        accumulatedDistanceMeters = 0.0
         currentSpeedKmh = 0.0f
         lastLocationTimestamp = 0L
+
+        val newStatus = if (isLocationEnabled()) GpsSignalStatus.SEARCHING else GpsSignalStatus.DISABLED
+        currentGpsStatus = newStatus
+
+        _telemetry.update {
+            it.copy(
+                gpsSignalStatus = newStatus,
+                currentSpeedKmH = 0.0f
+            )
+        }
+    }
+
+    fun stopWorkout() {
+        timerJob?.cancel()
+        timerJob = null
+        sensorManager?.unregisterListener(this)
+
+        stopLocationUpdates()
+
         synchronized(activeRoutePoints) {
             activeRoutePoints.clear()
         }
+        accumulatedDistanceMeters = 0.0
 
+        val prevTelemetry = _telemetry.value
         _telemetry.update {
             it.copy(
                 isTracking = false,
                 isPaused = false,
+                durationSeconds = 0,
+                formattedDuration = "00:00",
+                steps = 0,
+                distanceKm = 0.0f,
+                caloriesBurned = 0,
                 currentSpeedKmH = 0f,
-                routeCoordinates = emptyList()
+                avgSpeedKmH = 0f,
+                progressRatio = 0f,
+                progressPercent = 0,
+                remainingFormatted = if (it.targetType.equals("Distance", ignoreCase = true)) {
+                    String.format(Locale.US, "%.1f km remaining", it.targetDistanceKm)
+                } else {
+                    "${it.targetMinutes}m remaining"
+                },
+                routeCoordinates = emptyList(),
+                currentLatitude = prevTelemetry.currentLatitude,
+                currentLongitude = prevTelemetry.currentLongitude,
+                currentBearing = prevTelemetry.currentBearing,
+                gpsAccuracyMeters = prevTelemetry.gpsAccuracyMeters
             )
         }
+    }
+
+    fun isLocationEnabled(): Boolean {
+        return isDeviceLocationEnabled(this)
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -660,4 +773,37 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+}
+
+/**
+ * Checks whether device location/GPS is enabled directly via LocationManager and Settings.
+ */
+fun isDeviceLocationEnabled(context: Context): Boolean {
+    val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return false
+    val isEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        try {
+            lm.isLocationEnabled
+        } catch (_: Exception) {
+            false
+        }
+    } else {
+        try {
+            @Suppress("DEPRECATION")
+            val mode = Settings.Secure.getInt(
+                context.contentResolver,
+                Settings.Secure.LOCATION_MODE,
+                Settings.Secure.LOCATION_MODE_OFF
+            )
+            mode != Settings.Secure.LOCATION_MODE_OFF
+        } catch (_: Exception) {
+            false
+        }
+    }
+    val providerEnabled = try {
+        lm.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+        lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    } catch (_: Exception) {
+        false
+    }
+    return isEnabled || providerEnabled
 }

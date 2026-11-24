@@ -257,6 +257,36 @@ class ActivityViewModel(
         }
     }
 
+    fun clearActivityHistory(email: String, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.clearActivityHistory(email).collect { res ->
+                if (res is Resource.Success) {
+                    _sessionsState.update { it.copy(sessions = emptyList()) }
+                    loadSummary(email)
+                    onComplete()
+                }
+            }
+        }
+    }
+
+    fun deleteActivitySession(email: String, sessionUuid: String, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            _sessionsState.update { current ->
+                current.copy(sessions = current.sessions.filterNot { it.sessionUuid == sessionUuid })
+            }
+            if (email.isNotBlank() && sessionUuid.isNotBlank()) {
+                repository.deleteActivitySession(email, sessionUuid).collect { res ->
+                    if (res is Resource.Success) {
+                        loadSummary(email)
+                        onComplete()
+                    }
+                }
+            } else {
+                onComplete()
+            }
+        }
+    }
+
     fun resetSaveSessionState() {
         _saveSessionState.value = SaveSessionUiState()
     }

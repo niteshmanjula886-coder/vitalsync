@@ -378,12 +378,21 @@ fun SleepDetailScreen(
                         .clickable { showResetDialog = true }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(
-                        text = "↺ Reset (0h)",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFDC2626)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = "Reset",
+                            modifier = Modifier.size(13.dp),
+                            tint = Color(0xFFDC2626)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Reset (0h)",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFDC2626)
+                        )
+                    }
                 }
             }
         }
@@ -1535,60 +1544,6 @@ fun SleepDetailScreen(
                             color = if (isAlarmMode) (if (isDark) Color(0xFF5EEAD4) else VitalTealDark) else (if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B))
                         )
                     }
-                    }
-                }
-
-                if (bedtimeReminderEnabled || liveSessionState.isBedtimeRinging) {
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Button(
-                        onClick = {
-                            sleepSessionManager.stopBedtimeAlert(context)
-                            bedtimeReminderEnabled = false
-                            sleepSessionManager.saveBedtimeReminder(
-                                context = context,
-                                enabled = false,
-                                hour = bedtimeHour,
-                                minute = bedtimeMinute,
-                                mode = bedtimeReminderMode
-                            )
-                            Toast.makeText(context, "Bedtime reminder & alert stopped", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (liveSessionState.isBedtimeRinging) {
-                                Color(0xFFDC2626)
-                            } else {
-                                if (isDark) Color(0xFF3B1818) else Color(0xFFFEE2E2)
-                            },
-                            contentColor = if (liveSessionState.isBedtimeRinging) {
-                                Color.White
-                            } else {
-                                if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)
-                            }
-                        ),
-                        border = if (!liveSessionState.isBedtimeRinging) {
-                            BorderStroke(1.dp, if (isDark) Color(0xFF7F1D1D) else Color(0xFFFCA5A5))
-                        } else null
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Stop,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (liveSessionState.isBedtimeRinging) "Stop Ringing Bedtime Chime" else "Stop Bedtime Alert Schedule",
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
                     }
                 }
             }

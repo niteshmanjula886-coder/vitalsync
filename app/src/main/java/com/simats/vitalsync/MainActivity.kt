@@ -2566,7 +2566,7 @@ class MainActivity : ComponentActivity() {
                                     userWeightKg = userWeightKg.toFloatOrNull() ?: 70.0f,
                                     onBackClick = { currentScreen = ScreenState.START_ACTIVITY },
                                     onFinishTracking = {
-                                        currentScreen = ScreenState.START_ACTIVITY
+                                        // Stay on Cycling screen after finishing ride
                                     },
                                     onFinishTrackingWithData = { dur, dist, cal, pace, hr, steps ->
                                         val sessionUuid = java.util.UUID.randomUUID().toString()
@@ -2610,7 +2610,7 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             )
                                         }
-                                        currentScreen = ScreenState.START_ACTIVITY
+                                        // Stay on Cycling screen so user can review overall statistics or start a new ride
                                     }
                                 )
                             }
@@ -2685,7 +2685,19 @@ class MainActivity : ComponentActivity() {
                                 }
                                 ViewHistoryScreen(
                                     sessionRecords = combinedRecords,
-                                    onBackClick = { currentScreen = viewHistoryPreviousScreen }
+                                    onBackClick = { currentScreen = viewHistoryPreviousScreen },
+                                    onClearHistoryClick = {
+                                        repository.clearActivitySessionRecords()
+                                        if (currentEmail.isNotBlank()) {
+                                            activityViewModel.clearActivityHistory(currentEmail)
+                                        }
+                                    },
+                                    onDeleteRecordClick = { recordToDelete ->
+                                        repository.deleteActivitySessionRecord(recordToDelete)
+                                        if (currentEmail.isNotBlank() && recordToDelete.sessionUuid.isNotBlank()) {
+                                            activityViewModel.deleteActivitySession(currentEmail, recordToDelete.sessionUuid)
+                                        }
+                                    }
                                 )
                             }
                             ScreenState.SLEEP_DETAIL -> {

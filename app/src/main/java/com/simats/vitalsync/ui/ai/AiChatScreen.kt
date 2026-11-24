@@ -324,37 +324,15 @@ fun AiChatScreen(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "VitalSync AI",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isDark) CarbonDarkAccent else Color(0xFF10B981))
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = if (uiState.currentSessionTitle.isNotBlank() && uiState.currentSessionTitle != "New Chat") {
-                                            uiState.currentSessionTitle
-                                        } else {
-                                            uiState.activeModelLabel
-                                        },
-                                        fontSize = 11.sp,
-                                        color = if (isDark) CarbonDarkAccent else Color(0xFF059669),
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
+                            Text(
+                                text = "VitalSync AI",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {

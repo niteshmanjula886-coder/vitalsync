@@ -3,7 +3,9 @@ package com.simats.vitalsync.ui.activity
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -35,6 +37,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.automirrored.rounded.DirectionsBike
 import androidx.compose.material.icons.rounded.GpsFixed
 import androidx.compose.material.icons.rounded.GpsNotFixed
@@ -49,6 +52,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Timeline
 import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -61,6 +65,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -97,6 +102,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.modules.SqlTileWriter
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
@@ -105,6 +111,7 @@ import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.TilesOverlay
 import com.simats.vitalsync.R
+import com.simats.vitalsync.data.ActivitySessionRecord
 import com.simats.vitalsync.data.CyclingDayMetric
 import com.simats.vitalsync.data.CyclingOverallStats
 import com.simats.vitalsync.data.FitnessRepository
@@ -118,6 +125,9 @@ import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
 import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
 import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
 import com.simats.vitalsync.ui.theme.VitalTealDark
+import com.simats.vitalsync.data.sensor.isDeviceLocationEnabled
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -148,6 +158,19 @@ fun CyclingTrackingScreen(
         Configuration.getInstance().userAgentValue = context.packageName
     }
 
+    // Purge stale tile cache on startup so old Carto or warning tiles are refreshed
+    LaunchedEffect(Unit) {
+        try {
+            SqlTileWriter().purgeCache()
+            val cacheDir = Configuration.getInstance().osmdroidTileCache
+            if (cacheDir != null && cacheDir.exists()) {
+                cacheDir.listFiles()?.forEach { file ->
+                    try { file.deleteRecursively() } catch (_: Exception) {}
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
     // Follow camera mode state & MapView reference
     var isCameraFollowing by remember { mutableStateOf(true) }
     var mapViewRef by remember { mutableStateOf<MapView?>(null) }
@@ -175,10 +198,66 @@ fun CyclingTrackingScreen(
         ColorMatrixColorFilter(darkMatrix)
     }
 
+    // Device Location / GPS state and session feedback banners
+    var isGpsEnabled by remember { mutableStateOf(isDeviceLocationEnabled(context)) }
+    var showGpsPromptDialog by remember { mutableStateOf(false) }
+    var finishBannerMessage by remember { mutableStateOf<String?>(null) }
+
+    // Location Permission Handler
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val isLocationOff = !isGpsEnabled || !hasLocationPermission
+    val effectiveGpsStatus = when {
+        !hasLocationPermission -> GpsSignalStatus.NO_PERMISSION
+        !isGpsEnabled -> GpsSignalStatus.DISABLED
+        telemetry.gpsSignalStatus == GpsSignalStatus.DISABLED -> GpsSignalStatus.SEARCHING
+        else -> telemetry.gpsSignalStatus
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                      permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        hasLocationPermission = granted
+        val gpsNow = isDeviceLocationEnabled(context)
+        isGpsEnabled = gpsNow
+        if (granted && gpsNow) {
+            workoutEngine.startCyclingTracking()
+        }
+    }
+
+    // Intercept back navigation to safely stop tracking or preview if active
+    BackHandler {
+        if (telemetry.isTracking) {
+            workoutEngine.stopWorkout()
+        } else {
+            workoutEngine.stopLocationUpdates()
+        }
+        onBackClick()
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> mapViewRef?.onResume()
+                Lifecycle.Event.ON_RESUME -> {
+                    mapViewRef?.onResume()
+                    val gpsNow = isDeviceLocationEnabled(context)
+                    isGpsEnabled = gpsNow
+                    val permNow = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                                  ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    hasLocationPermission = permNow
+                    if (gpsNow && permNow) {
+                        workoutEngine.startCyclingTracking()
+                    } else if (!gpsNow && telemetry.isTracking) {
+                        workoutEngine.stopLocationUpdates()
+                    }
+                }
                 Lifecycle.Event.ON_PAUSE -> mapViewRef?.onPause()
                 Lifecycle.Event.ON_DESTROY -> mapViewRef?.onDetach()
                 else -> {}
@@ -189,6 +268,9 @@ fun CyclingTrackingScreen(
             lifecycleOwner.lifecycle.removeObserver(observer)
             mapViewRef?.onPause()
             mapViewRef?.onDetach()
+            if (!workoutEngine.telemetry.value.isTracking) {
+                workoutEngine.stopLocationUpdates()
+            }
         }
     }
 
@@ -196,27 +278,11 @@ fun CyclingTrackingScreen(
     var statsMetricIndex by remember { mutableIntStateOf(0) }
     var overallStats by remember { mutableStateOf(repository.getDetailedCyclingStats()) }
 
-    // Location Permission Handler
-    var hasLocationPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-                      permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        hasLocationPermission = granted
-        if (granted) {
-            workoutEngine.startCyclingTracking()
-        }
-    }
-
-    // Start workout session
-    LaunchedEffect(targetGoalTab, targetMinutes, targetDistanceKm, userWeightKg) {
+    // Periodic & Event-driven location state check (every 1 second)
+    LaunchedEffect(Unit) {
+        overallStats = repository.getDetailedCyclingStats()
+        val initGps = isDeviceLocationEnabled(context)
+        isGpsEnabled = initGps
         if (!hasLocationPermission) {
             permissionLauncher.launch(
                 arrayOf(
@@ -224,20 +290,95 @@ fun CyclingTrackingScreen(
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 )
             )
+        } else if (initGps) {
+            workoutEngine.startCyclingTracking()
         }
-        workoutEngine.startWorkout(
-            activityType = "Cycling",
-            targetType = targetGoalTab,
-            targetMinutes = targetMinutes,
-            targetDistanceKm = targetDistanceKm,
-            userWeightKg = userWeightKg
+        while (isActive) {
+            val enabled = isDeviceLocationEnabled(context)
+            if (isGpsEnabled != enabled) {
+                isGpsEnabled = enabled
+                if (!enabled) {
+                    workoutEngine.stopLocationUpdates()
+                } else if (hasLocationPermission) {
+                    workoutEngine.startCyclingTracking()
+                }
+            }
+            delay(1000L)
+        }
+    }
+
+    // Auto-dismiss confirmation banner after 8 seconds
+    LaunchedEffect(finishBannerMessage) {
+        if (finishBannerMessage != null) {
+            kotlinx.coroutines.delay(8000L)
+            finishBannerMessage = null
+        }
+    }
+
+    // Finish session handler: saves ride, refreshes stats, clears map, and stays on screen
+    val finishSession: () -> Unit = {
+        val completed = workoutEngine.finishWorkout()
+        val dur = completed.durationSeconds
+        val dist = completed.distanceKm
+        val cal = completed.caloriesBurned
+        val pace = completed.avgPace
+        val steps = completed.steps
+        val sessionUuid = completed.sessionUuid.ifBlank { java.util.UUID.randomUUID().toString() }
+        val targetType = targetGoalTab.lowercase()
+        val targetVal = if (targetGoalTab == "Distance") targetDistanceKm.toInt() else targetMinutes
+        val todayDate = repository.getTodayDateString()
+
+        // 1. Notify callback to record in MainActivity / backend
+        onFinishTrackingWithData?.invoke(
+            dur,
+            dist,
+            cal,
+            pace,
+            138,
+            steps
         )
+
+        // 2. Ensure saved in local repository
+        if (onFinishTrackingWithData == null) {
+            val record = ActivitySessionRecord(
+                activityType = "Cycling",
+                durationSeconds = dur,
+                distanceKm = dist,
+                caloriesBurned = cal,
+                dateString = todayDate,
+                sessionUuid = sessionUuid,
+                targetType = targetType,
+                targetValue = targetVal,
+                steps = steps,
+                avgPace = pace,
+                trackingSource = "gps"
+            )
+            repository.saveActivitySessionRecord(record)
+        }
+
+        // 3. Immediately refresh overall cycling statistics so the completed ride is visible
         overallStats = repository.getDetailedCyclingStats()
+
+        // 4. Show confirmation banner
+        val formattedDist = String.format(Locale.US, "%.2f km", dist)
+        val mins = dur / 60
+        val secs = dur % 60
+        val durStr = if (mins > 0) "${mins}m ${secs}s" else "${secs}s"
+        finishBannerMessage = "Ride saved: $formattedDist in $durStr ($cal kcal)"
+
+        // 5. Clear live route overlays on map
+        routePolylineRef.value?.setPoints(emptyList())
+        startMarkerRef.value?.setVisible(false)
+        mapViewRef?.invalidate()
     }
 
     DisposableEffect(Unit) {
         onDispose {
-            workoutEngine.stopWorkout()
+            if (workoutEngine.telemetry.value.isTracking) {
+                workoutEngine.stopWorkout()
+            } else {
+                workoutEngine.stopLocationUpdates()
+            }
         }
     }
 
@@ -282,7 +423,12 @@ fun CyclingTrackingScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
-                        onClick = onBackClick,
+                        onClick = {
+                            if (!telemetry.isTracking) {
+                                workoutEngine.stopLocationUpdates()
+                            }
+                            onBackClick()
+                        },
                         modifier = Modifier.size(36.dp)
                     ) {
                         BackArrowIcon(
@@ -303,7 +449,7 @@ fun CyclingTrackingScreen(
 
                 // Interactive GPS Signal Status Pill
                 GpsStatusBadge(
-                    status = telemetry.gpsSignalStatus,
+                    status = effectiveGpsStatus,
                     hasPermission = hasLocationPermission,
                     isDark = isDark,
                     onPromptClick = {
@@ -314,8 +460,10 @@ fun CyclingTrackingScreen(
                                     Manifest.permission.ACCESS_COARSE_LOCATION
                                 )
                             )
-                        } else if (telemetry.gpsSignalStatus == GpsSignalStatus.DISABLED) {
-                            context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                        } else if (!isGpsEnabled) {
+                            try {
+                                context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                            } catch (_: Exception) {}
                         }
                     }
                 )
@@ -389,14 +537,176 @@ fun CyclingTrackingScreen(
                 // TAB 0: LIVE TRACKING & INTERACTIVE MAP VIEW
                 // ==========================================
 
+                // Confirmation Banner (after session is saved)
+                if (finishBannerMessage != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDark) Color(0xFF1B382B) else Color(0xFFE8F6F0)
+                        ),
+                        border = BorderStroke(1.dp, if (isDark) Color(0xFF10B981) else Color(0xFF34D399))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.CheckCircle,
+                                contentDescription = null,
+                                tint = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A),
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Ride Completed & Saved",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = finishBannerMessage ?: "",
+                                    fontSize = 12.sp,
+                                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF475569)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            TextButton(
+                                onClick = {
+                                    overallStats = repository.getDetailedCyclingStats()
+                                    selectedScreenTab = 1
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "View Stats",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                                )
+                            }
+                            IconButton(
+                                onClick = { finishBannerMessage = null },
+                                modifier = Modifier.size(26.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "Dismiss",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = if (isDark) CarbonDarkTextSecondary else Color(0xFF94A3B8)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Device GPS Off Reminder Card: Only show when device location is truly off or permission missing
+                if (isLocationOff) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDark) Color(0xFF3B1D1D) else Color(0xFFFEF2F2)
+                        ),
+                        border = BorderStroke(1.dp, if (isDark) Color(0xFFEF4444) else Color(0xFFFCA5A5))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isDark) Color(0xFF5F2120) else Color(0xFFFEE2E2)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.GpsOff,
+                                    contentDescription = null,
+                                    tint = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (!hasLocationPermission) "Location Permission Required" else "Location / GPS is Turned Off",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (!hasLocationPermission) {
+                                        "Grant location permission to record your route, live speed, and distance."
+                                    } else if (telemetry.isTracking) {
+                                        "GPS tracking paused. Turn on Location to resume tracking your route and speed."
+                                    } else {
+                                        "Turn on device location to record your route, live speed, and distance."
+                                    },
+                                    fontSize = 11.5.sp,
+                                    color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF475569),
+                                    lineHeight = 15.sp
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Button(
+                                    onClick = {
+                                        if (!hasLocationPermission) {
+                                            permissionLauncher.launch(
+                                                arrayOf(
+                                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                                )
+                                            )
+                                        } else {
+                                            try {
+                                                val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                                                context.startActivity(intent)
+                                            } catch (_: Exception) {}
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isDark) Color(0xFFDC2626) else Color(0xFFEF4444),
+                                        contentColor = Color.White
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(30.dp)
+                                ) {
+                                    Text(
+                                        text = if (!hasLocationPermission) "Grant Permission" else "Open Location Settings",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Interactive OpenStreetMap (osmdroid) Card with Polyline & Camera Controls
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(245.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.dp, if (isDark) CarbonDarkBorder else Color(0xFFE2E8F0)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        .height(250.dp)
+                        .clip(RoundedCornerShape(16.dp)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, if (isDark) Color(0xFF2A323D) else Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) Color(0xFF121619) else Color(0xFFF8FAFC)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         val lat = telemetry.currentLatitude
@@ -409,12 +719,13 @@ fun CyclingTrackingScreen(
                                 MapView(ctx).apply {
                                     setTileSource(TileSourceFactory.MAPNIK)
                                     setMultiTouchControls(true)
-                                    isTilesScaledToDpi = true
+                                    setTilesScaledToDpi(true)
                                     setUseDataConnection(true)
+                                    setFlingEnabled(true)
                                     minZoomLevel = 12.0
                                     maxZoomLevel = 20.0
                                     zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
-                                    controller.setZoom(17.5)
+                                    controller.setZoom(17.0)
                                     val initialCenter = currentGeoPoint ?: GeoPoint(13.0827, 80.2707)
                                     controller.setCenter(initialCenter)
 
@@ -462,12 +773,12 @@ fun CyclingTrackingScreen(
                                 }
                             },
                             update = { mapView ->
-                                // 1. Sharp High-Contrast Dark Mode Filter
+                                // 1. Apply clean, high-contrast dark mode filter over MAPNIK in dark theme
                                 mapView.overlayManager.tilesOverlay.setColorFilter(
                                     if (isDark) darkMapColorFilter else null
                                 )
 
-                                // 2. Update Live Route Polyline (reusing single instance)
+                                // Update Live Route Polyline (reusing single instance)
                                 routePolylineRef.value?.let { polyline ->
                                     if (routeGeoPoints.size > 1) {
                                         polyline.setPoints(routeGeoPoints)
@@ -477,7 +788,7 @@ fun CyclingTrackingScreen(
                                     }
                                 }
 
-                                // 3. Update Start Point Marker (reusing single instance)
+                                // Update Start Point Marker (reusing single instance)
                                 startMarkerRef.value?.let { startM ->
                                     if (routeGeoPoints.isNotEmpty()) {
                                         startM.position = routeGeoPoints.first()
@@ -488,7 +799,7 @@ fun CyclingTrackingScreen(
                                     }
                                 }
 
-                                // 4. Update Current Rider Position Marker (reusing single instance)
+                                // Update Current Rider Position Marker (reusing single instance)
                                 riderMarkerRef.value?.let { riderM ->
                                     if (currentGeoPoint != null) {
                                         riderM.position = currentGeoPoint
@@ -532,7 +843,7 @@ fun CyclingTrackingScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = String.format(Locale.US, "%.1f km/h", liveCurrentSpeedKmH),
+                                    text = String.format(Locale.US, "%.1f km/h", if (!isLocationOff) liveCurrentSpeedKmH else 0.0f),
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
@@ -541,6 +852,8 @@ fun CyclingTrackingScreen(
                         }
 
                         // Floating GPS Status / Locked Badge on Top-Right
+                        val gpsStatusIsLocked = !isLocationOff &&
+                            (telemetry.gpsSignalStatus == GpsSignalStatus.LOCKED || telemetry.gpsSignalStatus == GpsSignalStatus.FAIR)
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
@@ -549,23 +862,44 @@ fun CyclingTrackingScreen(
                                 .background(if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF))
                                 .border(
                                     1.dp,
-                                    if (telemetry.gpsSignalStatus == GpsSignalStatus.LOCKED) (if (isDark) Color(0xFF10B981) else Color(0xFF0F9F7A))
+                                    if (isLocationOff) (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626))
+                                    else if (gpsStatusIsLocked) (if (isDark) Color(0xFF10B981) else Color(0xFF0F9F7A))
                                     else (if (isDark) Color(0xFFF59E0B) else Color(0xFFD97706)),
                                     RoundedCornerShape(10.dp)
                                 )
+                                .clickable {
+                                    if (!isGpsEnabled) {
+                                        try {
+                                            context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                                        } catch (_: Exception) {}
+                                    } else if (!hasLocationPermission) {
+                                        permissionLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                                Manifest.permission.ACCESS_COARSE_LOCATION
+                                            )
+                                        )
+                                    }
+                                }
                                 .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = if (telemetry.gpsSignalStatus == GpsSignalStatus.LOCKED) Icons.Rounded.GpsFixed else Icons.Rounded.GpsNotFixed,
+                                    imageVector = if (isLocationOff) Icons.Rounded.GpsOff
+                                    else if (gpsStatusIsLocked) Icons.Rounded.GpsFixed
+                                    else Icons.Rounded.GpsNotFixed,
                                     contentDescription = null,
                                     modifier = Modifier.size(15.dp),
-                                    tint = if (telemetry.gpsSignalStatus == GpsSignalStatus.LOCKED) (if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A))
+                                    tint = if (isLocationOff) (if (isDark) Color(0xFFF87171) else Color(0xFFDC2626))
+                                    else if (gpsStatusIsLocked) (if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A))
                                     else (if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706))
                                 )
                                 Spacer(modifier = Modifier.width(5.dp))
                                 Text(
-                                    text = if (telemetry.gpsSignalStatus == GpsSignalStatus.LOCKED) "GPS Locked" else "Acquiring...",
+                                    text = if (!isGpsEnabled) "Location Off"
+                                    else if (!hasLocationPermission) "No Permission"
+                                    else if (gpsStatusIsLocked) "GPS Locked"
+                                    else "Acquiring...",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
@@ -585,7 +919,7 @@ fun CyclingTrackingScreen(
                                     isCameraFollowing = true
                                     currentGeoPoint?.let { pt ->
                                         mapViewRef?.controller?.apply {
-                                            setZoom(17.5)
+                                            setZoom(17.0)
                                             animateTo(pt)
                                         }
                                     }
@@ -656,43 +990,59 @@ fun CyclingTrackingScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Pause / Resume Toggle
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(
-                                if (telemetry.isPaused) {
-                                    if (isDark) Color(0xFF3B2D14) else Color(0xFFFEF3C7)
-                                } else {
-                                    if (isDark) Color(0xFF1B382B) else Color(0xFFE8F6F0)
+                    // Pause / Resume Toggle or Ready Status
+                    if (telemetry.isTracking) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(
+                                    if (telemetry.isPaused) {
+                                        if (isDark) Color(0xFF3B2D14) else Color(0xFFFEF3C7)
+                                    } else {
+                                        if (isDark) Color(0xFF1B382B) else Color(0xFFE8F6F0)
+                                    }
+                                )
+                                .clickable {
+                                    if (telemetry.isPaused) workoutEngine.resumeWorkout() else workoutEngine.pauseWorkout()
                                 }
-                            )
-                            .clickable {
-                                if (telemetry.isPaused) workoutEngine.resumeWorkout() else workoutEngine.pauseWorkout()
+                                .padding(horizontal = 14.dp, vertical = 5.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = if (telemetry.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = if (telemetry.isPaused) {
+                                        if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
+                                    } else {
+                                        if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                                    }
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (telemetry.isPaused) "Resume Ride" else "Pause Ride",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (telemetry.isPaused) {
+                                        if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
+                                    } else {
+                                        if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                                    }
+                                )
                             }
-                            .padding(horizontal = 14.dp, vertical = 5.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (telemetry.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
-                                contentDescription = null,
-                                modifier = Modifier.size(13.dp),
-                                tint = if (telemetry.isPaused) {
-                                    if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
-                                } else {
-                                    if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(if (isDark) Color(0xFF1E2630) else Color(0xFFF1F5F9))
+                                .padding(horizontal = 14.dp, vertical = 5.dp)
+                        ) {
                             Text(
-                                text = if (telemetry.isPaused) "Resume Ride" else "Pause Ride",
+                                text = "Ready to Ride · Tap Start below",
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (telemetry.isPaused) {
-                                    if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
-                                } else {
-                                    if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
-                                }
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B)
                             )
                         }
                     }
@@ -729,7 +1079,7 @@ fun CyclingTrackingScreen(
                                 Text(text = "Current Speed", fontSize = 11.5.sp, color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B), fontWeight = FontWeight.Medium)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = String.format(Locale.US, "%.1f km/h", liveCurrentSpeedKmH),
+                                    text = String.format(Locale.US, "%.1f km/h", if (!isLocationOff) liveCurrentSpeedKmH else 0.0f),
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
@@ -856,11 +1206,18 @@ fun CyclingTrackingScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isDark) CarbonDarkAccent else Color(0xFF0F9F7A))
+                                    .background(
+                                        if (isLocationOff) (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626))
+                                        else if (isDark) CarbonDarkAccent else Color(0xFF0F9F7A)
+                                    )
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = if (!telemetry.isPaused) "GPS Active" else "Ride Paused",
+                                    text = if (!isGpsEnabled) "Location Off"
+                                           else if (!hasLocationPermission) "Permission Required"
+                                           else if (!telemetry.isTracking) "Ready"
+                                           else if (!telemetry.isPaused) "GPS Active"
+                                           else "Ride Paused",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
@@ -945,43 +1302,128 @@ fun CyclingTrackingScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Primary Action Button at Bottom
+        // Primary Action Controls at Bottom
         if (selectedScreenTab == 0) {
-            Button(
-                onClick = {
-                    val completed = workoutEngine.finishWorkout()
-                    onFinishTrackingWithData?.invoke(
-                        completed.durationSeconds,
-                        completed.distanceKm,
-                        completed.caloriesBurned,
-                        completed.avgPace,
-                        138,
-                        completed.steps
+            if (!telemetry.isTracking) {
+                // IDLE STATE: Explicit Start Ride Button
+                Button(
+                    onClick = {
+                        val gpsNow = isDeviceLocationEnabled(context)
+                        isGpsEnabled = gpsNow
+                        if (!gpsNow) {
+                            showGpsPromptDialog = true
+                        } else if (!hasLocationPermission) {
+                            permissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
+                            )
+                        } else {
+                            finishBannerMessage = null
+                            workoutEngine.startWorkout(
+                                activityType = "Cycling",
+                                targetType = targetGoalTab,
+                                targetMinutes = targetMinutes,
+                                targetDistanceKm = targetDistanceKm,
+                                userWeightKg = userWeightKg
+                            )
+                            isCameraFollowing = true
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 12.dp)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isDark) CarbonDarkAccent else VitalTealDark,
+                        contentColor = Color.White
                     )
-                    onFinishTracking()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp, bottom = 12.dp)
-                    .height(52.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isDark) CarbonDarkAccent else VitalTealDark,
-                    contentColor = Color.White
-                )
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Rounded.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Finish Cycling Session",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Start Ride",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            } else {
+                // ACTIVE STATE: Explicit Pause/Resume and Finish Session Controls
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Pause / Resume Button
+                    Button(
+                        onClick = {
+                            if (telemetry.isPaused) workoutEngine.resumeWorkout() else workoutEngine.pauseWorkout()
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (telemetry.isPaused) {
+                                if (isDark) Color(0xFFD97706) else Color(0xFFF59E0B)
+                            } else {
+                                if (isDark) Color(0xFF263238) else Color(0xFFE2E8F0)
+                            },
+                            contentColor = if (telemetry.isPaused) Color.White else (if (isDark) CarbonDarkTextPrimary else Color(0xFF1E293B))
+                        )
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (telemetry.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (telemetry.isPaused) "Resume" else "Pause",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Finish / Stop Cycling Session Button
+                    Button(
+                        onClick = {
+                            finishSession()
+                        },
+                        modifier = Modifier
+                            .weight(1.5f)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isDark) CarbonDarkAccent else VitalTealDark,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Finish Session",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
         } else {
@@ -1012,6 +1454,68 @@ fun CyclingTrackingScreen(
                 }
             }
         }
+    }
+
+    // GPS Turn-On Prompt Alert Dialog
+    if (showGpsPromptDialog) {
+        AlertDialog(
+            onDismissRequest = { showGpsPromptDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Rounded.GpsOff,
+                    contentDescription = null,
+                    tint = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626),
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Turn On Location / GPS",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                )
+            },
+            text = {
+                Text(
+                    text = "Live cycling tracking requires device GPS to record your route, calculate live speed, and track distance accurately. Please turn on Location in system settings.",
+                    fontSize = 13.sp,
+                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF4B5563),
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showGpsPromptDialog = false
+                        try {
+                            val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                            context.startActivity(intent)
+                        } catch (_: Exception) {}
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isDark) CarbonDarkAccent else VitalTealDark,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(text = "Open Settings", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showGpsPromptDialog = false }
+                ) {
+                    Text(
+                        text = "Cancel",
+                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280),
+                        fontSize = 13.sp
+                    )
+                }
+            },
+            containerColor = if (isDark) CarbonDarkSurface else Color.White,
+            shape = RoundedCornerShape(18.dp)
+        )
     }
 }
 
@@ -1457,6 +1961,7 @@ private fun WeeklyCyclingBarChart(
 }
 
 private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+
 
 @Composable
 private fun BackArrowIcon(

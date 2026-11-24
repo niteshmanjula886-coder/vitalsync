@@ -261,7 +261,7 @@ fun StartActivityScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // View Activity History Button Card
+            // View Activity History Button Card (Full Width)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
