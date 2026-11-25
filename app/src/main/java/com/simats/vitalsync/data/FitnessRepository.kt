@@ -772,6 +772,51 @@ class FitnessRepository private constructor(context: Context) {
 
     fun getTodayDateString(): String = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
 
+    data class CachedSpo2Reading(
+        val percentage: Int,
+        val status: String,
+        val recordedAt: String,
+        val source: String,
+        val savedAtMillis: Long
+    )
+
+    fun saveTodaySpo2Reading(
+        percentage: Int,
+        status: String,
+        source: String = "Manual Entry",
+        recordedAt: String = getTodayDateString()
+    ) {
+        if (percentage !in 50..100) return
+        val obj = JSONObject().apply {
+            put("percentage", percentage)
+            put("status", status)
+            put("source", source)
+            put("recordedAt", recordedAt)
+            put("dateString", getTodayDateString())
+            put("savedAtMillis", System.currentTimeMillis())
+        }
+        prefs.edit().putString("key_today_spo2_cache", obj.toString()).apply()
+    }
+
+    fun getTodaySpo2Reading(): CachedSpo2Reading? {
+        val raw = prefs.getString("key_today_spo2_cache", null) ?: return null
+        return try {
+            val obj = JSONObject(raw)
+            if (obj.optString("dateString") != getTodayDateString()) return null
+            val pct = obj.optInt("percentage", 0)
+            if (pct !in 50..100) return null
+            CachedSpo2Reading(
+                percentage = pct,
+                status = obj.optString("status", if (pct >= 95) "Normal ($pct%)" else if (pct >= 90) "Mild Hypoxia" else "Low SpO2"),
+                recordedAt = obj.optString("recordedAt", getTodayDateString()),
+                source = obj.optString("source", "Manual Entry"),
+                savedAtMillis = obj.optLong("savedAtMillis", 0L)
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun getSampleMealsForToday(): List<MealEntry> {
         return listOf(
             MealEntry("m1", MealCategory.BREAKFAST, initialIndianFoodDatabase[3], 1.5f, 255, 19.5f, 3.75f, 18.0f, "2025-10-15"),

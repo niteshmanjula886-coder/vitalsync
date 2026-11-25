@@ -99,6 +99,8 @@ data class GymUiState(
     val bodyWeightKg: Float = 70f,
     val bodyWeightMultiplier: Float = 1.8f, // 1.6f Build, 1.8f Optimal, 2.0f Cut
     val customProteinTargetG: Float = 140f,
+    val customCarbsTargetG: Float = 248f,
+    val customFatsTargetG: Float = 61f,
     val customCaloriesTarget: Int = 2200,
 
     // 3. Analytics State (Issue 7 Day-to-Day)
@@ -118,4 +120,12 @@ data class GymUiState(
     val activeCaloriesTarget: Int
         get() = if (proteinTargetMode == "CUSTOM") customCaloriesTarget
                 else ((bodyWeightKg * 32f).toInt().coerceAtLeast(1600))
+
+    val activeCarbsTargetG: Float
+        get() = if (proteinTargetMode == "CUSTOM") customCarbsTargetG
+                else (activeCaloriesTarget * 0.45f / 4f)
+
+    val activeFatsTargetG: Float
+        get() = if (proteinTargetMode == "CUSTOM") customFatsTargetG
+                else (activeCaloriesTarget * 0.25f / 9f)
 }

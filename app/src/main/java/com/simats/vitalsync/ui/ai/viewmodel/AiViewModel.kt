@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.simats.vitalsync.data.ai.LiveUserContextBuilder
 import com.simats.vitalsync.data.local.SessionManager
 import com.simats.vitalsync.data.model.ai.AiChatSessionDto
 import com.simats.vitalsync.data.model.ai.AiDailyInsightDto
@@ -46,7 +47,7 @@ data class AiUiState(
     val weeklyReport: WeeklyReportDto? = null,
     val isWeeklyTrendsLoading: Boolean = false,
     val errorMessage: String? = null,
-    val activeModelLabel: String = "Qwen2.5 (1.5B) • Active"
+    val activeModelLabel: String = "VitalSync AI • Active"
 )
 
 class AiViewModel(
@@ -308,8 +309,14 @@ class AiViewModel(
         val userMsgId = UUID.randomUUID().toString()
         val timeNow = getCurrentTimeText()
         val activeSessionId = _uiState.value.currentSessionId
+        val priorMessages = _uiState.value.messages
         val resolvedUserId = if (userId > 0) userId else (repository.getCurrentUserId() ?: 0)
         val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: repository.getCurrentUserEmail()
+        val liveContextSnapshot = LiveUserContextBuilder.buildLiveContextSnapshot(
+            context = getApplication(),
+            weeklyReport = _uiState.value.weeklyReport,
+            aiInsight = _uiState.value.aiInsight
+        )
 
         val optimisticUserMsg = ChatMessage(
             id = userMsgId,
@@ -359,14 +366,17 @@ class AiViewModel(
                         userId = resolvedUserId,
                         message = trimmed,
                         sessionId = activeSessionId,
-                        email = resolvedEmail
+                        email = resolvedEmail,
+                        conversationHistory = priorMessages,
+                        liveContext = liveContextSnapshot
                     )
                 }) {
                     is Resource.Success -> {
-                        val replyText = result.data.reply?.takeIf { it.isNotBlank() }
+                        val rawReply = result.data.reply?.takeIf { it.isNotBlank() }
                             ?: result.data.message?.takeIf { it.isNotBlank() }
                             ?: result.data.aiResponse?.text?.takeIf { it.isNotBlank() }
                             ?: "VitalSync AI engine returned an empty response."
+                        val replyText = sanitizeAiReply(rawReply)
 
                         val returnedSessionId = result.data.sessionId ?: result.data.aiResponse?.sessionId ?: activeSessionId
                         val returnedSessionTitle = result.data.sessionTitle?.takeIf { it.isNotBlank() } ?: _uiState.value.currentSessionTitle
@@ -383,7 +393,7 @@ class AiViewModel(
                                 messages = it.messages + aiMsg,
                                 currentSessionId = returnedSessionId,
                                 currentSessionTitle = returnedSessionTitle,
-                                activeModelLabel = "Qwen2.5 (1.5B) • Active"
+                                activeModelLabel = "VitalSync AI • Active"
                             )
                         }
 
@@ -574,6 +584,14 @@ class AiViewModel(
                 startNewChat()
             }
         }
+    }
+
+    private fun sanitizeAiReply(raw: String): String {
+        return raw
+            .replace(Regex("<think>[\\s\\S]*?</think>", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("\\[(LIVE_USER_SNAPSHOT|END_TELEMETRY|NUTRITION REFERENCE BASELINES|MACRO CALCULATION RULES)\\]", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("(?i)\\b(qwen2\\.5(:1\\.5b)?|qwen3(:4b)?|ollama)\\b"), "VitalSync AI")
+            .trim()
     }
 
     fun dismissError() {

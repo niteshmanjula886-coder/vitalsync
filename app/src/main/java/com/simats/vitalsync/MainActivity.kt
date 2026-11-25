@@ -57,6 +57,7 @@ import com.simats.vitalsync.util.NotificationReminderEngine
 import com.simats.vitalsync.data.ActivitySessionRecord
 import com.simats.vitalsync.data.Exercise
 import com.simats.vitalsync.data.FitnessRepository
+import com.simats.vitalsync.data.repository.HealthDataRepository
 import com.simats.vitalsync.data.MealCategory
 import com.simats.vitalsync.data.WorkoutSplit
 import com.simats.vitalsync.ui.activity.ActivityType
@@ -360,6 +361,9 @@ class MainActivity : ComponentActivity() {
                 val livePhoneCalories by stepSensorManager.liveCalories.collectAsState()
                 val isPhoneSensorActive by stepSensorManager.isSensorActive.collectAsState()
 
+                val healthDataRepository = remember { HealthDataRepository.getInstance(applicationContext) }
+                val liveRecentReadings by healthDataRepository.recentReadings.collectAsState()
+
                 val activityRecognitionLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestPermission()
                 ) { _ ->
@@ -410,6 +414,11 @@ class MainActivity : ComponentActivity() {
                 var lastLoadedEmail by remember { mutableStateOf<String?>(null) }
 
                 val profileState by profileViewModel.profileState.collectAsState()
+
+                LaunchedEffect(currentEmail, currentUser?.id, profileState.userId) {
+                    val uid = currentUser?.id ?: profileState.userId.takeIf { it > 0 }
+                    healthDataRepository.setActiveUser(uid, currentEmail.ifBlank { null })
+                }
                 val healthGoalsState by profileViewModel.healthGoalsState.collectAsState()
                 val remindersState by profileViewModel.remindersState.collectAsState()
                 val appSettingsState by profileViewModel.appSettingsState.collectAsState()
@@ -684,12 +693,28 @@ class MainActivity : ComponentActivity() {
                 val heartRateStatusFormatted = if (hasTodayHrSummary) hrSummary!!.status else "Tap to log"
                 val heartRateTrendFormatted = if (hasTodayHrSummary) hrSummary!!.trend else null
 
-                val hasTodaySpo2Summary = spo2Summary != null && spo2Summary.percentage > 0 &&
+                val localTodaySpo2 = remember(currentScreen, vitalsSummaryState, nutritionRefreshTrigger) {
+                    repository.getTodaySpo2Reading()
+                }
+                val hasServerTodaySpo2 = spo2Summary != null && spo2Summary.percentage > 0 &&
                     (spo2Summary.hasData || spo2Summary.recordedAt.startsWith(todayPrefix))
-                val effectiveSpo2Pct: Int? = if (hasTodaySpo2Summary) spo2Summary!!.percentage else null
+                val hasTodaySpo2Summary = hasServerTodaySpo2 || localTodaySpo2 != null
+                val effectiveSpo2Pct: Int? = when {
+                    hasServerTodaySpo2 -> spo2Summary!!.percentage
+                    localTodaySpo2 != null -> localTodaySpo2.percentage
+                    else -> null
+                }
                 val spo2Formatted = effectiveSpo2Pct?.let { "$it%" } ?: "--%"
-                val spo2StatusFormatted = if (hasTodaySpo2Summary) spo2Summary!!.status else "Tap to log"
-                val spo2TrendFormatted = if (hasTodaySpo2Summary) spo2Summary!!.trend else null
+                val spo2StatusFormatted = when {
+                    hasServerTodaySpo2 -> spo2Summary!!.status
+                    localTodaySpo2 != null -> localTodaySpo2.status
+                    else -> "Tap to log"
+                }
+                val spo2TrendFormatted = when {
+                    hasServerTodaySpo2 -> spo2Summary!!.trend
+                    localTodaySpo2 != null -> if (localTodaySpo2.source == "Health Connect") "Synced via Health Connect" else "Baseline logged"
+                    else -> null
+                }
 
                 val hasTodayBpSummary = bpSummary != null && bpSummary.systolic > 0 && bpSummary.diastolic > 0 &&
                     (bpSummary.hasData || bpSummary.recordedAt.startsWith(todayPrefix))
@@ -1537,6 +1562,12 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             ScreenState.MAIN -> {
+                                LaunchedEffect(currentScreen, currentEmail) {
+                                    if (currentEmail.isNotBlank() && !manualLogState.isSaving) {
+                                        val uid = currentUser?.id ?: profileState.userId.takeIf { it > 0 }
+                                        vitalsViewModel.fetchSummary(userId = uid, email = currentEmail)
+                                    }
+                                }
                                 HomeScreen(
                                     initialTab = homeInitialTab,
                                     onTabChanged = { tab ->
@@ -2326,10 +2357,19 @@ class MainActivity : ComponentActivity() {
                                     bpUpdated = if (hasTodayBpSummary) bpSummary!!.recordedAt else "No readings today",
                                     spo2Value = spo2Formatted,
                                     spo2Status = spo2StatusFormatted,
-                                    spo2Updated = if (hasTodaySpo2Summary) spo2Summary!!.recordedAt else "No readings today",
+                                    spo2Updated = when {
+                                        hasServerTodaySpo2 -> spo2Summary!!.recordedAt
+                                        localTodaySpo2 != null -> localTodaySpo2.recordedAt
+                                        else -> "No readings today"
+                                    },
                                     weightValue = if (userWeightKg.isNotBlank()) "$userWeightKg kg" else "--",
                                     bmiValue = calculatedBmiValue,
                                     bmiStatus = calculatedBmiCategory,
+                                    readings = liveRecentReadings,
+                                    latestHrBpm = hrSummary?.bpm ?: liveRecentReadings.firstOrNull { it.readingType == "heart_rate" }?.valueNumeric?.toInt(),
+                                    latestSpo2Pct = effectiveSpo2Pct ?: liveRecentReadings.firstOrNull { it.readingType == "spo2" }?.valueNumeric?.toInt(),
+                                    latestSysBp = bpSummary?.systolic ?: liveRecentReadings.firstOrNull { it.readingType == "blood_pressure" }?.valueNumeric?.toInt(),
+                                    latestDiaBp = bpSummary?.diastolic ?: liveRecentReadings.firstOrNull { it.readingType == "blood_pressure" }?.valueSecondary?.toInt(),
                                     onBackClick = {
                                         homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN
@@ -2362,6 +2402,7 @@ class MainActivity : ComponentActivity() {
                                     minBpm = hrSummary?.minBpm ?: 0,
                                     maxBpm = hrSummary?.maxBpm ?: 0,
                                     avgBpm = hrSummary?.bpm ?: 0,
+                                    readings = liveRecentReadings,
                                     showAiInsights = appSettingsState.aiInsights,
                                     onBackClick = {
                                         homeInitialTab = 0
@@ -2371,7 +2412,31 @@ class MainActivity : ComponentActivity() {
                                         vitalsViewModel.resetManualLogState()
                                         activeVitalSheet = VitalReadingType.HEART_RATE
                                     },
-                                    onReadingReviewClick = { currentScreen = ScreenState.READING_REVIEW }
+                                    onReadingReviewClick = { currentScreen = ScreenState.READING_REVIEW },
+                                    onWatchBpmSynced = { reading ->
+                                        val uid = currentUser?.id ?: profileState.userId.takeIf { it > 0 } ?: 1
+                                        val srcLabel = reading.sourcePackageName ?: "Health Connect"
+                                        healthDataRepository.recordManualOrSyncedReading(
+                                            type = "heart_rate",
+                                            val1 = reading.bpm.toFloat(),
+                                            unit = "BPM",
+                                            source = "Watch ($srcLabel)"
+                                        )
+                                        vitalsViewModel.logManualVitals(
+                                            heartRate = reading.bpm.toInt(),
+                                            source = "Health Connect",
+                                            notes = "Synced from Watch ($srcLabel)",
+                                            userId = uid,
+                                            email = currentEmail.ifBlank { null },
+                                            onSuccess = {
+                                                vitalsViewModel.fetchHrDetails(userId = uid, email = currentEmail.ifBlank { null })
+                                                if (currentEmail.isNotBlank()) {
+                                                    heartRateViewModel.fetchAnalytics(currentEmail, uid)
+                                                    profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
+                                                }
+                                            }
+                                        )
+                                    }
                                 )
                             }
                             ScreenState.READING_REVIEW -> {
@@ -2742,6 +2807,7 @@ class MainActivity : ComponentActivity() {
                                     systolic = bpSummary?.systolic ?: 0,
                                     diastolic = bpSummary?.diastolic ?: 0,
                                     status = if (bpSummary != null && bpSummary.systolic > 0) bpSummary.status else "No data available",
+                                    readings = liveRecentReadings,
                                     onBackClick = {
                                         homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN
@@ -2749,6 +2815,31 @@ class MainActivity : ComponentActivity() {
                                     onAddReadingClick = {
                                         vitalsViewModel.resetManualLogState()
                                         activeVitalSheet = VitalReadingType.BLOOD_PRESSURE
+                                    },
+                                    onBpSynced = { reading ->
+                                        val uid = currentUser?.id ?: profileState.userId.takeIf { it > 0 } ?: 1
+                                        val srcLabel = reading.sourcePackageName ?: "Health Connect"
+                                        healthDataRepository.recordManualOrSyncedReading(
+                                            type = "blood_pressure",
+                                            val1 = reading.systolic.toFloat(),
+                                            val2 = reading.diastolic.toFloat(),
+                                            unit = "mmHg",
+                                            source = "Health Connect ($srcLabel)"
+                                        )
+                                        vitalsViewModel.logManualVitals(
+                                            systolic = reading.systolic,
+                                            diastolic = reading.diastolic,
+                                            source = "Health Connect",
+                                            notes = "Synced from Health Connect ($srcLabel)",
+                                            userId = uid,
+                                            email = currentEmail.ifBlank { null },
+                                            onSuccess = {
+                                                vitalsViewModel.fetchBpDetails(userId = uid, email = currentEmail.ifBlank { null })
+                                                if (currentEmail.isNotBlank()) {
+                                                    profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
+                                                }
+                                            }
+                                        )
                                     }
                                 )
                             }
@@ -2760,7 +2851,8 @@ class MainActivity : ComponentActivity() {
                                 Spo2DetailScreen(
                                     detailState = spo2DetailState.data,
                                     isDetailLoading = spo2DetailState.isLoading,
-                                    initialPercentage = spo2Summary?.percentage ?: 0,
+                                    initialPercentage = effectiveSpo2Pct ?: 0,
+                                    readings = liveRecentReadings,
                                     onBackClick = {
                                         homeInitialTab = 0
                                         currentScreen = ScreenState.MAIN
@@ -2768,6 +2860,39 @@ class MainActivity : ComponentActivity() {
                                     onAddReadingClick = {
                                         vitalsViewModel.resetManualLogState()
                                         activeVitalSheet = VitalReadingType.SPO2
+                                    },
+                                    onSpo2Synced = { reading ->
+                                        val uid = currentUser?.id ?: profileState.userId.takeIf { it > 0 } ?: 1
+                                        val srcLabel = reading.sourcePackageName ?: "Health Connect"
+                                        val spo2Status = when {
+                                            reading.percentage >= 95 -> "Normal (${reading.percentage}%)"
+                                            reading.percentage >= 90 -> "Mild Hypoxia"
+                                            else -> "Low SpO2 (${reading.percentage}%)"
+                                        }
+                                        repository.saveTodaySpo2Reading(
+                                            percentage = reading.percentage,
+                                            status = spo2Status,
+                                            source = "Health Connect"
+                                        )
+                                        healthDataRepository.recordManualOrSyncedReading(
+                                            type = "spo2",
+                                            val1 = reading.percentage.toFloat(),
+                                            unit = "%",
+                                            source = "Health Connect ($srcLabel)"
+                                        )
+                                        vitalsViewModel.logManualVitals(
+                                            spo2 = reading.percentage,
+                                            source = "Health Connect",
+                                            notes = "Synced from Health Connect ($srcLabel)",
+                                            userId = uid,
+                                            email = currentEmail.ifBlank { null },
+                                            onSuccess = {
+                                                vitalsViewModel.fetchSpo2Details(userId = uid, email = currentEmail.ifBlank { null })
+                                                if (currentEmail.isNotBlank()) {
+                                                    profileViewModel.fetchWeeklyHealthReport(email = currentEmail)
+                                                }
+                                            }
+                                        )
                                     }
                                 )
                             }
@@ -2968,15 +3093,52 @@ class MainActivity : ComponentActivity() {
                         spo2: Int?,
                         sys: Int?,
                         dia: Int?,
+                        source: String?,
                         notes: String?,
                         toastMsg: String
-                    ) -> Unit = { hr, spo2, sys, dia, notes, toastMsg ->
+                    ) -> Unit = { hr, spo2, sys, dia, source, notes, toastMsg ->
                         val uid = currentUser?.id ?: profileState.userId.takeIf { it > 0 } ?: 1
+                        if (hr != null && hr > 0) {
+                            healthDataRepository.recordManualOrSyncedReading(
+                                type = "heart_rate",
+                                val1 = hr.toFloat(),
+                                unit = "BPM",
+                                source = source ?: "Manual Entry"
+                            )
+                        }
+                        if (spo2 != null && spo2 in 50..100) {
+                            val spo2Status = when {
+                                spo2 >= 95 -> "Normal ($spo2%)"
+                                spo2 >= 90 -> "Mild Hypoxia"
+                                else -> "Low SpO2 ($spo2%)"
+                            }
+                            repository.saveTodaySpo2Reading(
+                                percentage = spo2,
+                                status = spo2Status,
+                                source = source ?: "Manual Entry"
+                            )
+                            healthDataRepository.recordManualOrSyncedReading(
+                                type = "spo2",
+                                val1 = spo2.toFloat(),
+                                unit = "%",
+                                source = source ?: "Manual Entry"
+                            )
+                        }
+                        if (sys != null && sys > 0 && dia != null && dia > 0) {
+                            healthDataRepository.recordManualOrSyncedReading(
+                                type = "blood_pressure",
+                                val1 = sys.toFloat(),
+                                val2 = dia.toFloat(),
+                                unit = "mmHg",
+                                source = source ?: "Manual Entry"
+                            )
+                        }
                         vitalsViewModel.logManualVitals(
                             heartRate = hr,
                             spo2 = spo2,
                             systolic = sys,
                             diastolic = dia,
+                            source = source,
                             notes = notes,
                             userId = uid,
                             email = currentEmail.ifBlank { null },
@@ -3011,8 +3173,8 @@ class MainActivity : ComponentActivity() {
                                     vitalsViewModel.resetManualLogState()
                                     activeVitalSheet = null
                                 },
-                                onSave = { hr, notes ->
-                                    submitSingleVital(hr, null, null, null, notes, "Heart rate logged")
+                                onSave = { hr, notes, src ->
+                                    submitSingleVital(hr, null, null, null, src, notes, "Heart rate logged")
                                 }
                             )
                         }
@@ -3025,8 +3187,8 @@ class MainActivity : ComponentActivity() {
                                     vitalsViewModel.resetManualLogState()
                                     activeVitalSheet = null
                                 },
-                                onSave = { spo2, notes ->
-                                    submitSingleVital(null, spo2, null, null, notes, "SpO₂ logged")
+                                onSave = { spo2, notes, src ->
+                                    submitSingleVital(null, spo2, null, null, src, notes, "SpO₂ logged")
                                 }
                             )
                         }
@@ -3040,8 +3202,8 @@ class MainActivity : ComponentActivity() {
                                     vitalsViewModel.resetManualLogState()
                                     activeVitalSheet = null
                                 },
-                                onSave = { sys, dia, notes ->
-                                    submitSingleVital(null, null, sys, dia, notes, "Blood pressure logged")
+                                onSave = { sys, dia, notes, src ->
+                                    submitSingleVital(null, null, sys, dia, src, notes, "Blood pressure logged")
                                 }
                             )
                         }

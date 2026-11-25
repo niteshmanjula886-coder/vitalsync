@@ -76,12 +76,13 @@ fun LogHeartRateSheet(
     isSaving: Boolean = false,
     serverError: String? = null,
     onDismiss: () -> Unit,
-    onSave: (heartRate: Int, notes: String?) -> Unit
+    onSave: (heartRate: Int, notes: String?, source: String?) -> Unit
 ) {
     var bpmText by remember(initialBpm) {
         mutableStateOf(initialBpm?.takeIf { it > 0 }?.toString() ?: "")
     }
     var notesText by remember { mutableStateOf("") }
+    var entrySource by remember { mutableStateOf<String?>(null) }
     var localError by remember { mutableStateOf<String?>(null) }
 
     SingleVitalModalSheetFrame(
@@ -98,7 +99,7 @@ fun LogHeartRateSheet(
             when {
                 bpm == null -> localError = "Please enter your Heart Rate in BPM."
                 bpm !in 30..220 -> localError = "Heart Rate must be between 30 and 220 BPM."
-                else -> onSave(bpm, notesText.trim().ifBlank { null })
+                else -> onSave(bpm, notesText.trim().ifBlank { null }, entrySource)
             }
         }
     ) {
@@ -106,6 +107,7 @@ fun LogHeartRateSheet(
             value = bpmText,
             onValueChange = {
                 bpmText = it.filter { ch -> ch.isDigit() }
+                entrySource = null
                 localError = null
             },
             label = { Text("Heart Rate (BPM)") },
@@ -114,6 +116,20 @@ fun LogHeartRateSheet(
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        SyncWatchBpmButton(
+            onBpmSynced = { reading ->
+                bpmText = reading.bpm.toString()
+                entrySource = "Health Connect"
+                localError = null
+                if (notesText.isBlank()) {
+                    val src = reading.sourcePackageName ?: "Health Connect"
+                    notesText = "Synced from Watch ($src)"
+                }
+            }
         )
     }
 }
@@ -127,17 +143,18 @@ fun LogSpo2Sheet(
     isSaving: Boolean = false,
     serverError: String? = null,
     onDismiss: () -> Unit,
-    onSave: (spo2: Int, notes: String?) -> Unit
+    onSave: (spo2: Int, notes: String?, source: String?) -> Unit
 ) {
     var spo2Text by remember(initialSpo2) {
         mutableStateOf(initialSpo2?.takeIf { it > 0 }?.toString() ?: "")
     }
     var notesText by remember { mutableStateOf("") }
+    var entrySource by remember { mutableStateOf<String?>(null) }
     var localError by remember { mutableStateOf<String?>(null) }
 
     SingleVitalModalSheetFrame(
         title = "Log Blood Oxygen (SpO₂)",
-        subtitle = "Enter oxygen saturation percentage measured at rest (70–100%)",
+        subtitle = "Enter oxygen saturation percentage measured at rest (50–100%)",
         buttonLabel = "Save Blood Oxygen",
         notesText = notesText,
         onNotesChange = { notesText = it },
@@ -148,8 +165,8 @@ fun LogSpo2Sheet(
             val spo2 = spo2Text.trim().toIntOrNull()
             when {
                 spo2 == null -> localError = "Please enter your SpO₂ percentage."
-                spo2 !in 70..100 -> localError = "SpO₂ must be between 70% and 100%."
-                else -> onSave(spo2, notesText.trim().ifBlank { null })
+                spo2 !in 50..100 -> localError = "SpO₂ must be between 50% and 100%."
+                else -> onSave(spo2, notesText.trim().ifBlank { null }, entrySource)
             }
         }
     ) {
@@ -157,6 +174,7 @@ fun LogSpo2Sheet(
             value = spo2Text,
             onValueChange = {
                 spo2Text = it.filter { ch -> ch.isDigit() }
+                entrySource = null
                 localError = null
             },
             label = { Text("SpO₂ (%)") },
@@ -165,6 +183,20 @@ fun LogSpo2Sheet(
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        SyncHealthConnectSpo2Button(
+            onSpo2Synced = { reading ->
+                spo2Text = reading.percentage.toString()
+                entrySource = "Health Connect"
+                localError = null
+                if (notesText.isBlank()) {
+                    val src = reading.sourcePackageName ?: "Health Connect"
+                    notesText = "Synced from Health Connect ($src)"
+                }
+            }
         )
     }
 }
@@ -179,7 +211,7 @@ fun LogBloodPressureSheet(
     isSaving: Boolean = false,
     serverError: String? = null,
     onDismiss: () -> Unit,
-    onSave: (systolic: Int, diastolic: Int, notes: String?) -> Unit
+    onSave: (systolic: Int, diastolic: Int, notes: String?, source: String?) -> Unit
 ) {
     var sysText by remember(initialSystolic) {
         mutableStateOf(initialSystolic?.takeIf { it > 0 }?.toString() ?: "")
@@ -188,6 +220,7 @@ fun LogBloodPressureSheet(
         mutableStateOf(initialDiastolic?.takeIf { it > 0 }?.toString() ?: "")
     }
     var notesText by remember { mutableStateOf("") }
+    var entrySource by remember { mutableStateOf<String?>(null) }
     var localError by remember { mutableStateOf<String?>(null) }
 
     SingleVitalModalSheetFrame(
@@ -211,7 +244,7 @@ fun LogBloodPressureSheet(
                     localError = "Diastolic pressure must be between 40 and 140 mmHg."
                 sys <= dia ->
                     localError = "Systolic pressure must be higher than Diastolic pressure."
-                else -> onSave(sys, dia, notesText.trim().ifBlank { null })
+                else -> onSave(sys, dia, notesText.trim().ifBlank { null }, entrySource)
             }
         }
     ) {
@@ -223,6 +256,7 @@ fun LogBloodPressureSheet(
                 value = sysText,
                 onValueChange = {
                     sysText = it.filter { ch -> ch.isDigit() }
+                    entrySource = null
                     localError = null
                 },
                 label = { Text("Systolic (mmHg)") },
@@ -236,6 +270,7 @@ fun LogBloodPressureSheet(
                 value = diaText,
                 onValueChange = {
                     diaText = it.filter { ch -> ch.isDigit() }
+                    entrySource = null
                     localError = null
                 },
                 label = { Text("Diastolic (mmHg)") },
@@ -246,6 +281,21 @@ fun LogBloodPressureSheet(
                 modifier = Modifier.weight(1f)
             )
         }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        SyncHealthConnectBpButton(
+            onBpSynced = { reading ->
+                sysText = reading.systolic.toString()
+                diaText = reading.diastolic.toString()
+                entrySource = "Health Connect"
+                localError = null
+                if (notesText.isBlank()) {
+                    val src = reading.sourcePackageName ?: "Health Connect"
+                    notesText = "Synced from Health Connect ($src)"
+                }
+            }
+        )
     }
 }
 
@@ -527,12 +577,6 @@ internal fun VitalOllamaGuidanceCard(
                             color = if (isDark) CarbonDarkPurpleAccent else Color(0xFF7C3AED)
                         )
                     }
-                } else {
-                    Text(
-                        text = modelUsed ?: "qwen2.5:1.5b",
-                        fontSize = 10.sp,
-                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF9CA3AF)
-                    )
                 }
             }
 

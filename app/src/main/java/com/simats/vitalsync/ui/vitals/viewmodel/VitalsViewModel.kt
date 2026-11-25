@@ -451,11 +451,19 @@ class VitalsViewModel(
         spo2: Int? = null,
         systolic: Int? = null,
         diastolic: Int? = null,
+        source: String? = null,
         notes: String? = null,
         userId: Int? = null,
         email: String? = null,
         onSuccess: () -> Unit = {}
     ) {
+        applyOptimisticVitalsUpdate(
+            heartRate = heartRate,
+            spo2 = spo2,
+            systolic = systolic,
+            diastolic = diastolic,
+            source = source
+        )
         viewModelScope.launch {
             try {
                 val req = ManualVitalsLogRequest(
@@ -465,6 +473,7 @@ class VitalsViewModel(
                     spo2 = spo2,
                     systolic = systolic,
                     diastolic = diastolic,
+                    source = source?.takeIf { it.isNotBlank() },
                     notes = notes?.takeIf { it.isNotBlank() }
                 )
                 vitalsRepository.logManualVitals(req).collect { resource ->
@@ -492,6 +501,85 @@ class VitalsViewModel(
             } finally {
                 _manualLogState.update { it.copy(isSaving = false) }
             }
+        }
+    }
+
+    private fun applyOptimisticVitalsUpdate(
+        heartRate: Int?,
+        spo2: Int?,
+        systolic: Int?,
+        diastolic: Int?,
+        source: String?
+    ) {
+        val nowTimestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+            .format(java.util.Date())
+        val isSyncedSource = source?.contains("Health Connect", ignoreCase = true) == true
+        val trendLabel = if (isSyncedSource) "Synced via Health Connect" else "Baseline logged"
+
+        _summaryState.update { current ->
+            val baseResp = current.summary ?: VitalsSummaryResponse(success = true)
+            val baseData = baseResp.summary
+
+            val updatedHr = if (heartRate != null && heartRate > 0) {
+                val hrStatus = when {
+                    heartRate < 60 -> "Low / Athletic"
+                    heartRate <= 100 -> "Normal Resting"
+                    else -> "Elevated"
+                }
+                baseData.heartRate.copy(
+                    bpm = heartRate,
+                    status = hrStatus,
+                    trend = trendLabel,
+                    recordedAt = nowTimestamp,
+                    hasData = true
+                )
+            } else {
+                baseData.heartRate
+            }
+
+            val updatedSpo2 = if (spo2 != null && spo2 in 50..100) {
+                val spo2Status = when {
+                    spo2 >= 95 -> "Normal ($spo2%)"
+                    spo2 >= 90 -> "Mild Hypoxia"
+                    else -> "Low SpO2 ($spo2%)"
+                }
+                baseData.spo2.copy(
+                    percentage = spo2,
+                    status = spo2Status,
+                    trend = trendLabel,
+                    recordedAt = nowTimestamp,
+                    hasData = true
+                )
+            } else {
+                baseData.spo2
+            }
+
+            val updatedBp = if (systolic != null && diastolic != null && systolic > 0 && diastolic > 0) {
+                val bpEval = com.simats.vitalsync.data.model.vitals.evaluateBloodPressure(systolic, diastolic)
+                baseData.bloodPressure.copy(
+                    systolic = systolic,
+                    diastolic = diastolic,
+                    text = "$systolic/$diastolic mmHg",
+                    status = bpEval.statusTitle,
+                    badgeColor = bpEval.badgeColor,
+                    trend = trendLabel,
+                    recordedAt = nowTimestamp,
+                    hasData = true
+                )
+            } else {
+                baseData.bloodPressure
+            }
+
+            current.copy(
+                summary = baseResp.copy(
+                    success = true,
+                    summary = baseData.copy(
+                        heartRate = updatedHr,
+                        spo2 = updatedSpo2,
+                        bloodPressure = updatedBp
+                    )
+                )
+            )
         }
     }
 

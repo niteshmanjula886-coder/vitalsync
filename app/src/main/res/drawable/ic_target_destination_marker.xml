@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="34dp"
+    android:height="42dp"
+    android:viewportWidth="34"
+    android:viewportHeight="42">
+
+    <!-- Subtle ground shadow -->
+    <path
+        android:pathData="M17,39.5m-6,0a6,2 0 1,1 12,0a6,2 0 1,1 -12,0"
+        android:fillColor="#33000000" />
+
+    <!-- White pin border -->
+    <path
+        android:pathData="M17,2C9.82,2 4,7.82 4,15c0,9.75 13,24 13,24s13,-14.25 13,-24C30,7.82 24.18,2 17,2z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Coral-Amber Pin Fill (distinct from rider & start markers) -->
+    <path
+        android:pathData="M17,4C10.92,4 6,8.92 6,15c0,8.25 11,20.8 11,20.8S28,23.25 28,15C28,8.92 23.08,4 17,4z"
+        android:fillColor="#F97316" />
+
+    <!-- Inner target ring -->
+    <path
+        android:pathData="M17,15m-5.5,0a5.5,5.5 0 1,1 11,0a5.5,5.5 0 1,1 -11,0"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Center bullseye -->
+    <path
+        android:pathData="M17,15m-2.5,0a2.5,2.5 0 1,1 5,0a2.5,2.5 0 1,1 -5,0"
+        android:fillColor="#EA580C" />
+
+</vector>

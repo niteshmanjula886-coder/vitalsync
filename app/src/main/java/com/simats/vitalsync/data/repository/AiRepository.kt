@@ -12,10 +12,13 @@ import com.simats.vitalsync.data.model.ai.AiDailyInsightDto
 import com.simats.vitalsync.data.model.ai.AiDailyInsightsResponse
 import com.simats.vitalsync.data.model.ai.AiHistoryClearResponse
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
+import com.simats.vitalsync.data.model.ai.OllamaChatMessageDto
+import com.simats.vitalsync.data.model.ai.OllamaChatRequest
 import com.simats.vitalsync.data.model.profile.WeeklyReportDto
 import com.simats.vitalsync.data.network.ApiConstants
 import com.simats.vitalsync.data.network.AiApiService
 import com.simats.vitalsync.data.network.RetrofitClient
+import com.simats.vitalsync.ui.ai.ChatMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -121,18 +124,35 @@ class AiRepository(
         userId: Int,
         message: String,
         sessionId: Int? = null,
-        email: String? = null
+        email: String? = null,
+        conversationHistory: List<ChatMessage> = emptyList(),
+        liveContext: String? = null
     ): Resource<AiChatResponse> =
         withContext(Dispatchers.IO) {
             try {
                 val resolvedUserId = if (userId > 0) userId else getCurrentUserId()
                 val resolvedEmail = email?.takeIf { it.isNotBlank() } ?: getCurrentUserEmail()
+                val recentHistoryDtos = conversationHistory
+                    .filter {
+                        it.text.isNotBlank() &&
+                            !it.text.startsWith("Unable to reach VitalSync AI", ignoreCase = true) &&
+                            !it.text.equals("Generation stopped.", ignoreCase = true)
+                    }
+                    .takeLast(10)
+                    .map { msg ->
+                        OllamaChatMessageDto(
+                            role = if (msg.sender.equals("USER", ignoreCase = true)) "user" else "assistant",
+                            content = msg.text.trim()
+                        )
+                    }
                 val request = AiChatRequest(
                     userId = resolvedUserId,
                     sessionId = sessionId,
                     email = resolvedEmail,
                     messageText = message,
-                    message = message
+                    message = message,
+                    conversationHistory = recentHistoryDtos,
+                    liveContext = liveContext
                 )
                 val response = apiService.sendAiChatMessage(request)
                 if (response.isSuccessful) {
@@ -141,6 +161,36 @@ class AiRepository(
                         Resource.Success(body)
                     } else {
                         Resource.Error(body?.message ?: "Failed to generate AI response")
+                    }
+                } else {
+                    Resource.Error("HTTP Error: ${response.code()} ${response.message()}", response.code())
+                }
+            } catch (e: Exception) {
+                Resource.Error(ApiConstants.resolveNetworkErrorMessage(e), throwable = e)
+            }
+        }
+
+    suspend fun sendOllamaChat(
+        messages: List<OllamaChatMessageDto>,
+        model: String = "qwen2.5:1.5b"
+    ): Resource<String> =
+        withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.sendOllamaChat(
+                    OllamaChatRequest(
+                        model = model,
+                        messages = messages,
+                        stream = false
+                    )
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val text = body?.message?.content?.takeIf { it.isNotBlank() }
+                        ?: body?.response?.takeIf { it.isNotBlank() }
+                    if (text != null) {
+                        Resource.Success(text)
+                    } else {
+                        Resource.Error("Empty response from AI engine")
                     }
                 } else {
                     Resource.Error("HTTP Error: ${response.code()} ${response.message()}", response.code())

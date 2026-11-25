@@ -3,6 +3,7 @@ package com.simats.vitalsync.ui.vitals
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,6 +32,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -56,10 +58,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.ui.theme.CarbonDarkBackground
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
 import com.simats.vitalsync.ui.theme.VitalTealDark
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
-import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Locale
 
 private data class BmiTipItem(
@@ -88,6 +90,19 @@ fun BmiDetailScreen(
     onBackClick: () -> Unit = {},
     onUpdateMetricsClick: () -> Unit = {}
 ) {
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground ||
+        MaterialTheme.colorScheme.surface == CarbonDarkSurface
+
+    val screenBg = if (isDark) Color(0xFF0D110F) else Color(0xFFFAFCFB)
+    val cardSurface = if (isDark) Color(0xFF161B18) else Color.White
+    val cardBorder = if (isDark) BorderStroke(1.dp, Color(0xFF242B27)) else null
+    val innerItemBg = if (isDark) Color(0xFF1D2420) else Color(0xFFF9FAFB)
+    val primaryText = if (isDark) Color.White else Color(0xFF111827)
+    val bodyText = if (isDark) Color(0xFFD1D5DB) else Color(0xFF4B5563)
+    val secondaryText = if (isDark) Color(0xFF9CA3AF) else Color(0xFF6B7280)
+    val dividerColor = if (isDark) Color(0xFF242B27) else Color(0xFFF1F5F9)
+    val mintAccent = if (isDark) Color(0xFF10B981) else Color(0xFF0F9F7A)
+
     // 1. Dynamic BMI and category calculation
     val hFloat = heightCm.toFloatOrNull() ?: 0f
     val wFloat = weightKg.toFloatOrNull() ?: 0f
@@ -107,9 +122,9 @@ fun BmiDetailScreen(
 
     val dynamicCategoryColor = when {
         liveBmi < 18.5f -> Color(0xFF38BDF8) // Sky Blue
-        liveBmi <= 24.9f -> Color(0xFF0F9F7A) // Vibrant Emerald/Teal
+        liveBmi <= 24.9f -> mintAccent       // Vibrant Emerald/Mint
         liveBmi <= 29.9f -> Color(0xFFF59E0B) // Amber
-        else -> Color(0xFFEF4444) // Red
+        else -> Color(0xFFEF4444)             // Red
     }
 
     // Vertical Trend Needle Fraction on spectrum bar (15.0 to 35.0 scale)
@@ -123,161 +138,169 @@ fun BmiDetailScreen(
     )
 
     // Dynamic actionable health & weight guidance adapted to BMI category
-    val tipsConfig = remember(liveBmi) {
+    val tipsConfig = remember(liveBmi, isDark) {
         when {
             liveBmi < 18.5f -> {
+                val tint = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7)
+                val bg = if (isDark) Color(0xFF38BDF8).copy(alpha = 0.16f) else Color(0xFFE0F2FE)
                 val list = listOf(
                     BmiTipItem(
                         title = "Nutrient-Dense Caloric Surplus",
                         description = "Aim for a moderate daily surplus of 300–500 kcal with wholesome, energy-dense foods such as nuts, avocados, whole grains, and olive oil.",
                         icon = Icons.Rounded.Restaurant,
-                        iconBg = Color(0xFFE0F2FE),
-                        iconTint = Color(0xFF0284C7)
+                        iconBg = bg,
+                        iconTint = tint
                     ),
                     BmiTipItem(
                         title = "Progressive Resistance Training",
                         description = "Engage in strength and compound exercises 3–4 times weekly to channel excess calories into functional lean muscle mass.",
                         icon = Icons.Rounded.FitnessCenter,
-                        iconBg = Color(0xFFE0F2FE),
-                        iconTint = Color(0xFF0284C7)
+                        iconBg = bg,
+                        iconTint = tint
                     ),
                     BmiTipItem(
                         title = "Adequate High-Quality Protein",
                         description = "Target 1.6–2.0 g of protein per kilogram of body weight each day to fuel muscle hypertrophy and cellular recovery.",
                         icon = Icons.Rounded.Lightbulb,
-                        iconBg = Color(0xFFE0F2FE),
-                        iconTint = Color(0xFF0284C7)
+                        iconBg = bg,
+                        iconTint = tint
                     ),
                     BmiTipItem(
                         title = "Consistent Sleep & Recovery",
                         description = "Prioritize 7–9 hours of restful sleep every night to optimize anabolic hormone release and physical regeneration.",
                         icon = Icons.Rounded.Bedtime,
-                        iconBg = Color(0xFFE0F2FE),
-                        iconTint = Color(0xFF0284C7)
+                        iconBg = bg,
+                        iconTint = tint
                     )
                 )
                 BmiTipsConfig(
                     headerSubtitle = "Guidance tailored for healthy weight gain",
                     badgeText = "Healthy Surplus",
-                    badgeBg = Color(0xFFE0F2FE),
-                    badgeColor = Color(0xFF0284C7),
+                    badgeBg = bg,
+                    badgeColor = tint,
                     tips = list
                 )
             }
             liveBmi <= 24.9f -> {
+                val tint = mintAccent
+                val bg = if (isDark) mintAccent.copy(alpha = 0.16f) else Color(0xFFE8F6F0)
                 val list = listOf(
                     BmiTipItem(
                         title = "Balanced Macronutrient Equilibrium",
                         description = "Maintain your current caloric balance with diverse whole foods, lean proteins, colorful vegetables, and healthy fats.",
                         icon = Icons.Rounded.Restaurant,
-                        iconBg = Color(0xFFE8F6F0),
-                        iconTint = Color(0xFF0F9F7A)
+                        iconBg = bg,
+                        iconTint = tint
                     ),
                     BmiTipItem(
                         title = "Active Daily Cardio & Steps",
                         description = "Aim for at least 150 minutes of moderate aerobic activity weekly alongside maintaining 8,000+ daily steps.",
                         icon = Icons.Rounded.DirectionsRun,
-                        iconBg = Color(0xFFE8F6F0),
-                        iconTint = Color(0xFF0F9F7A)
+                        iconBg = bg,
+                        iconTint = tint
                     ),
                     BmiTipItem(
                         title = "Optimal Hydration Schedule",
                         description = "Drink 2.5–3.0 liters of water daily to maintain peak metabolic function, cellular hydration, and sustained energy.",
                         icon = Icons.Rounded.WaterDrop,
-                        iconBg = Color(0xFFE8F6F0),
-                        iconTint = Color(0xFF0F9F7A)
+                        iconBg = bg,
+                        iconTint = tint
                     ),
                     BmiTipItem(
                         title = "Routine Metabolic Consistency",
                         description = "Keep consistent meal and exercise timing to prevent weight drift and support cardiovascular longevity.",
                         icon = Icons.Rounded.CheckCircle,
-                        iconBg = Color(0xFFE8F6F0),
-                        iconTint = Color(0xFF0F9F7A)
+                        iconBg = bg,
+                        iconTint = tint
                     )
                 )
                 BmiTipsConfig(
                     headerSubtitle = "Guidance tailored for weight maintenance",
                     badgeText = "Optimal Maintenance",
-                    badgeBg = Color(0xFFE8F6F0),
-                    badgeColor = Color(0xFF0F9F7A),
+                    badgeBg = bg,
+                    badgeColor = tint,
                     tips = list
                 )
             }
             liveBmi <= 29.9f -> {
+                val tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
+                val bg = if (isDark) Color(0xFFF59E0B).copy(alpha = 0.16f) else Color(0xFFFEF3C7)
                 val list = listOf(
                     BmiTipItem(
                         title = "Controlled Caloric Deficit",
                         description = "Create a sustainable daily deficit of 300–500 kcal through mindful portion management and eliminating liquid calories.",
                         icon = Icons.Rounded.LocalFireDepartment,
-                        iconBg = Color(0xFFFEF3C7),
-                        iconTint = Color(0xFFD97706)
+                        iconBg = bg,
+                        iconTint = tint
                     ),
                     BmiTipItem(
                         title = "High Fiber & Lean Protein",
                         description = "Incorporate 25–35 g of dietary fiber and ample lean protein at each meal to enhance satiety and preserve lean muscle.",
                         icon = Icons.Rounded.Restaurant,
-                        iconBg = Color(0xFFFEF3C7),
-                        iconTint = Color(0xFFD97706)
+                        iconBg = bg,
+                        iconTint = tint
                     ),
                     BmiTipItem(
                         title = "Progressive Daily Activity",
                         description = "Elevate your step count toward 10,000 daily steps and include 30–45 minutes of brisk walking or cycling.",
                         icon = Icons.Rounded.DirectionsWalk,
-                        iconBg = Color(0xFFFEF3C7),
-                        iconTint = Color(0xFFD97706)
+                        iconBg = bg,
+                        iconTint = tint
                     ),
                     BmiTipItem(
                         title = "Resistance Training Support",
                         description = "Lift weights 2–3 times a week to keep your resting metabolic rate high while body fat decreases.",
                         icon = Icons.Rounded.FitnessCenter,
-                        iconBg = Color(0xFFFEF3C7),
-                        iconTint = Color(0xFFD97706)
+                        iconBg = bg,
+                        iconTint = tint
                     )
                 )
                 BmiTipsConfig(
                     headerSubtitle = "Guidance tailored for healthy weight reduction",
                     badgeText = "Active Deficit",
-                    badgeBg = Color(0xFFFEF3C7),
-                    badgeColor = Color(0xFFD97706),
+                    badgeBg = bg,
+                    badgeColor = tint,
                     tips = list
                 )
             }
             else -> {
+                val tint = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)
+                val bg = if (isDark) Color(0xFFEF4444).copy(alpha = 0.16f) else Color(0xFFFEE2E2)
                 val list = listOf(
                     BmiTipItem(
                         title = "Structured Caloric Reduction",
                         description = "Focus on whole, unprocessed foods and a steady 500 kcal deficit to promote safe and sustainable fat loss.",
                         icon = Icons.Rounded.LocalFireDepartment,
-                        iconBg = Color(0xFFFEE2E2),
-                        iconTint = Color(0xFFDC2626)
+                        iconBg = bg,
+                        iconTint = tint
                     ),
                     BmiTipItem(
                         title = "Low-Impact Cardio Movement",
                         description = "Begin with joint-friendly exercises such as brisk walking, swimming, or stationary cycling 30 minutes daily.",
                         icon = Icons.Rounded.DirectionsWalk,
-                        iconBg = Color(0xFFFEE2E2),
-                        iconTint = Color(0xFFDC2626)
+                        iconBg = bg,
+                        iconTint = tint
                     ),
                     BmiTipItem(
                         title = "Prioritize Protein & Fiber",
                         description = "Eat vegetables, legumes, and lean poultry to stabilize blood glucose levels and prevent intense hunger spikes.",
                         icon = Icons.Rounded.Restaurant,
-                        iconBg = Color(0xFFFEE2E2),
-                        iconTint = Color(0xFFDC2626)
+                        iconBg = bg,
+                        iconTint = tint
                     ),
                     BmiTipItem(
                         title = "Sleep & Stress Management",
                         description = "Aim for 7–8 hours of consistent sleep and stress reduction practices to regulate cortisol and metabolic health.",
                         icon = Icons.Rounded.Bedtime,
-                        iconBg = Color(0xFFFEE2E2),
-                        iconTint = Color(0xFFDC2626)
+                        iconBg = bg,
+                        iconTint = tint
                     )
                 )
                 BmiTipsConfig(
                     headerSubtitle = "Guidance tailored for actionable weight loss",
                     badgeText = "Weight Reduction",
-                    badgeBg = Color(0xFFFEE2E2),
-                    badgeColor = Color(0xFFDC2626),
+                    badgeBg = bg,
+                    badgeColor = tint,
                     tips = list
                 )
             }
@@ -287,7 +310,7 @@ fun BmiDetailScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFCFB))
+            .background(screenBg)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp),
@@ -302,42 +325,29 @@ fun BmiDetailScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Header Bar
+            // Header Bar (Back arrow and title only)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        BackArrowIcon(
-                            modifier = Modifier.size(20.dp),
-                            color = Color(0xFF111827)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = "BMI (Body Mass Index)",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    BackArrowIcon(
+                        modifier = Modifier.size(20.dp),
+                        color = primaryText
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFF1F5F9)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CalendarIcon(modifier = Modifier.size(18.dp))
-                }
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "BMI (Body Mass Index)",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = primaryText
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -346,8 +356,9 @@ fun BmiDetailScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                colors = CardDefaults.cardColors(containerColor = cardSurface),
+                border = cardBorder,
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(
@@ -358,13 +369,13 @@ fun BmiDetailScreen(
                         Text(
                             text = "Current BMI Score",
                             fontSize = 13.sp,
-                            color = Color(0xFF6B7280)
+                            color = secondaryText
                         )
 
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(dynamicCategoryColor.copy(alpha = 0.15f))
+                                .background(dynamicCategoryColor.copy(alpha = 0.16f))
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Text(
@@ -382,7 +393,7 @@ fun BmiDetailScreen(
                         text = liveBmiFormatted,
                         fontSize = 38.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = primaryText
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -390,7 +401,7 @@ fun BmiDetailScreen(
                     Text(
                         text = "Height: $heightCm cm · Weight: $weightKg kg",
                         fontSize = 13.sp,
-                        color = Color(0xFF374151),
+                        color = if (isDark) Color(0xFFD1D5DB) else Color(0xFF374151),
                         fontWeight = FontWeight.Medium
                     )
 
@@ -405,7 +416,7 @@ fun BmiDetailScreen(
                         Text(
                             text = "BMI Spectrum Range",
                             fontSize = 12.sp,
-                            color = Color(0xFF9CA3AF)
+                            color = secondaryText
                         )
                         Text(
                             text = "Score: $liveBmiFormatted",
@@ -432,7 +443,7 @@ fun BmiDetailScreen(
                                 .clip(RoundedCornerShape(6.dp))
                         ) {
                             Box(modifier = Modifier.weight(3.5f).fillMaxHeight().background(Color(0xFF38BDF8)))
-                            Box(modifier = Modifier.weight(6.4f).fillMaxHeight().background(Color(0xFF0F9F7A)))
+                            Box(modifier = Modifier.weight(6.4f).fillMaxHeight().background(mintAccent))
                             Box(modifier = Modifier.weight(5.0f).fillMaxHeight().background(Color(0xFFF59E0B)))
                             Box(modifier = Modifier.weight(5.1f).fillMaxHeight().background(Color(0xFFEF4444)))
                         }
@@ -448,7 +459,7 @@ fun BmiDetailScreen(
 
                             // Vertical line piercing through the spectrum bar
                             drawLine(
-                                color = Color(0xFF111827),
+                                color = primaryText,
                                 start = Offset(needleX, 6.dp.toPx()),
                                 end = Offset(needleX, size.height),
                                 strokeWidth = 2.5.dp.toPx(),
@@ -462,7 +473,7 @@ fun BmiDetailScreen(
                                 lineTo(needleX + 5.dp.toPx(), 0f)
                                 close()
                             }
-                            drawPath(path = pointer, color = Color(0xFF111827))
+                            drawPath(path = pointer, color = primaryText)
                         }
                     }
 
@@ -473,7 +484,7 @@ fun BmiDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(text = "< 18.5", fontSize = 10.sp, color = Color(0xFF38BDF8))
-                        Text(text = "18.5 – 24.9", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F9F7A))
+                        Text(text = "18.5 – 24.9", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = mintAccent)
                         Text(text = "25.0 – 29.9", fontSize = 10.sp, color = Color(0xFFF59E0B))
                         Text(text = "≥ 30.0", fontSize = 10.sp, color = Color(0xFFEF4444))
                     }
@@ -486,8 +497,9 @@ fun BmiDetailScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                colors = CardDefaults.cardColors(containerColor = cardSurface),
+                border = cardBorder,
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(
@@ -500,15 +512,16 @@ fun BmiDetailScreen(
                                 text = "Recommended Tips",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                color = primaryText
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = tipsConfig.headerSubtitle,
                                 fontSize = 12.sp,
-                                color = Color(0xFF6B7280)
+                                color = secondaryText
                             )
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
@@ -531,7 +544,7 @@ fun BmiDetailScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF9FAFB))
+                                .background(innerItemBg)
                                 .padding(12.dp),
                             verticalAlignment = Alignment.Top
                         ) {
@@ -557,13 +570,13 @@ fun BmiDetailScreen(
                                     text = tip.title,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1F2937)
+                                    color = primaryText
                                 )
                                 Spacer(modifier = Modifier.height(3.dp))
                                 Text(
                                     text = tip.description,
                                     fontSize = 12.sp,
-                                    color = Color(0xFF4B5563),
+                                    color = bodyText,
                                     lineHeight = 17.sp
                                 )
                             }
@@ -582,8 +595,9 @@ fun BmiDetailScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                colors = CardDefaults.cardColors(containerColor = cardSurface),
+                border = cardBorder,
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(
@@ -595,13 +609,13 @@ fun BmiDetailScreen(
                             text = "BMI categories",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = primaryText
                         )
                         Text(
                             text = "WHO Standard",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF9CA3AF)
+                            color = secondaryText
                         )
                     }
 
@@ -617,34 +631,50 @@ fun BmiDetailScreen(
                         category = "Underweight",
                         color = Color(0xFF38BDF8),
                         isCurrent = isUnderweight,
-                        currentBmiText = if (isUnderweight) liveBmiFormatted else ""
+                        currentBmiText = if (isUnderweight) liveBmiFormatted else "",
+                        isDark = isDark,
+                        primaryText = primaryText,
+                        secondaryText = secondaryText,
+                        mintAccent = mintAccent
                     )
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(color = dividerColor, modifier = Modifier.padding(vertical = 8.dp))
 
                     BmiCategoryRow(
                         range = "18.5 – 24.9",
                         category = "Healthy / Normal weight",
-                        color = Color(0xFF0F9F7A),
+                        color = mintAccent,
                         isCurrent = isNormal,
-                        currentBmiText = if (isNormal) liveBmiFormatted else ""
+                        currentBmiText = if (isNormal) liveBmiFormatted else "",
+                        isDark = isDark,
+                        primaryText = primaryText,
+                        secondaryText = secondaryText,
+                        mintAccent = mintAccent
                     )
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(color = dividerColor, modifier = Modifier.padding(vertical = 8.dp))
 
                     BmiCategoryRow(
                         range = "25.0 – 29.9",
                         category = "Overweight",
                         color = Color(0xFFF59E0B),
                         isCurrent = isOverweight,
-                        currentBmiText = if (isOverweight) liveBmiFormatted else ""
+                        currentBmiText = if (isOverweight) liveBmiFormatted else "",
+                        isDark = isDark,
+                        primaryText = primaryText,
+                        secondaryText = secondaryText,
+                        mintAccent = mintAccent
                     )
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(color = dividerColor, modifier = Modifier.padding(vertical = 8.dp))
 
                     BmiCategoryRow(
                         range = "≥ 30.0",
                         category = "Obese",
                         color = Color(0xFFEF4444),
                         isCurrent = isObese,
-                        currentBmiText = if (isObese) liveBmiFormatted else ""
+                        currentBmiText = if (isObese) liveBmiFormatted else "",
+                        isDark = isDark,
+                        primaryText = primaryText,
+                        secondaryText = secondaryText,
+                        mintAccent = mintAccent
                     )
                 }
             }
@@ -661,7 +691,7 @@ fun BmiDetailScreen(
                 .height(54.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = VitalTealDark,
+                containerColor = if (isDark) mintAccent else VitalTealDark,
                 contentColor = Color.White
             )
         ) {
@@ -680,16 +710,21 @@ private fun BmiCategoryRow(
     category: String,
     color: Color,
     isCurrent: Boolean,
-    currentBmiText: String = ""
+    currentBmiText: String = "",
+    isDark: Boolean = false,
+    primaryText: Color = Color(0xFF111827),
+    secondaryText: Color = Color(0xFF6B7280),
+    mintAccent: Color = Color(0xFF0F9F7A)
 ) {
+    val highlightBg = if (isDark) mintAccent.copy(alpha = 0.14f) else Color(0xFFE8F6F0)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .then(
                 if (isCurrent) Modifier
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFFE8F6F0))
-                    .border(1.dp, Color(0xFF0F9F7A).copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                    .background(highlightBg)
+                    .border(1.dp, mintAccent.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
                     .padding(horizontal = 10.dp, vertical = 8.dp)
                 else Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
             ),
@@ -711,14 +746,14 @@ private fun BmiCategoryRow(
                     text = category,
                     fontSize = 14.sp,
                     fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
-                    color = Color(0xFF111827)
+                    color = primaryText
                 )
                 if (isCurrent && currentBmiText.isNotBlank()) {
                     Text(
                         text = "Current State • $currentBmiText",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F9F7A)
+                        color = mintAccent
                     )
                 }
             }
@@ -728,7 +763,7 @@ private fun BmiCategoryRow(
             text = range,
             fontSize = 13.sp,
             fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-            color = if (isCurrent) Color(0xFF0F9F7A) else Color(0xFF6B7280)
+            color = if (isCurrent) mintAccent else secondaryText
         )
     }
 }
@@ -751,24 +786,6 @@ private fun BackArrowIcon(
         }
 
         drawPath(path = path, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-    }
-}
-
-@Composable
-private fun CalendarIcon(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        val calPath = Path().apply {
-            moveTo(0f, h * 0.25f)
-            lineTo(w, h * 0.25f)
-            lineTo(w, h * 0.85f)
-            lineTo(0f, h * 0.85f)
-            close()
-        }
-
-        drawPath(path = calPath, color = Color(0xFF6B7280), style = Stroke(width = 1.6.dp.toPx()))
     }
 }
 

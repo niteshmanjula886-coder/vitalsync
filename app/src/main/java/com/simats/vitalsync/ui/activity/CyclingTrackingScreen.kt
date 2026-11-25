@@ -52,6 +52,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Timeline
 import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -75,6 +76,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,11 +104,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.osmdroid.config.Configuration
+import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.modules.SqlTileWriter
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.TilesOverlay
@@ -178,8 +182,14 @@ fun CyclingTrackingScreen(
 
     // Single overlay references to prevent duplicate instances and memory leaks
     val routePolylineRef = remember { mutableStateOf<Polyline?>(null) }
+    val targetGuidePolylineRef = remember { mutableStateOf<Polyline?>(null) }
     val startMarkerRef = remember { mutableStateOf<Marker?>(null) }
     val riderMarkerRef = remember { mutableStateOf<Marker?>(null) }
+    val targetMarkerRef = remember { mutableStateOf<Marker?>(null) }
+
+    // Target destination picking state
+    var isPickTargetMode by remember { mutableStateOf(false) }
+    val currentIsPickTargetMode by rememberUpdatedState(isPickTargetMode)
 
     // High-contrast, sharp dark mode color filter (desaturates colors and inverts with high contrast)
     val darkMapColorFilter = remember {
@@ -743,7 +753,33 @@ fun CyclingTrackingScreen(
                                         false
                                     }
 
-                                    // Add single overlay instances ONCE during setup:
+                                     // Add single overlay instances ONCE during setup:
+                                    val eventsOverlay = MapEventsOverlay(object : MapEventsReceiver {
+                                        override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
+                                            if (currentIsPickTargetMode && p != null) {
+                                                workoutEngine.setTargetDestination(p.latitude, p.longitude)
+                                                isPickTargetMode = false
+                                                return true
+                                            }
+                                            return false
+                                        }
+
+                                        override fun longPressHelper(p: GeoPoint?): Boolean {
+                                            if (p != null) {
+                                                workoutEngine.setTargetDestination(p.latitude, p.longitude)
+                                                isPickTargetMode = false
+                                                return true
+                                            }
+                                            return false
+                                        }
+                                    })
+                                    val guidePolyline = Polyline(this).apply {
+                                        outlinePaint.color = AndroidColor.parseColor("#F97316")
+                                        outlinePaint.strokeWidth = 7f
+                                        outlinePaint.strokeCap = Paint.Cap.ROUND
+                                        outlinePaint.pathEffect = android.graphics.DashPathEffect(floatArrayOf(24f, 16f), 0f)
+                                        isVisible = false
+                                    }
                                     val polyline = Polyline(this).apply {
                                         outlinePaint.color = AndroidColor.parseColor("#10B981")
                                         outlinePaint.strokeWidth = 10f
@@ -755,18 +791,28 @@ fun CyclingTrackingScreen(
                                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                                         setOnMarkerClickListener { _, _ -> true } // Suppress info popup
                                     }
+                                    val targetM = Marker(this).apply {
+                                        icon = ContextCompat.getDrawable(ctx, R.drawable.ic_target_destination_marker)
+                                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                        setOnMarkerClickListener { _, _ -> true } // Suppress info popup
+                                    }
                                     val riderM = Marker(this).apply {
                                         icon = ContextCompat.getDrawable(ctx, R.drawable.ic_rider_marker)
                                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                                         setOnMarkerClickListener { _, _ -> true } // Suppress info popup
                                     }
 
+                                    overlays.add(0, eventsOverlay)
+                                    overlays.add(guidePolyline)
                                     overlays.add(polyline)
                                     overlays.add(startM)
+                                    overlays.add(targetM)
                                     overlays.add(riderM)
 
+                                    targetGuidePolylineRef.value = guidePolyline
                                     routePolylineRef.value = polyline
                                     startMarkerRef.value = startM
+                                    targetMarkerRef.value = targetM
                                     riderMarkerRef.value = riderM
 
                                     mapViewRef = this
@@ -777,6 +823,34 @@ fun CyclingTrackingScreen(
                                 mapView.overlayManager.tilesOverlay.setColorFilter(
                                     if (isDark) darkMapColorFilter else null
                                 )
+
+                                // Update Target Destination Guide Line & Marker
+                                val targetLat = telemetry.targetLatitude
+                                val targetLng = telemetry.targetLongitude
+                                val targetGeoPoint = if (targetLat != null && targetLng != null) GeoPoint(targetLat, targetLng) else null
+
+                                targetGuidePolylineRef.value?.let { guide ->
+                                    if (targetGeoPoint != null && currentGeoPoint != null) {
+                                        guide.setPoints(listOf(currentGeoPoint, targetGeoPoint))
+                                        guide.isVisible = true
+                                    } else {
+                                        guide.isVisible = false
+                                    }
+                                }
+
+                                targetMarkerRef.value?.let { targetM ->
+                                    if (targetGeoPoint != null) {
+                                        targetM.position = targetGeoPoint
+                                        targetM.icon = ContextCompat.getDrawable(
+                                            mapView.context,
+                                            R.drawable.ic_target_destination_marker
+                                        )
+                                        targetM.setVisible(true)
+                                        targetM.closeInfoWindow()
+                                    } else {
+                                        targetM.setVisible(false)
+                                    }
+                                }
 
                                 // Update Live Route Polyline (reusing single instance)
                                 routePolylineRef.value?.let { polyline ->
@@ -907,6 +981,80 @@ fun CyclingTrackingScreen(
                             }
                         }
 
+                        // Floating Target Controls on Bottom-Left
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isPickTargetMode) Color(0xFFF97316)
+                                        else if (isDark) Color(0xDD121619)
+                                        else Color(0xEEFFFFFF)
+                                    )
+                                    .border(
+                                        1.dp,
+                                        if (isPickTargetMode) Color(0xFFFED7AA)
+                                        else if (isDark) Color(0xFF2A323D)
+                                        else Color(0xFFCBD5E1),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable { isPickTargetMode = !isPickTargetMode }
+                                    .padding(horizontal = 10.dp, vertical = 7.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Flag,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = if (isPickTargetMode) Color.White else Color(0xFFF97316)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = if (isPickTargetMode) "Tap Map to Pin" else "Set Target on Map",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isPickTargetMode) Color.White else (if (isDark) CarbonDarkTextPrimary else Color(0xFF111827))
+                                    )
+                                }
+                            }
+
+                            if (telemetry.targetLatitude != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF))
+                                        .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            workoutEngine.clearTargetDestination()
+                                            isPickTargetMode = false
+                                        }
+                                        .padding(horizontal = 9.dp, vertical = 7.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Close,
+                                            contentDescription = "Clear Target",
+                                            modifier = Modifier.size(13.dp),
+                                            tint = Color(0xFFEF4444)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Clear Target",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFEF4444)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         // Floating Re-Center / Follow Me FAB on Bottom-Right
                         Box(
                             modifier = Modifier
@@ -936,7 +1084,7 @@ fun CyclingTrackingScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Live Timer & Target Banner
                 Column(

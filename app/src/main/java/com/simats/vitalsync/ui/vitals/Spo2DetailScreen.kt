@@ -22,6 +22,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,14 +34,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.device.WatchSpo2Reading
 import com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse
+import com.simats.vitalsync.data.model.vitals.VitalReadingItem
 import com.simats.vitalsync.ui.theme.CarbonDarkActivityBg
 import com.simats.vitalsync.ui.theme.CarbonDarkBackground
 import com.simats.vitalsync.ui.theme.CarbonDarkCriticalBg
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
 import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
 import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
 import com.simats.vitalsync.ui.theme.CarbonDarkWarningBg
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun Spo2DetailScreen(
@@ -45,13 +55,24 @@ fun Spo2DetailScreen(
     detailState: VitalDetailGuidanceResponse? = null,
     isDetailLoading: Boolean = false,
     initialPercentage: Int = 0,
+    readings: List<VitalReadingItem> = emptyList(),
     onBackClick: () -> Unit = {},
-    onAddReadingClick: () -> Unit = {}
+    onAddReadingClick: () -> Unit = {},
+    onSpo2Synced: (WatchSpo2Reading) -> Unit = {}
 ) {
-    val currentSpo2 = detailState?.currentSpo2?.takeIf { it > 0 }
+    var syncedReading by remember { mutableStateOf<WatchSpo2Reading?>(null) }
+
+    val currentSpo2 = syncedReading?.percentage?.takeIf { it > 0 }
+        ?: detailState?.currentSpo2?.takeIf { it > 0 }
         ?: initialPercentage.takeIf { it > 0 }
 
-    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground ||
+        MaterialTheme.colorScheme.surface == CarbonDarkSurface
+
+    val syncTimeFormatter = remember {
+        DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
+            .withZone(ZoneId.systemDefault())
+    }
 
     val (statusLabel, statusColor, statusBg) = when {
         currentSpo2 == null -> Triple("No Readings Yet", if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280), if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF3F4F6))
@@ -60,8 +81,17 @@ fun Spo2DetailScreen(
         else -> Triple("Low Oxygen / Consult Doctor", if (isDark) Color(0xFFF87171) else Color(0xFFDC2626), if (isDark) CarbonDarkCriticalBg else Color(0xFFFEE2E2))
     }
 
-    val recordedLabel = detailState?.recordedAt?.takeIf { it.isNotBlank() }?.let { "Recorded $it" }
-        ?: "Tap '+ Log SpO₂' to record blood oxygen saturation"
+    val recordedLabel = syncedReading?.let { reading ->
+        val fmtTime = try {
+            syncTimeFormatter.format(reading.time)
+        } catch (_: Exception) {
+            "recently"
+        }
+        val sourceSuffix = reading.sourcePackageName?.substringAfterLast('.')?.takeIf { it.isNotBlank() }
+            ?.let { " ($it)" } ?: ""
+        "Synced via Health Connect at $fmtTime$sourceSuffix"
+    } ?: detailState?.recordedAt?.takeIf { it.isNotBlank() }?.let { "Recorded $it" }
+        ?: "Tap '+ Log SpO₂' or sync from Health Connect"
 
     val showMedicalBanner = currentSpo2 != null && currentSpo2 < 90
 
@@ -177,16 +207,48 @@ fun Spo2DetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFF8FAFC))
+                        .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF8FAFC))
                         .padding(horizontal = 10.dp, vertical = 7.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "● Optimal ≥95%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF059669))
-                    Text(text = "● Mild 90–94%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD97706))
-                    Text(text = "● Alert <90%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFDC2626))
+                    Text(
+                        text = "Optimal >=95%",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) Color(0xFF34D399) else Color(0xFF059669)
+                    )
+                    Text(
+                        text = "Mild 90-94%",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
+                    )
+                    Text(
+                        text = "Alert <90%",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)
+                    )
                 }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                SyncHealthConnectSpo2Button(
+                    onSpo2Synced = { reading ->
+                        syncedReading = reading
+                        onSpo2Synced(reading)
+                    }
+                )
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Analytical Trend Graph with Dynamic Clinical Colors
+        Spo2TrendChart(
+            readings = readings,
+            latestSpo2 = currentSpo2
+        )
 
         if (showMedicalBanner) {
             Spacer(modifier = Modifier.height(14.dp))
@@ -197,12 +259,25 @@ fun Spo2DetailScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        val isDetailMatchingCurrent = currentSpo2 != null && detailState?.currentSpo2 == currentSpo2
         VitalOllamaGuidanceCard(
             isLoading = isDetailLoading,
-            modelUsed = detailState?.modelUsed,
-            explanation = detailState?.explanation?.takeIf { it.isNotBlank() } ?: fallbackExplanation,
-            recommendedActivity = detailState?.recommendedActivity?.takeIf { it.isNotBlank() } ?: fallbackActivity,
-            lifestyleTip = detailState?.lifestyleTip?.takeIf { it.isNotBlank() } ?: fallbackTip
+            modelUsed = if (isDetailMatchingCurrent) detailState?.modelUsed else "vitalsync:clinical-engine",
+            explanation = if (isDetailMatchingCurrent) {
+                detailState?.explanation?.takeIf { it.isNotBlank() } ?: fallbackExplanation
+            } else {
+                fallbackExplanation
+            },
+            recommendedActivity = if (isDetailMatchingCurrent) {
+                detailState?.recommendedActivity?.takeIf { it.isNotBlank() } ?: fallbackActivity
+            } else {
+                fallbackActivity
+            },
+            lifestyleTip = if (isDetailMatchingCurrent) {
+                detailState?.lifestyleTip?.takeIf { it.isNotBlank() } ?: fallbackTip
+            } else {
+                fallbackTip
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))

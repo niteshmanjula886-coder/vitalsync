@@ -40,7 +40,14 @@ data class WorkoutTelemetry(
     val currentBearing: Float = 0f,
     val gpsAccuracyMeters: Float = 0f,
     val gpsSignalStatus: GpsSignalStatus = GpsSignalStatus.SEARCHING,
-    val routeCoordinates: List<LocationCoordinate> = emptyList()
+    val routeCoordinates: List<LocationCoordinate> = emptyList(),
+    // Target destination / area pin tracking (osmdroid zero-API-key)
+    val targetLatitude: Double? = null,
+    val targetLongitude: Double? = null,
+    val targetRadiusMeters: Float = 100f,
+    val initialDistanceToTargetMeters: Float? = null,
+    val distanceToTargetMeters: Float? = null,
+    val isTargetReached: Boolean = false
 )
 
 data class CompletedWorkoutData(

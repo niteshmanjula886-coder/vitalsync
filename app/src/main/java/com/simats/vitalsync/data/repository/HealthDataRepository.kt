@@ -240,6 +240,54 @@ class HealthDataRepository private constructor(
         _monthlyStats.value = HealthStatisticsEngine.computeMonthly(readings)
     }
 
+    fun recordManualOrSyncedReading(
+        type: String,
+        val1: Float,
+        val2: Float? = null,
+        text: String = if (val2 != null) "${val1.toInt()}/${val2.toInt()}" else val1.toInt().toString(),
+        unit: String = when (type.lowercase(Locale.US)) {
+            "heart_rate" -> "BPM"
+            "spo2" -> "%"
+            "blood_pressure" -> "mmHg"
+            else -> ""
+        },
+        status: String? = null,
+        source: String = "Manual"
+    ) {
+        val now = System.currentTimeMillis()
+        val timestampStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(now))
+        val statusLabel = status ?: when (type.lowercase(Locale.US)) {
+            "heart_rate" -> when {
+                val1 in 60f..100f -> "Optimal"
+                (val1 in 50f..59.99f) || (val1 in 100.01f..120f) -> "Elevated"
+                else -> "Critical"
+            }
+            "spo2" -> if (val1 >= 95f) "Optimal" else if (val1 >= 91f) "Mildly Low" else "Critical"
+            "blood_pressure" -> {
+                val sys = val1
+                val dia = val2 ?: 80f
+                if (sys < 120f && dia < 80f) "Normal" else if (sys <= 139f && dia <= 89f) "Stage 1" else "Stage 2+"
+            }
+            else -> "Recorded"
+        }
+
+        val item = VitalReadingItem(
+            id = (now % 100000).toInt(),
+            readingType = type,
+            valueNumeric = val1,
+            valueSecondary = val2,
+            valueText = text,
+            unit = unit,
+            statusLabel = statusLabel,
+            source = source,
+            recordedAt = timestampStr
+        )
+        _recentReadings.update { current ->
+            listOf(item) + current.take(49)
+        }
+        recalculateStatistics(healthDeviceManager.liveMetrics.value)
+    }
+
     fun loadHistoricalReadings() {
         val email = activeUserEmail
         val userId = activeUserId

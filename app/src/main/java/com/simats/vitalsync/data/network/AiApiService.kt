@@ -10,6 +10,8 @@ import com.simats.vitalsync.data.model.ai.AiDailyInsightsResponse
 import com.simats.vitalsync.data.model.ai.AiHistoryClearResponse
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
 import com.simats.vitalsync.data.model.ai.AiSessionListResponse
+import com.simats.vitalsync.data.model.ai.OllamaChatRequest
+import com.simats.vitalsync.data.model.ai.OllamaChatResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -48,6 +50,11 @@ interface AiApiService : ApiService {
     suspend fun sendChatMessage(
         @Body request: AiChatRequest
     ): Response<AiChatResponse>
+
+    @POST("api/chat")
+    suspend fun sendOllamaChat(
+        @Body request: OllamaChatRequest
+    ): Response<OllamaChatResponse>
 
     @GET("ai/daily_insights.php")
     suspend fun getDailyInsight(

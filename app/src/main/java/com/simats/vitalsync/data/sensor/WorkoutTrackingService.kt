@@ -121,6 +121,19 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         val defaultPace = if (isCycling) "0.0 km/h" else "--:-- /km"
         val prevTelemetry = _telemetry.value
 
+        val initialTargetDist = if (prevTelemetry.targetLatitude != null && prevTelemetry.targetLongitude != null &&
+            prevTelemetry.currentLatitude != null && prevTelemetry.currentLongitude != null
+        ) {
+            calculateDistanceMeters(
+                prevTelemetry.currentLatitude,
+                prevTelemetry.currentLongitude,
+                prevTelemetry.targetLatitude,
+                prevTelemetry.targetLongitude
+            )
+        } else {
+            null
+        }
+
         _telemetry.value = WorkoutTelemetry(
             activityType = activityType,
             targetType = targetType.lowercase(),
@@ -151,7 +164,13 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
                 GpsSignalStatus.SEARCHING
             } else {
                 prevTelemetry.gpsSignalStatus
-            }
+            },
+            targetLatitude = prevTelemetry.targetLatitude,
+            targetLongitude = prevTelemetry.targetLongitude,
+            targetRadiusMeters = prevTelemetry.targetRadiusMeters,
+            initialDistanceToTargetMeters = initialTargetDist,
+            distanceToTargetMeters = initialTargetDist,
+            isTargetReached = initialTargetDist != null && initialTargetDist <= prevTelemetry.targetRadiusMeters
         )
 
         if (isCycling) {
@@ -295,13 +314,16 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         if (!current.isTracking) {
             currentSpeedKmh = 0.0f
             _telemetry.update {
-                it.copy(
-                    currentLatitude = location.latitude,
-                    currentLongitude = location.longitude,
-                    currentBearing = if (location.hasBearing()) location.bearing else it.currentBearing,
-                    gpsAccuracyMeters = accuracy,
-                    gpsSignalStatus = newStatus,
-                    currentSpeedKmH = 0.0f
+                applyTargetProgress(
+                    it.copy(
+                        currentLatitude = location.latitude,
+                        currentLongitude = location.longitude,
+                        currentBearing = if (location.hasBearing()) location.bearing else it.currentBearing,
+                        gpsAccuracyMeters = accuracy,
+                        gpsSignalStatus = newStatus,
+                        currentSpeedKmH = 0.0f
+                    ),
+                    location
                 )
             }
             previousLocation = location
@@ -313,13 +335,16 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         if (current.isPaused) {
             currentSpeedKmh = 0.0f
             _telemetry.update {
-                it.copy(
-                    currentLatitude = location.latitude,
-                    currentLongitude = location.longitude,
-                    currentBearing = if (location.hasBearing()) location.bearing else it.currentBearing,
-                    gpsAccuracyMeters = accuracy,
-                    gpsSignalStatus = newStatus,
-                    currentSpeedKmH = 0.0f
+                applyTargetProgress(
+                    it.copy(
+                        currentLatitude = location.latitude,
+                        currentLongitude = location.longitude,
+                        currentBearing = if (location.hasBearing()) location.bearing else it.currentBearing,
+                        gpsAccuracyMeters = accuracy,
+                        gpsSignalStatus = newStatus,
+                        currentSpeedKmH = 0.0f
+                    ),
+                    location
                 )
             }
             previousLocation = location
@@ -476,7 +501,7 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
         }
 
         _telemetry.update {
-            it.copy(
+            val base = it.copy(
                 steps = 0, // Steps deactivated for Cycling
                 distanceKm = distKm,
                 caloriesBurned = caloriesBurned,
@@ -493,7 +518,95 @@ class WorkoutTrackingService(context: Context) : ContextWrapper(context.applicat
                 gpsSignalStatus = gpsStatus,
                 routeCoordinates = routeSnapshot
             )
+            if (latestLoc != null) applyTargetProgress(base, latestLoc) else base
         }
+    }
+
+    /**
+     * Marks a target destination pin on the cycling map and computes initial target distance.
+     */
+    fun setTargetDestination(
+        latitude: Double,
+        longitude: Double,
+        radiusMeters: Float = _telemetry.value.targetRadiusMeters
+    ) {
+        val current = _telemetry.value
+        val curLat = current.currentLatitude
+        val curLng = current.currentLongitude
+        val dist = if (curLat != null && curLng != null) {
+            calculateDistanceMeters(curLat, curLng, latitude, longitude)
+        } else {
+            null
+        }
+        val reached = dist != null && dist <= radiusMeters
+        _telemetry.update {
+            it.copy(
+                targetLatitude = latitude,
+                targetLongitude = longitude,
+                targetRadiusMeters = radiusMeters,
+                initialDistanceToTargetMeters = dist,
+                distanceToTargetMeters = dist,
+                isTargetReached = reached
+            )
+        }
+    }
+
+    /**
+     * Updates the target arrival zone radius (in meters) and re-evaluates target arrival state.
+     */
+    fun updateTargetRadius(radiusMeters: Float) {
+        val safeRadius = radiusMeters.coerceAtLeast(10f)
+        _telemetry.update { state ->
+            val currentDist = state.distanceToTargetMeters
+            val reached = state.isTargetReached || (currentDist != null && currentDist <= safeRadius)
+            state.copy(
+                targetRadiusMeters = safeRadius,
+                isTargetReached = reached
+            )
+        }
+    }
+
+    /**
+     * Clears any active target destination pin and resets arrival state.
+     */
+    fun clearTargetDestination() {
+        _telemetry.update {
+            it.copy(
+                targetLatitude = null,
+                targetLongitude = null,
+                initialDistanceToTargetMeters = null,
+                distanceToTargetMeters = null,
+                isTargetReached = false
+            )
+        }
+    }
+
+    private fun applyTargetProgress(state: WorkoutTelemetry, currentLocation: Location): WorkoutTelemetry {
+        val tLat = state.targetLatitude ?: return state
+        val tLng = state.targetLongitude ?: return state
+        val targetLocation = Location("target").apply {
+            latitude = tLat
+            longitude = tLng
+        }
+        val distMeters = currentLocation.distanceTo(targetLocation)
+        val initialDist = state.initialDistanceToTargetMeters?.takeIf { it > 0f } ?: distMeters
+        val reached = state.isTargetReached || distMeters <= state.targetRadiusMeters
+        return state.copy(
+            initialDistanceToTargetMeters = initialDist,
+            distanceToTargetMeters = distMeters,
+            isTargetReached = reached
+        )
+    }
+
+    private fun calculateDistanceMeters(
+        startLat: Double,
+        startLng: Double,
+        endLat: Double,
+        endLng: Double
+    ): Float {
+        val result = FloatArray(1)
+        Location.distanceBetween(startLat, startLng, endLat, endLng, result)
+        return result[0]
     }
 
     private fun startCadenceTimer() {

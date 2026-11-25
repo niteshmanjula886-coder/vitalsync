@@ -91,11 +91,13 @@ class GymViewModel(
         val savedSplitsSet = p.getStringSet("key_custom_splits", emptySet()) ?: emptySet()
         val customSplitsList = savedSplitsSet.toList()
 
-        // 2. Load Protein Target Settings (Issue 5)
+        // 2. Load Protein & Macro Target Settings (Issue 5)
         val savedMode = p.getString("key_protein_mode", "BODY_WEIGHT") ?: "BODY_WEIGHT"
         val savedMult = p.getFloat("key_protein_multiplier", 1.8f)
         val savedCustomProt = p.getFloat("key_custom_protein", 140f)
         val savedCustomCal = p.getInt("key_custom_calories", 2200)
+        val savedCustomCarbs = p.getFloat("key_custom_carbs", (savedCustomCal * 0.45f / 4f))
+        val savedCustomFats = p.getFloat("key_custom_fats", (savedCustomCal * 0.25f / 9f))
 
         val profileWeight = sessionManager.getUser()?.weight ?: 0f
         val savedWeight = p.getFloat("key_body_weight", if (profileWeight > 0f) profileWeight else 70f)
@@ -109,6 +111,8 @@ class GymViewModel(
                 proteinTargetMode = savedMode,
                 bodyWeightMultiplier = savedMult,
                 customProteinTargetG = savedCustomProt,
+                customCarbsTargetG = savedCustomCarbs,
+                customFatsTargetG = savedCustomFats,
                 customCaloriesTarget = savedCustomCal,
                 bodyWeightKg = activeWeight,
                 selectedAnalyticsDate = todayStr
@@ -650,10 +654,21 @@ class GymViewModel(
         refreshNutritionWithCurrentTargets()
     }
 
-    fun setCustomTargets(proteinG: Float, calories: Int) {
-        _uiState.update { it.copy(customProteinTargetG = proteinG, customCaloriesTarget = calories) }
+    fun setCustomTargets(proteinG: Float, carbsG: Float, fatsG: Float, calories: Int) {
+        _uiState.update {
+            it.copy(
+                proteinTargetMode = "CUSTOM",
+                customProteinTargetG = proteinG,
+                customCarbsTargetG = carbsG,
+                customFatsTargetG = fatsG,
+                customCaloriesTarget = calories
+            )
+        }
         prefs?.edit()
+            ?.putString("key_protein_mode", "CUSTOM")
             ?.putFloat("key_custom_protein", proteinG)
+            ?.putFloat("key_custom_carbs", carbsG)
+            ?.putFloat("key_custom_fats", fatsG)
             ?.putInt("key_custom_calories", calories)
             ?.apply()
         refreshNutritionWithCurrentTargets()
@@ -674,7 +689,9 @@ class GymViewModel(
             email = currentUserEmail,
             date = todayStr,
             targetCalories = _uiState.value.activeCaloriesTarget,
-            targetProtein = _uiState.value.activeProteinTargetG
+            targetProtein = _uiState.value.activeProteinTargetG,
+            targetCarbs = _uiState.value.activeCarbsTargetG,
+            targetFats = _uiState.value.activeFatsTargetG
         )
     }
 
@@ -806,8 +823,8 @@ class GymViewModel(
         val em = email ?: currentUserEmail
         val activeCal = targetCalories ?: _uiState.value.activeCaloriesTarget
         val activeProt = targetProtein ?: _uiState.value.activeProteinTargetG
-        val activeCarbs = targetCarbs ?: (activeCal * 0.45f / 4f)
-        val activeFats = targetFats ?: (activeCal * 0.25f / 9f)
+        val activeCarbs = targetCarbs ?: _uiState.value.activeCarbsTargetG
+        val activeFats = targetFats ?: _uiState.value.activeFatsTargetG
 
         viewModelScope.launch {
             _uiState.update { it.copy(isWeeklyNutritionLoading = true) }
@@ -874,8 +891,8 @@ class GymViewModel(
         val em = email ?: currentUserEmail
         val activeCal = targetCalories ?: _uiState.value.activeCaloriesTarget
         val activeProt = targetProtein ?: _uiState.value.activeProteinTargetG
-        val activeCarbs = targetCarbs ?: (activeCal * 0.45f / 4f)
-        val activeFats = targetFats ?: (activeCal * 0.25f / 9f)
+        val activeCarbs = targetCarbs ?: _uiState.value.activeCarbsTargetG
+        val activeFats = targetFats ?: _uiState.value.activeFatsTargetG
 
         loadWeeklyNutritionTrend(
             userId = uid,

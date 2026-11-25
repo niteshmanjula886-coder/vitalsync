@@ -1,13 +1,16 @@
 package com.simats.vitalsync.ui.profile
 
+import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.media.ExifInterface
 import android.net.Uri
 import android.widget.Toast
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.math.abs
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -69,7 +72,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -158,12 +162,10 @@ fun PersonalInformationScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             try {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    if (bitmap != null) {
-                        rawBitmapToCrop = bitmap
-                        showCropDialog = true
-                    }
+                val bitmap = loadExifCorrectedBitmap(context, uri)
+                if (bitmap != null) {
+                    rawBitmapToCrop = bitmap
+                    showCropDialog = true
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -772,6 +774,131 @@ private fun BackArrowIcon(
     }
 }
 
+private fun loadExifCorrectedBitmap(context: Context, uri: Uri): Bitmap? {
+    val orientation = try {
+        context.contentResolver.openInputStream(uri)?.use { exifStream ->
+            ExifInterface(exifStream).getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL
+            )
+        } ?: ExifInterface.ORIENTATION_NORMAL
+    } catch (_: Exception) {
+        ExifInterface.ORIENTATION_NORMAL
+    }
+
+    val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    context.contentResolver.openInputStream(uri)?.use { stream ->
+        BitmapFactory.decodeStream(stream, null, boundsOptions)
+    }
+    var sampleSize = 1
+    val maxSide = maxOf(boundsOptions.outWidth, boundsOptions.outHeight)
+    if (maxSide > 2048) {
+        while (maxSide / (sampleSize * 2) >= 2048) {
+            sampleSize *= 2
+        }
+    }
+
+    val decodeOptions = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+    val rawBitmap = context.contentResolver.openInputStream(uri)?.use { stream ->
+        BitmapFactory.decodeStream(stream, null, decodeOptions)
+    } ?: return null
+
+    val matrix = Matrix()
+    when (orientation) {
+        ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+        ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+        ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.preScale(-1f, 1f)
+        ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.preScale(1f, -1f)
+        ExifInterface.ORIENTATION_TRANSPOSE -> {
+            matrix.postRotate(90f)
+            matrix.postScale(-1f, 1f)
+        }
+        ExifInterface.ORIENTATION_TRANSVERSE -> {
+            matrix.postRotate(270f)
+            matrix.postScale(-1f, 1f)
+        }
+        else -> return rawBitmap
+    }
+
+    return try {
+        val transformed = Bitmap.createBitmap(
+            rawBitmap, 0, 0, rawBitmap.width, rawBitmap.height, matrix, true
+        )
+        if (transformed != rawBitmap) {
+            rawBitmap.recycle()
+        }
+        transformed
+    } catch (_: Exception) {
+        rawBitmap
+    }
+}
+
+private fun clampCropOffsets(
+    panX: Float,
+    panY: Float,
+    bitmapWidth: Float,
+    bitmapHeight: Float,
+    viewfinderSize: Float,
+    rotationDegrees: Float,
+    zoomScale: Float
+): Pair<Float, Float> {
+    if (viewfinderSize <= 0f || bitmapWidth <= 0f || bitmapHeight <= 0f) {
+        return Pair(0f, 0f)
+    }
+    val normalizedRot = ((rotationDegrees % 360f) + 360f) % 360f
+    val isRotated90 = (abs(normalizedRot - 90f) < 0.5f || abs(normalizedRot - 270f) < 0.5f)
+    val effWidth = if (isRotated90) bitmapHeight else bitmapWidth
+    val effHeight = if (isRotated90) bitmapWidth else bitmapHeight
+
+    val baseScale = maxOf(viewfinderSize / effWidth, viewfinderSize / effHeight)
+    val scaledWidth = effWidth * baseScale * zoomScale
+    val scaledHeight = effHeight * baseScale * zoomScale
+
+    val maxPanX = ((scaledWidth - viewfinderSize) / 2f).coerceAtLeast(0f)
+    val maxPanY = ((scaledHeight - viewfinderSize) / 2f).coerceAtLeast(0f)
+
+    return Pair(
+        panX.coerceIn(-maxPanX, maxPanX),
+        panY.coerceIn(-maxPanY, maxPanY)
+    )
+}
+
+private fun buildCropTransformMatrix(
+    bitmapWidth: Float,
+    bitmapHeight: Float,
+    targetSize: Float,
+    rotationDegrees: Float,
+    flipHorizontal: Boolean,
+    flipVertical: Boolean,
+    zoomScale: Float,
+    panOffsetX: Float,
+    panOffsetY: Float,
+    panScale: Float = 1f
+): Matrix {
+    val normalizedRot = ((rotationDegrees % 360f) + 360f) % 360f
+    val isRotated90 = (abs(normalizedRot - 90f) < 0.5f || abs(normalizedRot - 270f) < 0.5f)
+    val effWidth = if (isRotated90) bitmapHeight else bitmapWidth
+    val effHeight = if (isRotated90) bitmapWidth else bitmapHeight
+
+    val baseScale = maxOf(targetSize / effWidth, targetSize / effHeight)
+    val totalScale = baseScale * zoomScale
+
+    return Matrix().apply {
+        postTranslate(-bitmapWidth / 2f, -bitmapHeight / 2f)
+        postRotate(rotationDegrees)
+        postScale(
+            if (flipHorizontal) -1f else 1f,
+            if (flipVertical) -1f else 1f
+        )
+        postScale(totalScale, totalScale)
+        postTranslate(
+            targetSize / 2f + panOffsetX * panScale,
+            targetSize / 2f + panOffsetY * panScale
+        )
+    }
+}
+
 @Composable
 fun ImageCropDialog(
     sourceBitmap: Bitmap,
@@ -795,6 +922,22 @@ fun ImageCropDialog(
         minOf(300.dp, (configuration.screenWidthDp - 48).dp)
     }
 
+    LaunchedEffect(viewfinderSizePx, zoomScale, rotationDegrees, sourceBitmap) {
+        if (viewfinderSizePx > 0) {
+            val (clampedX, clampedY) = clampCropOffsets(
+                panX = panOffsetX,
+                panY = panOffsetY,
+                bitmapWidth = sourceBitmap.width.toFloat(),
+                bitmapHeight = sourceBitmap.height.toFloat(),
+                viewfinderSize = viewfinderSizePx.toFloat(),
+                rotationDegrees = rotationDegrees,
+                zoomScale = zoomScale
+            )
+            panOffsetX = clampedX
+            panOffsetY = clampedY
+        }
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -810,33 +953,44 @@ fun ImageCropDialog(
                     val targetDim = minOf(1024, maxOf(sourceBitmap.width, sourceBitmap.height, 512))
                     val output = Bitmap.createBitmap(targetDim, targetDim, Bitmap.Config.ARGB_8888)
                     val canvas = android.graphics.Canvas(output)
-                    val matrix = Matrix()
                     val vSize = if (viewfinderSizePx > 0) viewfinderSizePx.toFloat() else 300f
-
-                    // 1. Center source bitmap at origin
-                    matrix.postTranslate(-sourceBitmap.width / 2f, -sourceBitmap.height / 2f)
-                    // 2. Rotate
-                    matrix.postRotate(rotationDegrees)
-                    // 3. Flip
-                    matrix.postScale(if (flipHorizontal) -1f else 1f, if (flipVertical) -1f else 1f)
-                    // 4. Base scale to cover viewfinder + user zoom + target resolution factor
-                    val baseScale = maxOf(vSize / sourceBitmap.width, vSize / sourceBitmap.height)
-                    val totalScale = baseScale * zoomScale * (targetDim.toFloat() / vSize)
-                    matrix.postScale(totalScale, totalScale)
-                    // 5. Translate canvas center + scaled user pan
-                    val panRatio = targetDim.toFloat() / vSize
-                    matrix.postTranslate(
-                        targetDim / 2f + panOffsetX * panRatio,
-                        targetDim / 2f + panOffsetY * panRatio
+                    val (clampedX, clampedY) = clampCropOffsets(
+                        panX = panOffsetX,
+                        panY = panOffsetY,
+                        bitmapWidth = sourceBitmap.width.toFloat(),
+                        bitmapHeight = sourceBitmap.height.toFloat(),
+                        viewfinderSize = vSize,
+                        rotationDegrees = rotationDegrees,
+                        zoomScale = zoomScale
+                    )
+                    val matrix = buildCropTransformMatrix(
+                        bitmapWidth = sourceBitmap.width.toFloat(),
+                        bitmapHeight = sourceBitmap.height.toFloat(),
+                        targetSize = targetDim.toFloat(),
+                        rotationDegrees = rotationDegrees,
+                        flipHorizontal = flipHorizontal,
+                        flipVertical = flipVertical,
+                        zoomScale = zoomScale,
+                        panOffsetX = clampedX,
+                        panOffsetY = clampedY,
+                        panScale = targetDim.toFloat() / vSize
                     )
 
-                    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.FILTER_BITMAP_FLAG)
+                    val paint = android.graphics.Paint(
+                        android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.FILTER_BITMAP_FLAG
+                    )
                     canvas.drawBitmap(sourceBitmap, matrix, paint)
                     onCropComplete(output)
                 } catch (e: Exception) {
                     e.printStackTrace()
                     onCropComplete(sourceBitmap)
                 }
+            }
+
+            val bitmapPaint = remember {
+                android.graphics.Paint(
+                    android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.FILTER_BITMAP_FLAG
+                )
             }
 
             // Viewfinder Box Composable
@@ -849,29 +1003,44 @@ fun ImageCropDialog(
                         .onGloballyPositioned { coords ->
                             viewfinderSizePx = coords.size.width
                         }
-                        .pointerInput(Unit) {
+                        .pointerInput(sourceBitmap, viewfinderSizePx) {
                             detectTransformGestures { _, pan, zoom, _ ->
-                                zoomScale = (zoomScale * zoom).coerceIn(1.0f, 5.0f)
-                                panOffsetX += pan.x
-                                panOffsetY += pan.y
+                                val nextZoom = (zoomScale * zoom).coerceIn(1.0f, 5.0f)
+                                val vSize = if (viewfinderSizePx > 0) viewfinderSizePx.toFloat() else size.width.toFloat()
+                                val (clampedX, clampedY) = clampCropOffsets(
+                                    panX = panOffsetX + pan.x,
+                                    panY = panOffsetY + pan.y,
+                                    bitmapWidth = sourceBitmap.width.toFloat(),
+                                    bitmapHeight = sourceBitmap.height.toFloat(),
+                                    viewfinderSize = vSize,
+                                    rotationDegrees = rotationDegrees,
+                                    zoomScale = nextZoom
+                                )
+                                zoomScale = nextZoom
+                                panOffsetX = clampedX
+                                panOffsetY = clampedY
                             }
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        bitmap = sourceBitmap.asImageBitmap(),
-                        contentDescription = "Crop Preview",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                translationX = panOffsetX
-                                translationY = panOffsetY
-                                scaleX = (if (flipHorizontal) -1f else 1f) * zoomScale
-                                scaleY = (if (flipVertical) -1f else 1f) * zoomScale
-                                rotationZ = rotationDegrees
-                            },
-                        contentScale = ContentScale.Crop
-                    )
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val vSize = size.width
+                        val previewMatrix = buildCropTransformMatrix(
+                            bitmapWidth = sourceBitmap.width.toFloat(),
+                            bitmapHeight = sourceBitmap.height.toFloat(),
+                            targetSize = vSize,
+                            rotationDegrees = rotationDegrees,
+                            flipHorizontal = flipHorizontal,
+                            flipVertical = flipVertical,
+                            zoomScale = zoomScale,
+                            panOffsetX = panOffsetX,
+                            panOffsetY = panOffsetY,
+                            panScale = 1f
+                        )
+                        drawIntoCanvas { canvas ->
+                            canvas.nativeCanvas.drawBitmap(sourceBitmap, previewMatrix, bitmapPaint)
+                        }
+                    }
 
                     // Rule of Thirds & Corner Bracket Overlay
                     Canvas(modifier = Modifier.fillMaxSize()) {

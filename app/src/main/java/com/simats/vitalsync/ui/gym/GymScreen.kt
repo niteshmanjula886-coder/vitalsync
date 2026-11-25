@@ -9,11 +9,13 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -121,7 +123,9 @@ fun GymScreen(
                 email = userEmail,
                 date = todayStr,
                 targetCalories = uiState.activeCaloriesTarget,
-                targetProtein = uiState.activeProteinTargetG
+                targetProtein = uiState.activeProteinTargetG,
+                targetCarbs = uiState.activeCarbsTargetG,
+                targetFats = uiState.activeFatsTargetG
             )
         } else if (uiState.selectedTab == 2) {
             viewModel.loadGymAnalytics(userId = userId, email = userEmail)
@@ -429,73 +433,95 @@ private fun WorkoutsTabContent(
                 // -------------------------------------------------------------
                 // Rest Timer Bar with Start / Stop / Reset (Issue 3)
                 // -------------------------------------------------------------
-                Row(
+                // Rest Timer Bar with Manual Start Rest / Pause / Reset (Issue 3)
+                // -------------------------------------------------------------
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(Color(0x1EFFFFFF))
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Rounded.Timer,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = Color(0xFFA7F3D0)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "Rest: ", fontSize = 12.sp, color = Color(0xFFA7F3D0), fontWeight = FontWeight.Medium)
-                        Text(
-                            text = if (uiState.restTimerSeconds > 0) restFormatted else "Ready",
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (uiState.isRestTimerRunning) Color(0xFFFDE047) else Color.White
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.Timer,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = Color(0xFFA7F3D0)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Rest: ",
+                                fontSize = 12.sp,
+                                color = Color(0xFFA7F3D0),
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = if (uiState.restTimerSeconds > 0) restFormatted else "Ready",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (uiState.isRestTimerRunning) Color(0xFFFDE047) else Color.White
+                            )
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Presets: 60s, 90s, 120s
+                            listOf(60, 90, 120).forEach { sec ->
+                                val isPresetActive = uiState.initialRestTimerPreset == sec
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isPresetActive) Color(0x55FFFFFF) else Color(0x24FFFFFF))
+                                        .clickable { viewModel.setRestTimerPreset(sec) }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "${sec}s",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Presets: 60s, 90s, 120s
-                        listOf(60, 90, 120).forEach { sec ->
-                            val isPresetActive = uiState.initialRestTimerPreset == sec
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isPresetActive) Color(0x55FFFFFF) else Color(0x24FFFFFF))
-                                    .clickable { viewModel.setRestTimerPreset(sec) }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = "${sec}s",
-                                    fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        // Start / Stop Toggle Button
+                        // Manual Start Rest / Pause Button
                         Box(
                             modifier = Modifier
+                                .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (uiState.isRestTimerRunning) Color(0xFFDC2626) else Color(0xFF059669))
+                                .background(if (uiState.isRestTimerRunning) Color(0xFFD97706) else Color(0xFF059669))
                                 .clickable {
                                     if (uiState.isRestTimerRunning) viewModel.pauseRestTimer()
                                     else viewModel.startRestTimer()
                                 }
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (uiState.isRestTimerRunning) "Stop" else "Start",
-                                fontSize = 11.sp,
+                                text = if (uiState.isRestTimerRunning) "Pause" else "Start Rest",
+                                fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = Color.White,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
 
@@ -505,13 +531,16 @@ private fun WorkoutsTabContent(
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(Color(0x33FFFFFF))
                                 .clickable { viewModel.resetRestTimer() }
-                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "↺",
-                                fontSize = 12.sp,
+                                text = "Reset",
+                                fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = Color.White,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }
@@ -849,7 +878,7 @@ private fun WorkoutsTabContent(
                                             )
                                         )
 
-                                        // Done Checkbox
+                                        // Done Checkbox (marks completion without auto-starting rest timer)
                                         Box(
                                             modifier = Modifier.width(52.dp),
                                             contentAlignment = Alignment.Center
@@ -863,10 +892,6 @@ private fun WorkoutsTabContent(
                                                         setIndex = setIndex,
                                                         isCompleted = checked
                                                     )
-                                                    // Trigger rest timer auto-start on set completion
-                                                    if (checked) {
-                                                        viewModel.startRestTimer()
-                                                    }
                                                 },
                                                 colors = CheckboxDefaults.colors(
                                                     checkedColor = VitalPrimaryMint,
@@ -1400,7 +1425,19 @@ private fun NutritionTabContent(
 
     var showCustomTargetDialog by remember { mutableStateOf(false) }
     var customProtInput by remember { mutableStateOf(uiState.customProteinTargetG.toInt().toString()) }
+    var customCarbsInput by remember { mutableStateOf(uiState.customCarbsTargetG.toInt().toString()) }
+    var customFatsInput by remember { mutableStateOf(uiState.customFatsTargetG.toInt().toString()) }
     var customCalInput by remember { mutableStateOf(uiState.customCaloriesTarget.toString()) }
+    var customTargetError by remember { mutableStateOf<String?>(null) }
+
+    val openCustomTargetDialog = {
+        customProtInput = uiState.customProteinTargetG.toInt().toString()
+        customCarbsInput = uiState.customCarbsTargetG.toInt().toString()
+        customFatsInput = uiState.customFatsTargetG.toInt().toString()
+        customCalInput = uiState.customCaloriesTarget.toString()
+        customTargetError = null
+        showCustomTargetDialog = true
+    }
 
     // Dynamic targets from dual-mode settings (Issue 5)
     val totalCal = todayNutrition?.totalCalories ?: 0
@@ -1408,9 +1445,9 @@ private fun NutritionTabContent(
     val totalProt = todayNutrition?.totalProtein ?: 0f
     val targetProt = uiState.activeProteinTargetG
 
-    val targetCarbs = (targetCal * 0.45f / 4f)
+    val targetCarbs = uiState.activeCarbsTargetG
     val totalCarbs = todayNutrition?.totalCarbs ?: 0f
-    val targetFats = (targetCal * 0.25f / 9f)
+    val targetFats = uiState.activeFatsTargetG
     val totalFats = todayNutrition?.totalFats ?: 0f
 
     Column(
@@ -1447,25 +1484,32 @@ private fun NutritionTabContent(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .heightIn(min = 38.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(if (isBodyWeight) VitalTealDark else Color.Transparent)
                             .clickable { viewModel.setProteinTargetMode("BODY_WEIGHT") }
-                            .padding(vertical = 8.dp),
+                            .padding(horizontal = 6.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
                             Icon(
                                 imageVector = Icons.Rounded.MonitorWeight,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
                                 tint = if (isBodyWeight) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = "Body Weight (Auto)",
-                                fontSize = 12.sp,
+                                fontSize = 11.5.sp,
                                 fontWeight = if (isBodyWeight) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isBodyWeight) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isBodyWeight) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -1473,25 +1517,35 @@ private fun NutritionTabContent(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .heightIn(min = 38.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(if (!isBodyWeight) VitalTealDark else Color.Transparent)
-                            .clickable { viewModel.setProteinTargetMode("CUSTOM") }
-                            .padding(vertical = 8.dp),
+                            .clickable {
+                                viewModel.setProteinTargetMode("CUSTOM")
+                                openCustomTargetDialog()
+                            }
+                            .padding(horizontal = 6.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
                             Icon(
                                 imageVector = Icons.Rounded.Edit,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
                                 tint = if (!isBodyWeight) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = "Custom Manual",
-                                fontSize = 12.sp,
+                                fontSize = 11.5.sp,
                                 fontWeight = if (!isBodyWeight) FontWeight.Bold else FontWeight.Medium,
-                                color = if (!isBodyWeight) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (!isBodyWeight) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -1589,10 +1643,10 @@ private fun NutritionTabContent(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Target: ${uiState.customProteinTargetG.toInt()}g Protein • ${uiState.customCaloriesTarget} kcal",
-                                fontSize = 13.sp,
+                                text = "P ${uiState.customProteinTargetG.toInt()}g • C ${uiState.customCarbsTargetG.toInt()}g • F ${uiState.customFatsTargetG.toInt()}g • ${uiState.customCaloriesTarget} kcal",
+                                fontSize = 12.5.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onBackground
                             )
@@ -1603,8 +1657,32 @@ private fun NutritionTabContent(
                             )
                         }
 
-                        TextButton(onClick = { showCustomTargetDialog = true }) {
-                            Text(text = "Edit Targets", fontSize = 12.sp, color = VitalPrimaryMint, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        TextButton(
+                            onClick = { openCustomTargetDialog() },
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Edit,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = VitalPrimaryMint
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Edit Targets",
+                                    fontSize = 12.sp,
+                                    color = VitalPrimaryMint,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
                         }
                     }
                 }
@@ -2050,32 +2128,91 @@ private fun NutritionTabContent(
             onDismissRequest = { showCustomTargetDialog = false },
             title = { Text(text = "Custom Nutritional Targets", fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         value = customProtInput,
-                        onValueChange = { customProtInput = it },
+                        onValueChange = {
+                            customProtInput = it
+                            customTargetError = null
+                        },
                         label = { Text("Daily Protein Target (g)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = customCarbsInput,
+                        onValueChange = {
+                            customCarbsInput = it
+                            customTargetError = null
+                        },
+                        label = { Text("Daily Carbs Target (g)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = customFatsInput,
+                        onValueChange = {
+                            customFatsInput = it
+                            customTargetError = null
+                        },
+                        label = { Text("Daily Fats Target (g)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = customCalInput,
-                        onValueChange = { customCalInput = it },
+                        onValueChange = {
+                            customCalInput = it
+                            customTargetError = null
+                        },
                         label = { Text("Daily Calorie Target (kcal)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    if (customTargetError != null) {
+                        Text(
+                            text = customTargetError ?: "",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val p = customProtInput.toFloatOrNull() ?: 140f
-                        val c = customCalInput.toIntOrNull() ?: 2200
-                        viewModel.setCustomTargets(p, c)
-                        showCustomTargetDialog = false
+                        val p = customProtInput.trim().toFloatOrNull()
+                        val carbs = customCarbsInput.trim().toFloatOrNull()
+                        val fats = customFatsInput.trim().toFloatOrNull()
+                        val c = customCalInput.trim().toIntOrNull()
+                        when {
+                            p == null || p <= 0f -> {
+                                customTargetError = "Enter a valid protein target greater than 0g."
+                            }
+                            carbs == null || carbs <= 0f -> {
+                                customTargetError = "Enter a valid carbs target greater than 0g."
+                            }
+                            fats == null || fats <= 0f -> {
+                                customTargetError = "Enter a valid fats target greater than 0g."
+                            }
+                            c == null || c <= 0 -> {
+                                customTargetError = "Enter a valid calorie target greater than 0 kcal."
+                            }
+                            else -> {
+                                customTargetError = null
+                                viewModel.setCustomTargets(
+                                    proteinG = p,
+                                    carbsG = carbs,
+                                    fatsG = fats,
+                                    calories = c
+                                )
+                                showCustomTargetDialog = false
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = VitalTealDark)
                 ) {

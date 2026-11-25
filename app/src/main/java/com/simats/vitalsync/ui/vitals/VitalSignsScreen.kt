@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.MaterialTheme
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
+import com.simats.vitalsync.data.model.vitals.VitalReadingItem
 import com.simats.vitalsync.ui.theme.CarbonDarkActivityBg
 import com.simats.vitalsync.ui.theme.CarbonDarkBackground
 import com.simats.vitalsync.ui.theme.CarbonDarkBorder
@@ -79,6 +80,11 @@ fun VitalSignsScreen(
     weightValue: String = "--",
     bmiValue: String = "--",
     bmiStatus: String = "Not set",
+    readings: List<VitalReadingItem> = emptyList(),
+    latestHrBpm: Int? = null,
+    latestSpo2Pct: Int? = null,
+    latestSysBp: Int? = null,
+    latestDiaBp: Int? = null,
     onBackClick: () -> Unit = {},
     onAskAiClick: () -> Unit = {},
     onHeartRateClick: () -> Unit = {},
@@ -203,6 +209,17 @@ fun VitalSignsScreen(
                     onClick = onBmiClick
                 )
             }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Analytical Trend Graphs with Dynamic Health-Status Colors
+            VitalAnalyticalTrendsDashboard(
+                readings = readings,
+                latestHr = latestHrBpm ?: heartRateValue.filter { it.isDigit() }.toIntOrNull(),
+                latestSpo2 = latestSpo2Pct ?: spo2Value.filter { it.isDigit() }.toIntOrNull(),
+                latestSys = latestSysBp,
+                latestDia = latestDiaBp
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }

@@ -549,6 +549,8 @@ data class ManualVitalsLogRequest(
     val systolic: Int? = null,
     @SerializedName("diastolic", alternate = ["diastolic_bp", "diastolicBp"])
     val diastolic: Int? = null,
+    @SerializedName("source")
+    val source: String? = null,
     @SerializedName("notes")
     val notes: String? = null
 )

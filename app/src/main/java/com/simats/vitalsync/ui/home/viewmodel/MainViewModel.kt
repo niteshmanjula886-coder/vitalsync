@@ -3,6 +3,7 @@ package com.simats.vitalsync.ui.home.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.simats.vitalsync.data.ai.LiveUserContextBuilder
 import com.simats.vitalsync.data.model.ai.AiChatRequest
 import com.simats.vitalsync.data.model.ai.AiInsightResponse
 import com.simats.vitalsync.data.network.ApiConstants
@@ -95,9 +96,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             _isAiThinking.value = true
             try {
+                val liveSnapshot = LiveUserContextBuilder.buildLiveContextSnapshot(
+                    context = getApplication(),
+                    aiInsight = _aiInsight.value
+                )
                 val response = withTimeout(15_000L) {
                     RetrofitClient.aiApiService.sendAiChatMessage(
-                        AiChatRequest(user_id = userId, message = prompt)
+                        AiChatRequest(
+                            user_id = userId,
+                            message = prompt,
+                            liveContext = liveSnapshot
+                        )
                     )
                 }
                 if (response.isSuccessful && response.body()?.success == true) {
@@ -107,7 +116,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         val current = _aiInsight.value
                         _aiInsight.value = current?.copy(
                             summary = reply,
-                            modelUsed = "qwen2.5:1.5b"
+                            modelUsed = "VitalSync AI"
                         )
                     }
                     _errorMessage.value = null

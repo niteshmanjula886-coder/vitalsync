@@ -56,8 +56,8 @@ fun WeeklyNutritionMealTrendSection(
     // Dynamic targets from user's active settings (Issue 5 sync)
     val activeCalTarget = uiState.activeCaloriesTarget
     val activeProtTarget = uiState.activeProteinTargetG
-    val activeCarbTarget = (activeCalTarget * 0.45f / 4f)
-    val activeFatTarget = (activeCalTarget * 0.25f / 9f)
+    val activeCarbTarget = uiState.activeCarbsTargetG
+    val activeFatTarget = uiState.activeFatsTargetG
 
     // Build 7-day calendar window (defaults to past 7 days ending today if empty)
     val calendarDays = remember(trendData, activeCalTarget, activeProtTarget) {
@@ -129,7 +129,7 @@ fun WeeklyNutritionMealTrendSection(
         NutritionTrendMetric.FATS -> activeFatTarget
     }
 
-    // Calculate maximum bar value for chart scaling (target * 1.3f or highest logged value)
+    // Calculate sensible Y-axis scale so extreme spike days never squash normal target days
     val maxChartValue = remember(calendarDays, selectedMetric, currentTarget) {
         val highestLogged = calendarDays.maxOfOrNull { day ->
             when (selectedMetric) {
@@ -139,7 +139,8 @@ fun WeeklyNutritionMealTrendSection(
                 NutritionTrendMetric.FATS -> day.fatsG
             }
         } ?: 0f
-        maxOf(currentTarget * 1.25f, highestLogged * 1.1f, 10f)
+        val safeTarget = currentTarget.coerceAtLeast(10f)
+        maxOf(safeTarget * 1.5f, minOf(highestLogged * 1.05f, safeTarget * 2.0f), 10f)
     }
 
     // Weekly calculations
@@ -326,35 +327,44 @@ fun WeeklyNutritionMealTrendSection(
             // -----------------------------------------------------------------
             // 4. Interactive 7-Day Bar Chart with Target Reference Line
             // -----------------------------------------------------------------
-            val targetLineRatio = (currentTarget / maxChartValue).coerceIn(0.1f, 0.95f)
-            val chartHeight = 150.dp
+            val targetLineRatio = (currentTarget / maxChartValue).coerceIn(0.1f, 0.92f)
+            val chartHeight = 160.dp
+            val labelSectionHeight = 38.dp
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(chartHeight)
             ) {
-                // Background Target Reference Dashed Line Canvas
+                // Background Target Reference Dashed Line & Clean Baseline Canvas
                 val outlineColor = MaterialTheme.colorScheme.outlineVariant
+                val targetLineColor = VitalPrimaryMint.copy(alpha = 0.55f)
                 Canvas(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(bottom = 28.dp) // Leave space for day labels
+                        .padding(bottom = labelSectionHeight) // Matches day label area exactly
                 ) {
                     val targetY = size.height * (1f - targetLineRatio)
                     drawLine(
-                        color = outlineColor,
+                        color = targetLineColor,
                         start = Offset(0f, targetY),
                         end = Offset(size.width, targetY),
-                        strokeWidth = 2.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f), 0f)
+                        strokeWidth = 1.5.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)
+                    )
+                    // Clean baseline right above the day labels
+                    drawLine(
+                        color = outlineColor,
+                        start = Offset(0f, size.height - 0.5.dp.toPx()),
+                        end = Offset(size.width, size.height - 0.5.dp.toPx()),
+                        strokeWidth = 1.dp.toPx()
                     )
                 }
 
-                // 7 Days Columns
+                // 7 Days Uniform Columns
                 Row(
                     modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.Bottom
                 ) {
                     calendarDays.forEach { day ->
@@ -366,7 +376,7 @@ fun WeeklyNutritionMealTrendSection(
                             NutritionTrendMetric.FATS -> day.fatsG
                         }
 
-                        // Bar height ratio relative to max
+                        // Bar height ratio relative to scaled maxChartValue
                         val rawRatio = if (maxChartValue > 0f) (dayVal / maxChartValue).coerceIn(0f, 1f) else 0f
                         val animatedRatio by animateFloatAsState(
                             targetValue = rawRatio,
@@ -374,68 +384,91 @@ fun WeeklyNutritionMealTrendSection(
                             label = "barHeightRatio"
                         )
 
-                        // Status Color
+                        // Status Color (subtle dark placeholder track for 0 logged intake)
                         val barColor = when {
-                            dayVal <= 0f -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            dayVal <= 0f -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.22f)
                             kotlin.math.abs(dayVal - currentTarget) <= (currentTarget * 0.15f) -> VitalPrimaryMint
                             dayVal > currentTarget -> Color(0xFFE11D48) // Over target (Rose red)
                             else -> Color(0xFFD97706) // Under target (Amber orange)
                         }
 
+                        val barShape = RoundedCornerShape(
+                            topStart = 8.dp,
+                            topEnd = 8.dp,
+                            bottomStart = 2.dp,
+                            bottomEnd = 2.dp
+                        )
+
                         Column(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .clickable { viewModel.selectWeeklyTrendDate(day.date) }
-                                .padding(horizontal = 2.dp),
+                                .clickable { viewModel.selectWeeklyTrendDate(day.date) },
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Bottom
                         ) {
-                            // The Bar Pill (Clean, without floating dots/icons above)
-                            Box(
+                            // Uniform-width Bar Pill with 6.dp minimum height for 0-intake days
+                            BoxWithConstraints(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxWidth(),
                                 contentAlignment = Alignment.BottomCenter
                             ) {
+                                val minBarHeight = 6.dp
+                                val barHeight = if (dayVal <= 0f) {
+                                    minBarHeight
+                                } else {
+                                    (maxHeight * animatedRatio).coerceAtLeast(minBarHeight)
+                                }
+
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth(0.68f)
-                                        .fillMaxHeight(fraction = animatedRatio.coerceAtLeast(0.04f))
-                                        .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 4.dp, bottomEnd = 4.dp))
+                                        .fillMaxWidth(0.62f)
+                                        .height(barHeight)
+                                        .clip(barShape)
                                         .background(barColor)
                                         .then(
                                             if (isDaySelected) Modifier.border(
-                                                width = 2.dp,
+                                                width = 1.5.dp,
                                                 color = MaterialTheme.colorScheme.onBackground,
-                                                shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+                                                shape = barShape
                                             ) else Modifier
                                         )
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(6.dp))
+                            // Aligned Day Labels below the baseline
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(labelSectionHeight),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = day.dayShort.take(3),
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isDaySelected || day.isToday) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isDaySelected) MaterialTheme.colorScheme.onBackground
+                                            else if (day.isToday) VitalPrimaryMint
+                                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
 
-                            // Day Label (Mon, Tue, etc.)
-                            Text(
-                                text = day.dayShort.take(3),
-                                fontSize = 11.sp,
-                                fontWeight = if (isDaySelected || day.isToday) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isDaySelected) MaterialTheme.colorScheme.onBackground
-                                        else if (day.isToday) VitalPrimaryMint
-                                        else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            // Date Day Number (Clean, without stray dots)
-                            val dayNum = day.date.takeLast(2)
-                            Text(
-                                text = dayNum,
-                                fontSize = 9.5.sp,
-                                fontWeight = if (isDaySelected || day.isToday) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isDaySelected) MaterialTheme.colorScheme.onBackground
-                                        else if (day.isToday) VitalPrimaryMint
-                                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
+                                val dayNum = day.date.takeLast(2)
+                                Text(
+                                    text = dayNum,
+                                    fontSize = 9.5.sp,
+                                    fontWeight = if (isDaySelected || day.isToday) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isDaySelected) MaterialTheme.colorScheme.onBackground
+                                            else if (day.isToday) VitalPrimaryMint
+                                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
                         }
                     }
                 }

@@ -22,6 +22,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,15 +34,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.vitalsync.data.device.WatchBpReading
 import com.simats.vitalsync.data.model.vitals.VitalDetailGuidanceResponse
+import com.simats.vitalsync.data.model.vitals.VitalReadingItem
 import com.simats.vitalsync.data.model.vitals.evaluateBloodPressure
 import com.simats.vitalsync.ui.theme.CarbonDarkActivityBg
 import com.simats.vitalsync.ui.theme.CarbonDarkBackground
 import com.simats.vitalsync.ui.theme.CarbonDarkCriticalBg
+import com.simats.vitalsync.ui.theme.CarbonDarkSurface
 import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
 import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
 import com.simats.vitalsync.ui.theme.CarbonDarkWarningBg
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun BloodPressureDetailScreen(
@@ -48,14 +58,28 @@ fun BloodPressureDetailScreen(
     systolic: Int = 0,
     diastolic: Int = 0,
     status: String = "No data available",
+    readings: List<VitalReadingItem> = emptyList(),
     onBackClick: () -> Unit = {},
-    onAddReadingClick: () -> Unit = {}
+    onAddReadingClick: () -> Unit = {},
+    onBpSynced: (WatchBpReading) -> Unit = {}
 ) {
-    val currentSys = detailState?.systolic?.takeIf { it > 0 } ?: systolic.takeIf { it > 0 }
-    val currentDia = detailState?.diastolic?.takeIf { it > 0 } ?: diastolic.takeIf { it > 0 }
+    var syncedReading by remember { mutableStateOf<WatchBpReading?>(null) }
+
+    val currentSys = syncedReading?.systolic?.takeIf { it > 0 }
+        ?: detailState?.systolic?.takeIf { it > 0 }
+        ?: systolic.takeIf { it > 0 }
+    val currentDia = syncedReading?.diastolic?.takeIf { it > 0 }
+        ?: detailState?.diastolic?.takeIf { it > 0 }
+        ?: diastolic.takeIf { it > 0 }
     val hasBp = currentSys != null && currentDia != null
     val bpEval = evaluateBloodPressure(currentSys, currentDia)
-    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+    val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground ||
+        MaterialTheme.colorScheme.surface == CarbonDarkSurface
+
+    val syncTimeFormatter = remember {
+        DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
+            .withZone(ZoneId.systemDefault())
+    }
 
     val (statusLabel, statusColor, statusBg) = when {
         !hasBp -> Triple("No Readings Yet", if (isDark) CarbonDarkTextSecondary else Color(0xFF6B7280), if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF3F4F6))
@@ -73,8 +97,17 @@ fun BloodPressureDetailScreen(
             Triple(bpEval.statusTitle, if (isDark) Color(0xFF34D399) else Color(0xFF43A047), if (isDark) CarbonDarkActivityBg else Color(0xFFECFDF5))
     }
 
-    val recordedLabel = detailState?.recordedAt?.takeIf { it.isNotBlank() }?.let { "Recorded $it" }
-        ?: "Tap '+ Log BP' to record your cuff measurement"
+    val recordedLabel = syncedReading?.let { reading ->
+        val fmtTime = try {
+            syncTimeFormatter.format(reading.time)
+        } catch (_: Exception) {
+            "recently"
+        }
+        val sourceSuffix = reading.sourcePackageName?.substringAfterLast('.')?.takeIf { it.isNotBlank() }
+            ?.let { " ($it)" } ?: ""
+        "Synced via Health Connect at $fmtTime$sourceSuffix"
+    } ?: detailState?.recordedAt?.takeIf { it.isNotBlank() }?.let { "Recorded $it" }
+        ?: "Tap '+ Log BP' or sync from Health Connect"
 
     val showMedicalBanner = hasBp && (bpEval.urgency == "MEDICAL_ATTENTION" || bpEval.statusTitle == "Low Blood Pressure (Hypotension)")
     val medicalBannerText = when {
@@ -206,8 +239,26 @@ fun BloodPressureDetailScreen(
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                SyncHealthConnectBpButton(
+                    onBpSynced = { reading ->
+                        syncedReading = reading
+                        onBpSynced(reading)
+                    }
+                )
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Analytical Trend Graph with Dynamic Clinical Colors
+        BloodPressureTrendChart(
+            readings = readings,
+            latestSys = currentSys,
+            latestDia = currentDia
+        )
 
         if (showMedicalBanner) {
             Spacer(modifier = Modifier.height(14.dp))
@@ -216,12 +267,27 @@ fun BloodPressureDetailScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        val isDetailMatchingCurrent = hasBp &&
+            detailState?.systolic == currentSys &&
+            detailState?.diastolic == currentDia
         VitalOllamaGuidanceCard(
             isLoading = isDetailLoading,
-            modelUsed = detailState?.modelUsed,
-            explanation = detailState?.explanation?.takeIf { it.isNotBlank() } ?: fallbackExplanation,
-            recommendedActivity = detailState?.recommendedActivity?.takeIf { it.isNotBlank() } ?: fallbackActivity,
-            lifestyleTip = detailState?.lifestyleTip?.takeIf { it.isNotBlank() } ?: fallbackTip
+            modelUsed = if (isDetailMatchingCurrent) detailState?.modelUsed else "vitalsync:clinical-engine",
+            explanation = if (isDetailMatchingCurrent) {
+                detailState?.explanation?.takeIf { it.isNotBlank() } ?: fallbackExplanation
+            } else {
+                fallbackExplanation
+            },
+            recommendedActivity = if (isDetailMatchingCurrent) {
+                detailState?.recommendedActivity?.takeIf { it.isNotBlank() } ?: fallbackActivity
+            } else {
+                fallbackActivity
+            },
+            lifestyleTip = if (isDetailMatchingCurrent) {
+                detailState?.lifestyleTip?.takeIf { it.isNotBlank() } ?: fallbackTip
+            } else {
+                fallbackTip
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))

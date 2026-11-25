@@ -20,17 +20,26 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,12 +61,110 @@ import com.simats.vitalsync.ui.theme.SplashBgLight
 import com.simats.vitalsync.ui.theme.VitalTextSubtitle
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
 
+private enum class AboutLegalDocument {
+    PRIVACY_POLICY,
+    TERMS_OF_SERVICE
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutVitalSyncScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {}
 ) {
     val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground || MaterialTheme.colorScheme.surface == CarbonDarkSurface
+    var activeLegalDoc by remember { mutableStateOf<AboutLegalDocument?>(null) }
+
+    if (activeLegalDoc != null) {
+        val doc = activeLegalDoc!!
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { activeLegalDoc = null },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 22.dp)
+                    .padding(bottom = 24.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = if (doc == AboutLegalDocument.PRIVACY_POLICY) "Privacy Policy" else "Terms of Service",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Last updated: November 2026",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (doc == AboutLegalDocument.PRIVACY_POLICY) {
+                    LegalSectionBlock(
+                        title = "1. Health & Device Data Collection",
+                        body = "VitalSync stores your heart rate, blood pressure, SpO2, steps, sleep, hydration, BMI, and workout sessions solely to calculate wellness trends and personalized guidance."
+                    )
+                    LegalSectionBlock(
+                        title = "2. Local-First Encryption & Storage",
+                        body = "Your daily health metrics, preferences, and activity logs stay protected locally on your device. Cloud synchronization occurs only when signed in with your account."
+                    )
+                    LegalSectionBlock(
+                        title = "3. Health Connect & Bluetooth Access",
+                        body = "Heart rate and wearable metrics from Health Connect or Bluetooth devices are read strictly with your explicit permission and are never accessed in the background without consent."
+                    )
+                    LegalSectionBlock(
+                        title = "4. Your Ownership & Control",
+                        body = "VitalSync never sells or rents your personal health data to advertisers or brokers. You can clear activity history or manage health permissions anytime."
+                    )
+                } else {
+                    LegalSectionBlock(
+                        title = "1. General Wellness Purpose Only",
+                        body = "VitalSync is designed for everyday fitness, hydration, sleep, and wellness tracking. It is not a medical device and is not intended to diagnose, treat, cure, or prevent any disease."
+                    )
+                    LegalSectionBlock(
+                        title = "2. Medical Disclaimer",
+                        body = "Always consult a qualified physician or healthcare professional before acting on heart rate alerts, blood pressure readings, BMI guidance, or AI wellness insights."
+                    )
+                    LegalSectionBlock(
+                        title = "3. Wearable & Sensor Accuracy",
+                        body = "Step counts, GPS routes, calorie estimates, and synced smartwatch BPM readings depend on your device hardware and third-party companion apps."
+                    )
+                    LegalSectionBlock(
+                        title = "4. Acceptable Use & Account Responsibility",
+                        body = "You are responsible for keeping your login credentials secure and entering accurate profile measurements (height, weight, age) for reliable wellness calculations."
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Button(
+                    onClick = { activeLegalDoc = null },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Text(
+                        text = "Close",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
 
     Column(
         modifier = modifier
@@ -235,9 +342,19 @@ fun AboutVitalSyncScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                AboutLinkRow("Privacy Policy", Icons.Rounded.Description)
+                AboutLinkRow(
+                    title = "Privacy Policy",
+                    subtitle = "How your health metrics, activity logs, and personal data stay protected on your device.",
+                    icon = Icons.Rounded.Description,
+                    onClick = { activeLegalDoc = AboutLegalDocument.PRIVACY_POLICY }
+                )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                AboutLinkRow("Terms of Service", Icons.Rounded.Article)
+                AboutLinkRow(
+                    title = "Terms of Service",
+                    subtitle = "Usage guidelines, health disclaimers, and terms for using VitalSync.",
+                    icon = Icons.Rounded.Article,
+                    onClick = { activeLegalDoc = AboutLegalDocument.TERMS_OF_SERVICE }
+                )
             }
         }
 
@@ -256,25 +373,69 @@ fun AboutVitalSyncScreen(
 }
 
 @Composable
-private fun AboutLinkRow(title: String, icon: ImageVector) {
+private fun LegalSectionBlock(title: String, body: String) {
+    Column(modifier = Modifier.padding(bottom = 14.dp)) {
+        Text(
+            text = title,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = body,
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            lineHeight = 18.sp
+        )
+    }
+}
+
+@Composable
+private fun AboutLinkRow(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { }
+            .clickable { onClick() }
             .padding(vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.Top,
+            modifier = Modifier.weight(1f)
+        ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .size(18.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 16.sp
+                )
+            }
         }
+        Spacer(modifier = Modifier.width(10.dp))
         ChevronRightIcon(modifier = Modifier.size(16.dp))
     }
 }

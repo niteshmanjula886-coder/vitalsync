@@ -285,7 +285,7 @@ fun AiInsightCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Powered by ${insight?.modelUsed ?: "qwen2.5:1.5b"}",
+                    text = "Powered by VitalSync AI",
                     fontSize = 10.sp,
                     color = Color(0xFF9CA3AF),
                     maxLines = 1,

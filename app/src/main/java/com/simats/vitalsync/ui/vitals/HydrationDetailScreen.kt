@@ -648,23 +648,35 @@ fun HydrationDetailScreen(
 
                     weeklyDaysList.forEachIndexed { i, dayData ->
                         val x = spacing + i * (barWidth + spacing)
-                        val ratio = dayData.ratio
+                        val dayIntakeMl = dayData.consumedMl ?: 0
+                        val effectiveRatio = if (dayIntakeMl > 0) {
+                            (dayIntakeMl.toFloat() / dailyTargetMl.coerceAtLeast(1)).coerceIn(0f, 1f)
+                        } else 0f
 
-                        if (ratio != null && ratio > 0f) {
-                            // Solid Logged Water Bar
-                            val barHeight = size.height * ratio * chartProgress
+                        if (dayIntakeMl > 0 && effectiveRatio > 0f) {
+                            // Dynamic goal-based progress bar color across all 7 days
+                            val barColor = resolveHydrationBarColor(
+                                intakeMl = dayIntakeMl,
+                                dailyGoalMl = dailyTargetMl,
+                                isDark = isDark
+                            )
+                            val barHeight = (size.height * effectiveRatio * chartProgress).coerceAtLeast(6.dp.toPx())
                             val y = size.height - barHeight
 
                             drawRoundRect(
-                                color = if (dayData.isToday) Color(0xFF0F9F7A) else Color(0xFFA7F3D0),
+                                color = barColor,
                                 topLeft = Offset(x, y),
                                 size = Size(barWidth, barHeight),
                                 cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
                             )
                         } else {
-                            // Strict Log-Driven Rule: Unlogged days render as empty ghost placeholder outlines
+                            // No intake (0 ml): muted dark track and dashed placeholder outline
                             drawRoundRect(
-                                color = if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9),
+                                color = resolveHydrationBarColor(
+                                    intakeMl = 0,
+                                    dailyGoalMl = dailyTargetMl,
+                                    isDark = isDark
+                                ),
                                 topLeft = Offset(x, size.height * 0.85f),
                                 size = Size(barWidth, size.height * 0.15f),
                                 cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
@@ -739,7 +751,11 @@ fun HydrationDetailScreen(
                                     text = if ((dayItem.consumedMl ?: 0) > 0) "${String.format(Locale.US, "%,d", dayItem.consumedMl)} ml logged" else "0 ml",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if ((dayItem.consumedMl ?: 0) > 0) Color(0xFF0F9F7A) else (if (isDark) CarbonDarkTextSecondary else Color(0xFF94A3B8)),
+                                    color = if ((dayItem.consumedMl ?: 0) > 0) {
+                                        resolveHydrationBarColor(dayItem.consumedMl ?: 0, dailyTargetMl, isDark)
+                                    } else {
+                                        if (isDark) CarbonDarkTextSecondary else Color(0xFF94A3B8)
+                                    },
                                     maxLines = 1,
                                     softWrap = false,
                                     textAlign = TextAlign.End
@@ -1530,5 +1546,28 @@ private fun CalendarIcon(modifier: Modifier = Modifier) {
 fun HydrationDetailScreenPreview() {
     VitalsyncTheme {
         HydrationDetailScreen()
+    }
+}
+
+/**
+ * Resolves dynamic goal-based progress color for the weekly hydration bar chart:
+ * - 0 ml: muted dark track (#1F2623 in dark mode)
+ * - < 50% of daily goal: Red (#EF4444)
+ * - 50%..99% of daily goal: Amber/Yellow (#F59E0B)
+ * - >= 100% of daily goal: Purple (#A855F7)
+ */
+internal fun resolveHydrationBarColor(
+    intakeMl: Int,
+    dailyGoalMl: Int,
+    isDark: Boolean
+): Color {
+    if (intakeMl <= 0) {
+        return if (isDark) Color(0xFF1F2623) else Color(0xFFF1F5F9)
+    }
+    val progress = intakeMl.toFloat() / dailyGoalMl.coerceAtLeast(1)
+    return when {
+        progress >= 1.0f -> Color(0xFFA855F7)
+        progress >= 0.50f -> Color(0xFFF59E0B)
+        else -> Color(0xFFEF4444)
     }
 }

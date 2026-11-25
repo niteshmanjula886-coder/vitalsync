@@ -109,6 +109,42 @@ data class AiChatListResponse(
     val message: String? = null
 )
 
+data class OllamaChatMessageDto(
+    @SerializedName("role")
+    val role: String,
+
+    @SerializedName("content")
+    val content: String
+)
+
+data class OllamaChatRequest(
+    @SerializedName("model")
+    val model: String = "qwen2.5:1.5b",
+
+    @SerializedName("messages")
+    val messages: List<OllamaChatMessageDto>,
+
+    @SerializedName("stream")
+    val stream: Boolean = false
+)
+
+data class OllamaChatResponse(
+    @SerializedName("model")
+    val model: String? = null,
+
+    @SerializedName("message")
+    val message: OllamaChatMessageDto? = null,
+
+    @SerializedName("response")
+    val response: String? = null,
+
+    @SerializedName("done")
+    val done: Boolean = true,
+
+    @SerializedName("eval_count")
+    val evalCount: Int? = null
+)
+
 data class AiChatRequest(
     @SerializedName("user_id")
     val user_id: Int = 0,
@@ -123,7 +159,13 @@ data class AiChatRequest(
     val email: String? = null,
 
     @SerializedName("message_text")
-    val messageText: String = message
+    val messageText: String = message,
+
+    @SerializedName("conversation_history", alternate = ["conversationHistory", "messages"])
+    val conversationHistory: List<OllamaChatMessageDto> = emptyList(),
+
+    @SerializedName("live_context", alternate = ["liveContext"])
+    val liveContext: String? = null
 ) {
     val userId: Int? get() = if (user_id > 0) user_id else null
 
@@ -132,13 +174,17 @@ data class AiChatRequest(
         sessionId: Int?,
         email: String?,
         messageText: String,
-        message: String = messageText
+        message: String = messageText,
+        conversationHistory: List<OllamaChatMessageDto> = emptyList(),
+        liveContext: String? = null
     ) : this(
         user_id = userId ?: 0,
         message = message,
         sessionId = sessionId,
         email = email,
-        messageText = messageText
+        messageText = messageText,
+        conversationHistory = conversationHistory,
+        liveContext = liveContext
     )
 }
 
