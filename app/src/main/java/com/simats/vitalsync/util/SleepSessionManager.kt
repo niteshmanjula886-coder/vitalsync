@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -306,16 +308,20 @@ class SleepSessionManager private constructor(private val appContext: Context) {
     }
 
     private fun finalizeAndSaveSession(context: Context, onComplete: ((SleepRecord) -> Unit)?) {
-        val startMillis = _sessionState.value.sleepStartMillis
+        val currentStart = _sessionState.value.sleepStartMillis
         val endMillis = System.currentTimeMillis()
+        val startMillis = if (currentStart > 0L) currentStart else (endMillis - 60_000L)
 
         // Duration in exact minutes (with minimum 1 minute guarantee for test/quick stops)
         val rawMinutes = ((endMillis - startMillis) / (1000 * 60)).toInt()
         val durationMinutes = if (rawMinutes <= 0) 1 else rawMinutes
 
         val sdfTime = SimpleDateFormat("hh:mm a", Locale.US)
+        val sdfIso = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
         val formattedBedtime = sdfTime.format(startMillis)
         val formattedWakeTime = sdfTime.format(endMillis)
+        val startTimeIso = sdfIso.format(startMillis)
+        val endTimeIso = sdfIso.format(endMillis)
 
         val repository = FitnessRepository.getInstance(context)
         val todayStr = repository.getTodayDateString()
@@ -332,34 +338,29 @@ class SleepSessionManager private constructor(private val appContext: Context) {
             dateString = todayStr
         )
 
-        // 1. Save locally to repository
+        // 1. Save locally to repository immediately (Local-First Guarantee)
         repository.saveSleepRecord(completedRecord)
 
-        // 2. Sync to remote PHP/MySQL API in background
+        // 2. Queue for remote sync and attempt sync
         val sessionManager = com.simats.vitalsync.data.local.SessionManager(context)
         val userId = prefs.getInt("key_user_id", 0).takeIf { it > 0 } ?: sessionManager.getUser()?.id?.takeIf { it > 0 }
         val userEmail = prefs.getString("key_user_email", "")?.ifBlank { null } ?: sessionManager.getUserEmail()
 
-        scope.launch {
-            try {
-                withContext(Dispatchers.IO) {
-                    RetrofitClient.vitalsApiService.logSleep(
-                        LogSleepRequest(
-                            userId = userId,
-                            email = userEmail?.ifBlank { null },
-                            dateString = todayStr,
-                            bedtime = formattedBedtime,
-                            wakeTime = formattedWakeTime,
-                            durationMinutes = durationMinutes,
-                            sleepScore = derivedScore,
-                            qualityLabel = presentation.qualityLabel
-                        )
-                    )
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Offline/Failed to sync sleep log to server: ${e.message}")
-            }
-        }
+        val logRequest = LogSleepRequest(
+            userId = userId,
+            email = userEmail?.ifBlank { null },
+            dateString = todayStr,
+            bedtime = formattedBedtime,
+            wakeTime = formattedWakeTime,
+            durationMinutes = durationMinutes,
+            sleepScore = derivedScore,
+            qualityLabel = presentation.qualityLabel,
+            startTime = startTimeIso,
+            endTime = endTimeIso
+        )
+
+        enqueuePendingSleepLog(logRequest)
+        syncPendingSleepLogs(context)
 
         // 3. Reset session state
         val resetState = SleepSessionState(
@@ -411,6 +412,9 @@ class SleepSessionManager private constructor(private val appContext: Context) {
         // 1. Clear locally
         FitnessRepository.getInstance(context).clearSleepRecord(dateStr)
 
+        // Clear from pending queue if present
+        removePendingSleepLogsForDate(dateStr)
+
         // 2. Reset remotely in MySQL
         val sessionManager = com.simats.vitalsync.data.local.SessionManager(context)
         val userId = prefs.getInt("key_user_id", 0).takeIf { it > 0 } ?: sessionManager.getUser()?.id?.takeIf { it > 0 }
@@ -439,6 +443,116 @@ class SleepSessionManager private constructor(private val appContext: Context) {
         }
 
         onComplete?.invoke()
+    }
+
+    /**
+     * Offline Sync Queue Management:
+     * Guarantees sleep sessions recorded while offline or on disparate host networks are never lost.
+     */
+    @Synchronized
+    fun getPendingSleepSyncQueue(): List<LogSleepRequest> {
+        val raw = prefs.getString("key_pending_sleep_sync_list", "[]") ?: "[]"
+        return try {
+            val array = JSONArray(raw)
+            val list = mutableListOf<LogSleepRequest>()
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                val uid = obj.optInt("user_id", 0).takeIf { it > 0 }
+                val em = obj.optString("email", "").ifBlank { null }
+                val act = obj.optString("action", "").ifBlank { null }
+                val st = obj.optString("start_time", "").ifBlank { null }
+                val et = obj.optString("end_time", "").ifBlank { null }
+                list.add(
+                    LogSleepRequest(
+                        userId = uid,
+                        email = em,
+                        dateString = obj.optString("date_string", ""),
+                        bedtime = obj.optString("bedtime", "10:30 PM"),
+                        wakeTime = obj.optString("wake_time", "06:30 AM"),
+                        durationMinutes = obj.optInt("duration_minutes", 1),
+                        sleepScore = obj.optInt("sleep_score", 70),
+                        qualityLabel = obj.optString("quality_label", "Optimal"),
+                        action = act,
+                        startTime = st,
+                        endTime = et
+                    )
+                )
+            }
+            list
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    @Synchronized
+    fun savePendingSleepSyncQueue(list: List<LogSleepRequest>) {
+        val array = JSONArray()
+        list.forEach { req ->
+            val obj = JSONObject().apply {
+                put("user_id", req.userId ?: 0)
+                put("email", req.email ?: "")
+                put("date_string", req.dateString)
+                put("bedtime", req.bedtime)
+                put("wake_time", req.wakeTime)
+                put("duration_minutes", req.durationMinutes)
+                put("sleep_score", req.sleepScore)
+                put("quality_label", req.qualityLabel)
+                put("action", req.action ?: "")
+                put("start_time", req.startTime ?: "")
+                put("end_time", req.endTime ?: "")
+            }
+            array.put(obj)
+        }
+        prefs.edit().putString("key_pending_sleep_sync_list", array.toString()).apply()
+    }
+
+    @Synchronized
+    fun enqueuePendingSleepLog(req: LogSleepRequest) {
+        val current = getPendingSleepSyncQueue().toMutableList()
+        // Deduplicate by dateString
+        current.removeAll { it.dateString == req.dateString }
+        current.add(req)
+        savePendingSleepSyncQueue(current)
+        Log.d(TAG, "Enqueued sleep log for ${req.dateString} to offline sync queue (Total: ${current.size})")
+    }
+
+    @Synchronized
+    fun removePendingSleepLogsForDate(dateStr: String) {
+        val current = getPendingSleepSyncQueue().toMutableList()
+        if (current.removeAll { it.dateString == dateStr }) {
+            savePendingSleepSyncQueue(current)
+            Log.d(TAG, "Removed pending sleep log for $dateStr from offline sync queue")
+        }
+    }
+
+    /**
+     * Flushes offline sleep queue to remote MySQL database whenever connection is available.
+     */
+    fun syncPendingSleepLogs(context: Context) {
+        scope.launch {
+            val queue = getPendingSleepSyncQueue()
+            if (queue.isEmpty()) return@launch
+
+            Log.d(TAG, "Attempting to sync ${queue.size} pending sleep logs to backend...")
+            val remaining = mutableListOf<LogSleepRequest>()
+            for (req in queue) {
+                try {
+                    val resp = withContext(Dispatchers.IO) {
+                        RetrofitClient.vitalsApiService.logSleep(req)
+                    }
+                    if (resp.isSuccessful && resp.body()?.success == true) {
+                        Log.d(TAG, "Successfully synced pending sleep log for ${req.dateString}")
+                    } else {
+                        Log.w(TAG, "Server returned error for ${req.dateString}: code=${resp.code()}, retaining in queue")
+                        remaining.add(req)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Server unreachable while syncing sleep log for ${req.dateString}: ${e.message}")
+                    remaining.add(req)
+                }
+            }
+            savePendingSleepSyncQueue(remaining)
+        }
     }
 
     /**

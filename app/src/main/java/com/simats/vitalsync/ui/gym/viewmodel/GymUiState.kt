@@ -47,7 +47,8 @@ enum class NutritionTrendMetric(val label: String, val unit: String, val icon: S
     CALORIES("Calories", "kcal", ""),
     PROTEIN("Protein", "g", ""),
     CARBS("Carbs", "g", ""),
-    FATS("Fats", "g", "")
+    FATS("Fats", "g", ""),
+    OVERALL("Overall", "%", "")
 }
 
 // =============================================================================

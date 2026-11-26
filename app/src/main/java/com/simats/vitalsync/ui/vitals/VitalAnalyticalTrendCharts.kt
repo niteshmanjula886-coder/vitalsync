@@ -1644,35 +1644,50 @@ fun VitalAnalyticalTrendsDashboard(
                 fontWeight = FontWeight.Bold,
                 color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
             )
+            Text(
+                text = "Clinical Analytics",
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B)
+            )
+        }
 
-            // Segmented Tab Selector
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9))
-                    .padding(3.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                listOf("Heart Rate", "SpO₂", "Blood Pressure").forEachIndexed { idx, tabLabel ->
-                    val isTabSelected = selectedTab == idx
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(9.dp))
-                            .background(
-                                if (isTabSelected) {
-                                    if (isDark) Color(0xFF10B981) else Color(0xFF0F9F7A)
-                                } else Color.Transparent
-                            )
-                            .clickable { selectedTab = idx }
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
-                    ) {
-                        Text(
-                            text = tabLabel,
-                            fontSize = 11.5.sp,
-                            fontWeight = if (isTabSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isTabSelected) Color.White else (if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B))
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Full-width Segmented Metric Selector Pills (Equal width, zero text wrapping)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (isDark) CarbonDarkSurfaceVariant else Color(0xFFF1F5F9))
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            listOf("Heart Rate", "SpO₂", "Blood Pressure").forEachIndexed { idx, tabLabel ->
+                val isTabSelected = selectedTab == idx
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(
+                            if (isTabSelected) {
+                                if (isDark) Color(0xFF10B981) else Color(0xFF0F9F7A)
+                            } else Color.Transparent
                         )
-                    }
+                        .clickable { selectedTab = idx }
+                        .padding(vertical = 7.dp, horizontal = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = tabLabel,
+                        fontSize = 12.sp,
+                        fontWeight = if (isTabSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isTabSelected) Color.White else (if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B)),
+                        maxLines = 1,
+                        softWrap = false,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }

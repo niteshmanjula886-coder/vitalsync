@@ -127,45 +127,54 @@ fun WeeklyNutritionMealTrendSection(
         NutritionTrendMetric.PROTEIN -> activeProtTarget
         NutritionTrendMetric.CARBS -> activeCarbTarget
         NutritionTrendMetric.FATS -> activeFatTarget
+        NutritionTrendMetric.OVERALL -> 100f
     }
 
     // Calculate sensible Y-axis scale so extreme spike days never squash normal target days
-    val maxChartValue = remember(calendarDays, selectedMetric, currentTarget) {
-        val highestLogged = calendarDays.maxOfOrNull { day ->
-            when (selectedMetric) {
-                NutritionTrendMetric.CALORIES -> day.calories.toFloat()
-                NutritionTrendMetric.PROTEIN -> day.proteinG
-                NutritionTrendMetric.CARBS -> day.carbsG
-                NutritionTrendMetric.FATS -> day.fatsG
-            }
-        } ?: 0f
-        val safeTarget = currentTarget.coerceAtLeast(10f)
-        maxOf(safeTarget * 1.5f, minOf(highestLogged * 1.05f, safeTarget * 2.0f), 10f)
+    val maxChartValue = remember(calendarDays, selectedMetric, currentTarget, activeCalTarget, activeProtTarget, activeCarbTarget, activeFatTarget) {
+        if (selectedMetric == NutritionTrendMetric.OVERALL) {
+            115f
+        } else {
+            val highestLogged = calendarDays.maxOfOrNull { day ->
+                when (selectedMetric) {
+                    NutritionTrendMetric.CALORIES -> day.calories.toFloat()
+                    NutritionTrendMetric.PROTEIN -> day.proteinG
+                    NutritionTrendMetric.CARBS -> day.carbsG
+                    NutritionTrendMetric.FATS -> day.fatsG
+                    NutritionTrendMetric.OVERALL -> 100f
+                }
+            } ?: 0f
+            val safeTarget = currentTarget.coerceAtLeast(10f)
+            maxOf(safeTarget * 1.5f, minOf(highestLogged * 1.05f, safeTarget * 2.0f), 10f)
+        }
     }
 
     // Weekly calculations
     val loggedDaysCount = remember(calendarDays) { calendarDays.count { it.calories > 0 } }
-    val onTargetDaysCount = remember(calendarDays, selectedMetric, currentTarget) {
+    val onTargetDaysCount = remember(calendarDays, selectedMetric, currentTarget, activeCalTarget, activeProtTarget, activeCarbTarget, activeFatTarget) {
         calendarDays.count { day ->
             val v = when (selectedMetric) {
                 NutritionTrendMetric.CALORIES -> day.calories.toFloat()
                 NutritionTrendMetric.PROTEIN -> day.proteinG
                 NutritionTrendMetric.CARBS -> day.carbsG
                 NutritionTrendMetric.FATS -> day.fatsG
+                NutritionTrendMetric.OVERALL -> calculateDayAdherence(day, activeCalTarget, activeProtTarget, activeCarbTarget, activeFatTarget)
             }
             if (v <= 0f) false
+            else if (selectedMetric == NutritionTrendMetric.OVERALL) v >= 80f
             else kotlin.math.abs(v - currentTarget) <= (currentTarget * 0.15f) || (selectedMetric == NutritionTrendMetric.PROTEIN && v >= currentTarget * 0.9f)
         }
     }
     val adherencePercent = if (calendarDays.isNotEmpty()) ((onTargetDaysCount.toFloat() / calendarDays.size.toFloat()) * 100).toInt() else 0
 
-    val weeklyTotalForMetric = remember(calendarDays, selectedMetric) {
+    val weeklyTotalForMetric = remember(calendarDays, selectedMetric, activeCalTarget, activeProtTarget, activeCarbTarget, activeFatTarget) {
         calendarDays.sumOf { day ->
             when (selectedMetric) {
                 NutritionTrendMetric.CALORIES -> day.calories.toDouble()
                 NutritionTrendMetric.PROTEIN -> day.proteinG.toDouble()
                 NutritionTrendMetric.CARBS -> day.carbsG.toDouble()
                 NutritionTrendMetric.FATS -> day.fatsG.toDouble()
+                NutritionTrendMetric.OVERALL -> calculateDayAdherence(day, activeCalTarget, activeProtTarget, activeCarbTarget, activeFatTarget).toDouble()
             }
         }.toFloat()
     }
@@ -236,7 +245,7 @@ fun WeeklyNutritionMealTrendSection(
             Spacer(modifier = Modifier.height(14.dp))
 
             // -----------------------------------------------------------------
-            // 2. Metric Selector Tabs (Calories, Protein, Carbs, Fats)
+            // 2. Metric Selector Tabs (Calories, Protein, Carbs, Fats, Overall)
             // -----------------------------------------------------------------
             Row(
                 modifier = Modifier
@@ -244,7 +253,7 @@ fun WeeklyNutritionMealTrendSection(
                     .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
                     .padding(3.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 NutritionTrendMetric.values().forEach { metric ->
                     val isSelected = (metric == selectedMetric)
@@ -254,7 +263,7 @@ fun WeeklyNutritionMealTrendSection(
                             .clip(RoundedCornerShape(10.dp))
                             .background(if (isSelected) VitalTealDark else Color.Transparent)
                             .clickable { viewModel.selectNutritionTrendMetric(metric) }
-                            .padding(vertical = 7.dp),
+                            .padding(vertical = 6.dp, horizontal = 2.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
@@ -266,17 +275,18 @@ fun WeeklyNutritionMealTrendSection(
                                 NutritionTrendMetric.PROTEIN -> Icons.Rounded.FitnessCenter
                                 NutritionTrendMetric.CARBS -> Icons.Rounded.BakeryDining
                                 NutritionTrendMetric.FATS -> Icons.Rounded.Opacity
+                                NutritionTrendMetric.OVERALL -> Icons.Rounded.PieChart
                             }
                             Icon(
                                 imageVector = metricIcon,
                                 contentDescription = null,
-                                modifier = Modifier.size(13.dp),
+                                modifier = Modifier.size(12.dp),
                                 tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = metric.label,
-                                fontSize = 11.5.sp,
+                                fontSize = 10.5.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -306,6 +316,7 @@ fun WeeklyNutritionMealTrendSection(
                     Text(
                         text = when (selectedMetric) {
                             NutritionTrendMetric.CALORIES -> "${currentTarget.toInt()} kcal"
+                            NutritionTrendMetric.OVERALL -> "100% Macro Balance"
                             else -> "${currentTarget.toInt()}g"
                         },
                         fontSize = 12.5.sp,
@@ -315,7 +326,11 @@ fun WeeklyNutritionMealTrendSection(
                 }
 
                 Text(
-                    text = "Weekly Avg: ${if (selectedMetric == NutritionTrendMetric.CALORIES) weeklyAvgForMetric.toInt().toString() + " kcal" else String.format(Locale.US, "%.1fg", weeklyAvgForMetric)}",
+                    text = "Weekly Avg: " + when (selectedMetric) {
+                        NutritionTrendMetric.CALORIES -> "${weeklyAvgForMetric.toInt()} kcal"
+                        NutritionTrendMetric.OVERALL -> "${weeklyAvgForMetric.toInt()}% Compliance"
+                        else -> String.format(Locale.US, "%.1fg", weeklyAvgForMetric)
+                    },
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onBackground
@@ -328,8 +343,8 @@ fun WeeklyNutritionMealTrendSection(
             // 4. Interactive 7-Day Bar Chart with Target Reference Line
             // -----------------------------------------------------------------
             val targetLineRatio = (currentTarget / maxChartValue).coerceIn(0.1f, 0.92f)
-            val chartHeight = 160.dp
-            val labelSectionHeight = 38.dp
+            val chartHeight = 200.dp
+            val labelSectionHeight = 48.dp
 
             Box(
                 modifier = Modifier
@@ -374,6 +389,7 @@ fun WeeklyNutritionMealTrendSection(
                             NutritionTrendMetric.PROTEIN -> day.proteinG
                             NutritionTrendMetric.CARBS -> day.carbsG
                             NutritionTrendMetric.FATS -> day.fatsG
+                            NutritionTrendMetric.OVERALL -> calculateDayAdherence(day, activeCalTarget, activeProtTarget, activeCarbTarget, activeFatTarget)
                         }
 
                         // Bar height ratio relative to scaled maxChartValue
@@ -387,6 +403,11 @@ fun WeeklyNutritionMealTrendSection(
                         // Status Color (subtle dark placeholder track for 0 logged intake)
                         val barColor = when {
                             dayVal <= 0f -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.22f)
+                            selectedMetric == NutritionTrendMetric.OVERALL -> when {
+                                dayVal >= 80f -> VitalPrimaryMint
+                                dayVal >= 55f -> Color(0xFFD97706)
+                                else -> Color(0xFFE11D48)
+                            }
                             kotlin.math.abs(dayVal - currentTarget) <= (currentTarget * 0.15f) -> VitalPrimaryMint
                             dayVal > currentTarget -> Color(0xFFE11D48) // Over target (Rose red)
                             else -> Color(0xFFD97706) // Under target (Amber orange)
@@ -437,15 +458,15 @@ fun WeeklyNutritionMealTrendSection(
                                 )
                             }
 
-                            // Aligned Day Labels below the baseline
+                            // Aligned Day Labels below the baseline with ample breathing room (no clipping)
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(labelSectionHeight),
+                                    .height(labelSectionHeight)
+                                    .padding(top = 4.dp, bottom = 4.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
-                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = day.dayShort.take(3),
                                     fontSize = 11.sp,
@@ -456,11 +477,11 @@ fun WeeklyNutritionMealTrendSection(
                                     maxLines = 1,
                                     softWrap = false
                                 )
-
+                                Spacer(modifier = Modifier.height(2.dp))
                                 val dayNum = day.date.takeLast(2)
                                 Text(
                                     text = dayNum,
-                                    fontSize = 9.5.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = if (isDaySelected || day.isToday) FontWeight.Bold else FontWeight.Normal,
                                     color = if (isDaySelected) MaterialTheme.colorScheme.onBackground
                                             else if (day.isToday) VitalPrimaryMint
@@ -484,6 +505,7 @@ fun WeeklyNutritionMealTrendSection(
                 NutritionTrendMetric.PROTEIN -> selectedDay.proteinG
                 NutritionTrendMetric.CARBS -> selectedDay.carbsG
                 NutritionTrendMetric.FATS -> selectedDay.fatsG
+                NutritionTrendMetric.OVERALL -> calculateDayAdherence(selectedDay, activeCalTarget, activeProtTarget, activeCarbTarget, activeFatTarget)
             }
 
             val dayPct = if (currentTarget > 0f) ((selectedVal / currentTarget) * 100).toInt() else 0
@@ -533,6 +555,11 @@ fun WeeklyNutritionMealTrendSection(
                         // Day status pill
                         val (statusText, statusBg, statusColor) = when {
                             selectedVal <= 0f -> Triple("No Meals Logged", MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f), MaterialTheme.colorScheme.onSurfaceVariant)
+                            selectedMetric == NutritionTrendMetric.OVERALL -> when {
+                                selectedVal >= 80f -> Triple("Optimal Balance (${selectedVal.toInt()}%)", Color(0xFFE8F6F0), VitalPrimaryMint)
+                                selectedVal >= 55f -> Triple("Moderate Balance (${selectedVal.toInt()}%)", Color(0xFFFEF3C7), Color(0xFFD97706))
+                                else -> Triple("Needs Attention (${selectedVal.toInt()}%)", Color(0xFFFFECEE), Color(0xFFE11D48))
+                            }
                             kotlin.math.abs(selectedVal - currentTarget) <= (currentTarget * 0.15f) -> Triple("On Target ($dayPct%)", Color(0xFFE8F6F0), VitalPrimaryMint)
                             selectedVal > currentTarget -> Triple("Over Target ($dayPct%)", Color(0xFFFFECEE), Color(0xFFE11D48))
                             else -> Triple("Under Target ($dayPct%)", Color(0xFFFEF3C7), Color(0xFFD97706))
@@ -540,6 +567,11 @@ fun WeeklyNutritionMealTrendSection(
 
                         val statusIcon = when {
                             selectedVal <= 0f -> null
+                            selectedMetric == NutritionTrendMetric.OVERALL -> when {
+                                selectedVal >= 80f -> Icons.Rounded.CheckCircle
+                                selectedVal >= 55f -> Icons.Rounded.Warning
+                                else -> Icons.Rounded.ErrorOutline
+                            }
                             kotlin.math.abs(selectedVal - currentTarget) <= (currentTarget * 0.15f) -> Icons.Rounded.CheckCircle
                             selectedVal > currentTarget -> Icons.Rounded.ArrowUpward
                             else -> Icons.Rounded.Warning
@@ -586,6 +618,7 @@ fun WeeklyNutritionMealTrendSection(
                                     NutritionTrendMetric.PROTEIN -> "${selectedDay.proteinG.toInt()} / ${activeProtTarget.toInt()}g protein"
                                     NutritionTrendMetric.CARBS -> "${selectedDay.carbsG.toInt()} / ${activeCarbTarget.toInt()}g carbs"
                                     NutritionTrendMetric.FATS -> "${selectedDay.fatsG.toInt()} / ${activeFatTarget.toInt()}g fats"
+                                    NutritionTrendMetric.OVERALL -> "${selectedVal.toInt()}% Overall Macro Adherence"
                                 },
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
@@ -620,7 +653,11 @@ fun WeeklyNutritionMealTrendSection(
                 WeeklyStatMiniCard(
                     modifier = Modifier.weight(1f),
                     title = "7D Average",
-                    value = if (selectedMetric == NutritionTrendMetric.CALORIES) "${weeklyAvgForMetric.toInt()} kcal" else "${weeklyAvgForMetric.toInt()}g",
+                    value = when (selectedMetric) {
+                        NutritionTrendMetric.CALORIES -> "${weeklyAvgForMetric.toInt()} kcal"
+                        NutritionTrendMetric.OVERALL -> "${weeklyAvgForMetric.toInt()}%"
+                        else -> "${weeklyAvgForMetric.toInt()}g"
+                    },
                     subtitle = "per logged day"
                 )
                 WeeklyStatMiniCard(
@@ -756,4 +793,28 @@ private fun WeeklyStatMiniCard(
             )
         }
     }
+}
+
+private fun calculateDayAdherence(
+    day: WeeklyNutritionTrendDayDto,
+    calTarget: Int,
+    protTarget: Float,
+    carbTarget: Float,
+    fatTarget: Float
+): Float {
+    if (day.calories <= 0) return 0f
+    val calRatio = if (calTarget > 0) day.calories.toFloat() / calTarget else 1f
+    val calScore = (1f - kotlin.math.abs(1f - calRatio)).coerceIn(0f, 1f)
+
+    val protRatio = if (protTarget > 0) day.proteinG / protTarget else 1f
+    val protScore = if (protRatio >= 1f) 1f else protRatio.coerceIn(0f, 1f)
+
+    val carbRatio = if (carbTarget > 0) day.carbsG / carbTarget else 1f
+    val carbScore = (1f - kotlin.math.abs(1f - carbRatio)).coerceIn(0f, 1f)
+
+    val fatRatio = if (fatTarget > 0) day.fatsG / fatTarget else 1f
+    val fatScore = (1f - kotlin.math.abs(1f - fatRatio)).coerceIn(0f, 1f)
+
+    val adherence = (calScore * 0.40f + protScore * 0.30f + carbScore * 0.15f + fatScore * 0.15f) * 100f
+    return adherence.coerceIn(0f, 100f)
 }

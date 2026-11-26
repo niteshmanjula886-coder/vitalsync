@@ -1,8 +1,13 @@
 package com.simats.vitalsync.ui.activity
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.LocationManager
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
@@ -53,14 +58,23 @@ import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Timeline
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Place
+import androidx.compose.material.icons.rounded.Navigation
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
@@ -72,6 +86,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -92,7 +108,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.content.Context
 import android.graphics.Color as AndroidColor
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
@@ -121,6 +136,10 @@ import com.simats.vitalsync.data.CyclingOverallStats
 import com.simats.vitalsync.data.FitnessRepository
 import com.simats.vitalsync.data.sensor.GpsSignalStatus
 import com.simats.vitalsync.data.sensor.WorkoutTrackingService
+import com.simats.vitalsync.data.sensor.WorkoutTelemetry
+import com.simats.vitalsync.data.sensor.NominatimPlace
+import com.simats.vitalsync.data.sensor.OsmRoutingService
+import com.simats.vitalsync.data.sensor.OsmRouteResult
 import com.simats.vitalsync.ui.theme.CarbonDarkAccent
 import com.simats.vitalsync.ui.theme.CarbonDarkBackground
 import com.simats.vitalsync.ui.theme.CarbonDarkBorder
@@ -129,7 +148,14 @@ import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
 import com.simats.vitalsync.ui.theme.CarbonDarkTextPrimary
 import com.simats.vitalsync.ui.theme.CarbonDarkTextSecondary
 import com.simats.vitalsync.ui.theme.VitalTealDark
+import com.simats.vitalsync.ui.theme.VitalPrimaryMint
 import com.simats.vitalsync.data.sensor.isDeviceLocationEnabled
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -187,9 +213,128 @@ fun CyclingTrackingScreen(
     val riderMarkerRef = remember { mutableStateOf<Marker?>(null) }
     val targetMarkerRef = remember { mutableStateOf<Marker?>(null) }
 
-    // Target destination picking state
-    var isPickTargetMode by remember { mutableStateOf(false) }
-    val currentIsPickTargetMode by rememberUpdatedState(isPickTargetMode)
+    var isMapFullscreen by remember { mutableStateOf(false) }
+    var currentMapZoom by remember { mutableDoubleStateOf(17.0) }
+
+    // Compass and Rotation Sensor Listener for Directional Heading Marker
+    val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager }
+    var deviceCompassHeading by remember { mutableFloatStateOf(0f) }
+    var smoothedMarkerHeading by remember { mutableFloatStateOf(0f) }
+
+    DisposableEffect(sensorManager) {
+        if (sensorManager == null) return@DisposableEffect onDispose {}
+
+        val rotSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+            ?: sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION)
+
+        val listener = object : SensorEventListener {
+            private val rotationMatrix = FloatArray(9)
+            private val orientationValues = FloatArray(3)
+
+            override fun onSensorChanged(event: SensorEvent) {
+                val rawAzimuth = if (event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
+                    SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+                    SensorManager.getOrientation(rotationMatrix, orientationValues)
+                    var deg = Math.toDegrees(orientationValues[0].toDouble()).toFloat()
+                    if (deg < 0f) deg += 360f
+                    deg
+                } else {
+                    event.values[0]
+                }
+                deviceCompassHeading = rawAzimuth
+            }
+
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+
+        rotSensor?.let {
+            sensorManager.registerListener(listener, it, SensorManager.SENSOR_DELAY_UI)
+        }
+
+        onDispose {
+            sensorManager.unregisterListener(listener)
+        }
+    }
+
+    // Combine GPS bearing (when riding at speed >= 3 km/h) with compass azimuth when slow/stationary
+    val effectiveHeading = if (telemetry.currentSpeedKmH >= 3.0f) {
+        telemetry.currentBearing
+    } else {
+        deviceCompassHeading
+    }
+
+    // Smooth shortest-angular interpolation to eliminate jitter
+    LaunchedEffect(effectiveHeading) {
+        var diff = (effectiveHeading - smoothedMarkerHeading) % 360f
+        if (diff > 180f) diff -= 360f
+        if (diff < -180f) diff += 360f
+        if (kotlin.math.abs(diff) > 0.4f) {
+            smoothedMarkerHeading = (smoothedMarkerHeading + diff * 0.22f + 360f) % 360f
+        }
+    }
+
+    // Update rider marker rotation dynamically
+    LaunchedEffect(smoothedMarkerHeading) {
+        riderMarkerRef.value?.let { riderM ->
+            riderM.rotation = smoothedMarkerHeading
+            mapViewRef?.invalidate()
+        }
+    }
+
+    // Destination Search & OSRM Route State (Zero Paid API Keys)
+    var searchQuery by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<NominatimPlace>>(emptyList()) }
+    var isSearching by remember { mutableStateOf(false) }
+    val targetRoutePoints = remember { mutableStateOf<List<GeoPoint>>(emptyList()) }
+    val routeEstimatedDistanceMeters = remember { mutableStateOf<Float?>(null) }
+    val routeEstimatedDurationSeconds = remember { mutableStateOf<Float?>(null) }
+
+    LaunchedEffect(searchQuery) {
+        val q = searchQuery.trim()
+        if (q.length < 2) {
+            searchResults = emptyList()
+            isSearching = false
+            return@LaunchedEffect
+        }
+        delay(400)
+        isSearching = true
+        val places = OsmRoutingService.searchPlaces(q)
+        searchResults = places
+        isSearching = false
+    }
+
+    fun selectAndRouteToTarget(targetLat: Double, targetLng: Double) {
+        workoutEngine.setTargetDestination(targetLat, targetLng)
+        searchQuery = ""
+        searchResults = emptyList()
+
+        val curLat = telemetry.currentLatitude ?: 13.0827
+        val curLng = telemetry.currentLongitude ?: 80.2707
+
+        coroutineScope.launch {
+            val result = OsmRoutingService.fetchCyclingRoute(curLat, curLng, targetLat, targetLng)
+            targetRoutePoints.value = result.points
+            routeEstimatedDistanceMeters.value = result.distanceMeters
+            routeEstimatedDurationSeconds.value = result.durationSeconds
+
+            mapViewRef?.let { mv ->
+                val p1 = GeoPoint(curLat, curLng)
+                val p2 = GeoPoint(targetLat, targetLng)
+                fitMapToPoints(mv, p1, p2)
+                mv.invalidate()
+            }
+        }
+    }
+
+    fun clearTarget() {
+        workoutEngine.clearTargetDestination()
+        targetRoutePoints.value = emptyList()
+        routeEstimatedDistanceMeters.value = null
+        routeEstimatedDurationSeconds.value = null
+        searchQuery = ""
+        searchResults = emptyList()
+        mapViewRef?.invalidate()
+    }
 
     // High-contrast, sharp dark mode color filter (desaturates colors and inverts with high contrast)
     val darkMapColorFilter = remember {
@@ -242,8 +387,13 @@ fun CyclingTrackingScreen(
         }
     }
 
-    // Intercept back navigation to safely stop tracking or preview if active
-    BackHandler {
+    // Intercept back navigation: exits fullscreen first if open, else exits tracking screen
+    BackHandler(enabled = isMapFullscreen) {
+        mapViewRef?.let { currentMapZoom = it.zoomLevelDouble }
+        isMapFullscreen = false
+    }
+
+    BackHandler(enabled = !isMapFullscreen) {
         if (telemetry.isTracking) {
             workoutEngine.stopWorkout()
         } else {
@@ -400,6 +550,11 @@ fun CyclingTrackingScreen(
     val routeGeoPoints = remember(telemetry.routeCoordinates) {
         telemetry.routeCoordinates.map { GeoPoint(it.latitude, it.longitude) }
     }
+    val currentGeoPoint = remember(telemetry.currentLatitude, telemetry.currentLongitude) {
+        val lat = telemetry.currentLatitude
+        val lng = telemetry.currentLongitude
+        if (lat != null && lng != null) GeoPoint(lat, lng) else null
+    }
 
     val animatedGoalProgress by animateFloatAsState(
         targetValue = telemetry.progressRatio,
@@ -407,16 +562,77 @@ fun CyclingTrackingScreen(
         label = "CyclingGoalProgressAnimation"
     )
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
     ) {
+        if (isMapFullscreen) {
+            // Fullscreen Map View (like Google Maps)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(if (isDark) Color(0xFF0F1215) else Color(0xFFF8FAFC))
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+            ) {
+                OsmMapViewContent(
+                    modifier = Modifier.fillMaxSize(),
+                    isDark = isDark,
+                    isFullscreen = true,
+                    currentGeoPoint = currentGeoPoint,
+                    telemetry = telemetry,
+                    isLocationOff = isLocationOff,
+                    effectiveGpsStatus = effectiveGpsStatus,
+                    hasLocationPermission = hasLocationPermission,
+                    isGpsEnabled = isGpsEnabled,
+                    isCameraFollowing = isCameraFollowing,
+                    onCameraFollowingChange = { isCameraFollowing = it },
+                    routeEstimatedDistanceMeters = routeEstimatedDistanceMeters.value,
+                    targetRoutePoints = targetRoutePoints.value,
+                    smoothedMarkerHeading = smoothedMarkerHeading,
+                    currentMapZoom = currentMapZoom,
+                    onZoomChange = { currentMapZoom = it },
+                    darkMapColorFilter = darkMapColorFilter,
+                    routeGeoPoints = routeGeoPoints,
+                    routePolylineRef = routePolylineRef,
+                    targetGuidePolylineRef = targetGuidePolylineRef,
+                    startMarkerRef = startMarkerRef,
+                    riderMarkerRef = riderMarkerRef,
+                    targetMarkerRef = targetMarkerRef,
+                    onSelectAndRouteToTarget = { lat, lng -> selectAndRouteToTarget(lat, lng) },
+                    onClearTarget = { clearTarget() },
+                    onExitFullscreen = {
+                        mapViewRef?.let { currentMapZoom = it.zoomLevelDouble }
+                        isMapFullscreen = false
+                    },
+                    onPromptLocation = {
+                        if (!hasLocationPermission) {
+                            permissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
+                            )
+                        } else if (!isGpsEnabled) {
+                            try {
+                                context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                            } catch (_: Exception) {}
+                        }
+                    },
+                    onMapViewReady = { mv -> mapViewRef = mv }
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -705,6 +921,197 @@ fun CyclingTrackingScreen(
                     }
                 }
 
+                // -------------------------------------------------------------
+                // Destination Search & Target Distance Card (Zero Paid API Keys)
+                // -------------------------------------------------------------
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, if (isDark) Color(0xFF2A323D) else Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) Color(0xFF14191E) else Color(0xFFFFFFFF)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        // Search Bar Row
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isDark) Color(0xFF1F262E) else Color(0xFFF1F5F9))
+                                .padding(horizontal = 10.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = "Search",
+                                modifier = Modifier.size(18.dp),
+                                tint = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            BasicTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(vertical = 8.dp),
+                                textStyle = TextStyle(
+                                    fontSize = 12.5.sp,
+                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF1E293B)
+                                ),
+                                singleLine = true,
+                                cursorBrush = SolidColor(VitalPrimaryMint),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = {
+                                    val q = searchQuery.trim()
+                                    if (q.length >= 2) {
+                                        isSearching = true
+                                        coroutineScope.launch {
+                                            searchResults = OsmRoutingService.searchPlaces(q)
+                                            isSearching = false
+                                        }
+                                    }
+                                }),
+                                decorationBox = { innerTextField ->
+                                    if (searchQuery.isEmpty()) {
+                                        Text(
+                                            text = "Search destination (e.g. Central Park, Beach)...",
+                                            fontSize = 11.5.sp,
+                                            color = if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8)
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            )
+                            if (isSearching) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(15.dp),
+                                    strokeWidth = 2.dp,
+                                    color = VitalPrimaryMint
+                                )
+                            } else if (searchQuery.isNotEmpty()) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "Clear Search",
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable {
+                                            searchQuery = ""
+                                            searchResults = emptyList()
+                                        },
+                                    tint = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B)
+                                )
+                            }
+                        }
+
+                        // Search Results Dropdown List
+                        if (searchResults.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isDark) Color(0xFF1B222A) else Color(0xFFF8FAFC)
+                                ),
+                                border = BorderStroke(1.dp, if (isDark) Color(0xFF2E3844) else Color(0xFFE2E8F0))
+                            ) {
+                                Column {
+                                    searchResults.forEachIndexed { index, place ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    selectAndRouteToTarget(place.latitude, place.longitude)
+                                                }
+                                                .padding(horizontal = 10.dp, vertical = 7.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Place,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(15.dp),
+                                                tint = VitalPrimaryMint
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = place.shortTitle,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF1E293B),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    text = place.displayName,
+                                                    fontSize = 10.sp,
+                                                    color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                        if (index < searchResults.size - 1) {
+                                            HorizontalDivider(
+                                                color = if (isDark) Color(0xFF252D37) else Color(0xFFE2E8F0),
+                                                thickness = 0.5.dp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // If target destination is set, show a clean active target chip with clear action
+                        if (telemetry.targetLatitude != null && telemetry.targetLongitude != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Place,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = Color(0xFFF97316)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Destination Active",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isDark) CarbonDarkTextSecondary else Color(0xFF64748B),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0xFFEF4444).copy(alpha = 0.15f))
+                                        .clickable { clearTarget() }
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "Clear Target",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFEF4444)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
                 // Interactive OpenStreetMap (osmdroid) Card with Polyline & Camera Controls
                 Card(
                     modifier = Modifier
@@ -718,367 +1125,83 @@ fun CyclingTrackingScreen(
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        val lat = telemetry.currentLatitude
-                        val lng = telemetry.currentLongitude
-                        val currentGeoPoint = if (lat != null && lng != null) GeoPoint(lat, lng) else null
-
-                        AndroidView(
-                            modifier = Modifier.fillMaxSize(),
-                            factory = { ctx ->
-                                MapView(ctx).apply {
-                                    setTileSource(TileSourceFactory.MAPNIK)
-                                    setMultiTouchControls(true)
-                                    setTilesScaledToDpi(true)
-                                    setUseDataConnection(true)
-                                    setFlingEnabled(true)
-                                    minZoomLevel = 12.0
-                                    maxZoomLevel = 20.0
-                                    zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
-                                    controller.setZoom(17.0)
-                                    val initialCenter = currentGeoPoint ?: GeoPoint(13.0827, 80.2707)
-                                    controller.setCenter(initialCenter)
-
-                                    // Touch handling: Disallow parent scroll only when user touches map directly
-                                    setOnTouchListener { v, event ->
-                                        when (event.actionMasked) {
-                                            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
-                                                v.parent?.requestDisallowInterceptTouchEvent(true)
-                                                isCameraFollowing = false
-                                            }
-                                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                                                v.parent?.requestDisallowInterceptTouchEvent(false)
-                                            }
-                                        }
-                                        false
-                                    }
-
-                                     // Add single overlay instances ONCE during setup:
-                                    val eventsOverlay = MapEventsOverlay(object : MapEventsReceiver {
-                                        override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
-                                            if (currentIsPickTargetMode && p != null) {
-                                                workoutEngine.setTargetDestination(p.latitude, p.longitude)
-                                                isPickTargetMode = false
-                                                return true
-                                            }
-                                            return false
-                                        }
-
-                                        override fun longPressHelper(p: GeoPoint?): Boolean {
-                                            if (p != null) {
-                                                workoutEngine.setTargetDestination(p.latitude, p.longitude)
-                                                isPickTargetMode = false
-                                                return true
-                                            }
-                                            return false
-                                        }
-                                    })
-                                    val guidePolyline = Polyline(this).apply {
-                                        outlinePaint.color = AndroidColor.parseColor("#F97316")
-                                        outlinePaint.strokeWidth = 7f
-                                        outlinePaint.strokeCap = Paint.Cap.ROUND
-                                        outlinePaint.pathEffect = android.graphics.DashPathEffect(floatArrayOf(24f, 16f), 0f)
-                                        isVisible = false
-                                    }
-                                    val polyline = Polyline(this).apply {
-                                        outlinePaint.color = AndroidColor.parseColor("#10B981")
-                                        outlinePaint.strokeWidth = 10f
-                                        outlinePaint.strokeCap = Paint.Cap.ROUND
-                                        outlinePaint.strokeJoin = Paint.Join.ROUND
-                                    }
-                                    val startM = Marker(this).apply {
-                                        icon = ContextCompat.getDrawable(ctx, R.drawable.ic_ride_start_marker)
-                                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                                        setOnMarkerClickListener { _, _ -> true } // Suppress info popup
-                                    }
-                                    val targetM = Marker(this).apply {
-                                        icon = ContextCompat.getDrawable(ctx, R.drawable.ic_target_destination_marker)
-                                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                        setOnMarkerClickListener { _, _ -> true } // Suppress info popup
-                                    }
-                                    val riderM = Marker(this).apply {
-                                        icon = ContextCompat.getDrawable(ctx, R.drawable.ic_rider_marker)
-                                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                                        setOnMarkerClickListener { _, _ -> true } // Suppress info popup
-                                    }
-
-                                    overlays.add(0, eventsOverlay)
-                                    overlays.add(guidePolyline)
-                                    overlays.add(polyline)
-                                    overlays.add(startM)
-                                    overlays.add(targetM)
-                                    overlays.add(riderM)
-
-                                    targetGuidePolylineRef.value = guidePolyline
-                                    routePolylineRef.value = polyline
-                                    startMarkerRef.value = startM
-                                    targetMarkerRef.value = targetM
-                                    riderMarkerRef.value = riderM
-
-                                    mapViewRef = this
-                                }
-                            },
-                            update = { mapView ->
-                                // 1. Apply clean, high-contrast dark mode filter over MAPNIK in dark theme
-                                mapView.overlayManager.tilesOverlay.setColorFilter(
-                                    if (isDark) darkMapColorFilter else null
+                    OsmMapViewContent(
+                        modifier = Modifier.fillMaxSize(),
+                        isDark = isDark,
+                        isFullscreen = false,
+                        currentGeoPoint = currentGeoPoint,
+                        telemetry = telemetry,
+                        isLocationOff = isLocationOff,
+                        effectiveGpsStatus = effectiveGpsStatus,
+                        hasLocationPermission = hasLocationPermission,
+                        isGpsEnabled = isGpsEnabled,
+                        isCameraFollowing = isCameraFollowing,
+                        onCameraFollowingChange = { isCameraFollowing = it },
+                        routeEstimatedDistanceMeters = routeEstimatedDistanceMeters.value,
+                        targetRoutePoints = targetRoutePoints.value,
+                        smoothedMarkerHeading = smoothedMarkerHeading,
+                        currentMapZoom = currentMapZoom,
+                        onZoomChange = { currentMapZoom = it },
+                        darkMapColorFilter = darkMapColorFilter,
+                        routeGeoPoints = routeGeoPoints,
+                        routePolylineRef = routePolylineRef,
+                        targetGuidePolylineRef = targetGuidePolylineRef,
+                        startMarkerRef = startMarkerRef,
+                        riderMarkerRef = riderMarkerRef,
+                        targetMarkerRef = targetMarkerRef,
+                        onSelectAndRouteToTarget = { lat, lng -> selectAndRouteToTarget(lat, lng) },
+                        onClearTarget = { clearTarget() },
+                        onExitFullscreen = null,
+                        onPromptLocation = {
+                            if (!hasLocationPermission) {
+                                permissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
                                 )
-
-                                // Update Target Destination Guide Line & Marker
-                                val targetLat = telemetry.targetLatitude
-                                val targetLng = telemetry.targetLongitude
-                                val targetGeoPoint = if (targetLat != null && targetLng != null) GeoPoint(targetLat, targetLng) else null
-
-                                targetGuidePolylineRef.value?.let { guide ->
-                                    if (targetGeoPoint != null && currentGeoPoint != null) {
-                                        guide.setPoints(listOf(currentGeoPoint, targetGeoPoint))
-                                        guide.isVisible = true
-                                    } else {
-                                        guide.isVisible = false
-                                    }
-                                }
-
-                                targetMarkerRef.value?.let { targetM ->
-                                    if (targetGeoPoint != null) {
-                                        targetM.position = targetGeoPoint
-                                        targetM.icon = ContextCompat.getDrawable(
-                                            mapView.context,
-                                            R.drawable.ic_target_destination_marker
-                                        )
-                                        targetM.setVisible(true)
-                                        targetM.closeInfoWindow()
-                                    } else {
-                                        targetM.setVisible(false)
-                                    }
-                                }
-
-                                // Update Live Route Polyline (reusing single instance)
-                                routePolylineRef.value?.let { polyline ->
-                                    if (routeGeoPoints.size > 1) {
-                                        polyline.setPoints(routeGeoPoints)
-                                        polyline.setVisible(true)
-                                    } else {
-                                        polyline.setVisible(false)
-                                    }
-                                }
-
-                                // Update Start Point Marker (reusing single instance)
-                                startMarkerRef.value?.let { startM ->
-                                    if (routeGeoPoints.isNotEmpty()) {
-                                        startM.position = routeGeoPoints.first()
-                                        startM.setVisible(true)
-                                        startM.closeInfoWindow()
-                                    } else {
-                                        startM.setVisible(false)
-                                    }
-                                }
-
-                                // Update Current Rider Position Marker (reusing single instance)
-                                riderMarkerRef.value?.let { riderM ->
-                                    if (currentGeoPoint != null) {
-                                        riderM.position = currentGeoPoint
-                                        riderM.setVisible(true)
-                                        riderM.closeInfoWindow()
-
-                                        // Auto-follow rider camera
-                                        if (isCameraFollowing) {
-                                            mapView.controller.animateTo(currentGeoPoint)
-                                        }
-                                    } else {
-                                        riderM.setVisible(false)
-                                    }
-                                }
-
-                                mapView.invalidate()
+                            } else if (!isGpsEnabled) {
+                                try {
+                                    context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                                } catch (_: Exception) {}
                             }
-                        )
+                        },
+                        onMapViewReady = { mv -> mapViewRef = mv }
+                    )
+                }
 
-                        // If no GPS coordinates yet, display acquiring radar overlay
-                        if (currentGeoPoint == null) {
-                            GpsAcquiringMapOverlay(isDark = isDark)
-                        }
-
-                        // Floating Live Speed HUD Badge on Top-Left
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .padding(12.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF))
-                                .border(1.dp, if (isDark) Color(0xFF10B981) else Color(0xFF0F9F7A), RoundedCornerShape(10.dp))
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Speed,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = String.format(Locale.US, "%.1f km/h", if (!isLocationOff) liveCurrentSpeedKmH else 0.0f),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
-                                )
+                // Fullscreen Expand Button below map card aligned cleanly with right edge
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isDark) Color(0xFF192026) else Color(0xFFF1F5F9))
+                            .border(1.dp, if (isDark) Color(0xFF2A323D) else Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                            .clickable {
+                                mapViewRef?.let { currentMapZoom = it.zoomLevelDouble }
+                                isMapFullscreen = true
                             }
-                        }
-
-                        // Floating GPS Status / Locked Badge on Top-Right
-                        val gpsStatusIsLocked = !isLocationOff &&
-                            (telemetry.gpsSignalStatus == GpsSignalStatus.LOCKED || telemetry.gpsSignalStatus == GpsSignalStatus.FAIR)
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(12.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF))
-                                .border(
-                                    1.dp,
-                                    if (isLocationOff) (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626))
-                                    else if (gpsStatusIsLocked) (if (isDark) Color(0xFF10B981) else Color(0xFF0F9F7A))
-                                    else (if (isDark) Color(0xFFF59E0B) else Color(0xFFD97706)),
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .clickable {
-                                    if (!isGpsEnabled) {
-                                        try {
-                                            context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-                                        } catch (_: Exception) {}
-                                    } else if (!hasLocationPermission) {
-                                        permissionLauncher.launch(
-                                            arrayOf(
-                                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                                Manifest.permission.ACCESS_COARSE_LOCATION
-                                            )
-                                        )
-                                    }
-                                }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = if (isLocationOff) Icons.Rounded.GpsOff
-                                    else if (gpsStatusIsLocked) Icons.Rounded.GpsFixed
-                                    else Icons.Rounded.GpsNotFixed,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(15.dp),
-                                    tint = if (isLocationOff) (if (isDark) Color(0xFFF87171) else Color(0xFFDC2626))
-                                    else if (gpsStatusIsLocked) (if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A))
-                                    else (if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706))
-                                )
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Text(
-                                    text = if (!isGpsEnabled) "Location Off"
-                                    else if (!hasLocationPermission) "No Permission"
-                                    else if (gpsStatusIsLocked) "GPS Locked"
-                                    else "Acquiring...",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
-                                )
-                            }
-                        }
-
-                        // Floating Target Controls on Bottom-Left
+                            .padding(horizontal = 9.dp, vertical = 5.dp)
+                    ) {
                         Row(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(
-                                        if (isPickTargetMode) Color(0xFFF97316)
-                                        else if (isDark) Color(0xDD121619)
-                                        else Color(0xEEFFFFFF)
-                                    )
-                                    .border(
-                                        1.dp,
-                                        if (isPickTargetMode) Color(0xFFFED7AA)
-                                        else if (isDark) Color(0xFF2A323D)
-                                        else Color(0xFFCBD5E1),
-                                        RoundedCornerShape(12.dp)
-                                    )
-                                    .clickable { isPickTargetMode = !isPickTargetMode }
-                                    .padding(horizontal = 10.dp, vertical = 7.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Flag,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp),
-                                        tint = if (isPickTargetMode) Color.White else Color(0xFFF97316)
-                                    )
-                                    Spacer(modifier = Modifier.width(5.dp))
-                                    Text(
-                                        text = if (isPickTargetMode) "Tap Map to Pin" else "Set Target on Map",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isPickTargetMode) Color.White else (if (isDark) CarbonDarkTextPrimary else Color(0xFF111827))
-                                    )
-                                }
-                            }
-
-                            if (telemetry.targetLatitude != null) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF))
-                                        .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(12.dp))
-                                        .clickable {
-                                            workoutEngine.clearTargetDestination()
-                                            isPickTargetMode = false
-                                        }
-                                        .padding(horizontal = 9.dp, vertical = 7.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Close,
-                                            contentDescription = "Clear Target",
-                                            modifier = Modifier.size(13.dp),
-                                            tint = Color(0xFFEF4444)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = "Clear Target",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFFEF4444)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Floating Re-Center / Follow Me FAB on Bottom-Right
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(12.dp)
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(if (isCameraFollowing) (if (isDark) Color(0xFF10B981) else Color(0xFF0F9F7A)) else (if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF)))
-                                .clickable {
-                                    isCameraFollowing = true
-                                    currentGeoPoint?.let { pt ->
-                                        mapViewRef?.controller?.apply {
-                                            setZoom(17.0)
-                                            animateTo(pt)
-                                        }
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.MyLocation,
-                                contentDescription = "Re-center Camera",
-                                modifier = Modifier.size(20.dp),
-                                tint = if (isCameraFollowing) Color.White else (if (isDark) CarbonDarkTextPrimary else Color(0xFF1F2937))
+                            FullscreenIcon(
+                                modifier = Modifier.size(14.dp),
+                                color = VitalPrimaryMint
+                            )
+                            Text(
+                                text = "Fullscreen Map",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) CarbonDarkTextPrimary else Color(0xFF1E293B)
                             )
                         }
                     }
@@ -1603,6 +1726,7 @@ fun CyclingTrackingScreen(
             }
         }
     }
+    }
 
     // GPS Turn-On Prompt Alert Dialog
     if (showGpsPromptDialog) {
@@ -1664,6 +1788,7 @@ fun CyclingTrackingScreen(
             containerColor = if (isDark) CarbonDarkSurface else Color.White,
             shape = RoundedCornerShape(18.dp)
         )
+    }
     }
 }
 
@@ -2129,5 +2254,555 @@ private fun BackArrowIcon(
         }
 
         drawPath(path = path, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+private fun fitMapToPoints(mapView: MapView?, p1: GeoPoint, p2: GeoPoint) {
+    if (mapView == null) return
+    try {
+        val minLat = minOf(p1.latitude, p2.latitude)
+        val maxLat = maxOf(p1.latitude, p2.latitude)
+        val minLng = minOf(p1.longitude, p2.longitude)
+        val maxLng = maxOf(p1.longitude, p2.longitude)
+        val deltaLat = (maxLat - minLat).coerceAtLeast(0.005)
+        val deltaLng = (maxLng - minLng).coerceAtLeast(0.005)
+        val box = org.osmdroid.util.BoundingBox(
+            maxLat + deltaLat * 0.25,
+            maxLng + deltaLng * 0.25,
+            minLat - deltaLat * 0.25,
+            minLng - deltaLng * 0.25
+        )
+        mapView.zoomToBoundingBox(box, true, 80)
+    } catch (_: Exception) {
+        mapView.controller.animateTo(p2)
+    }
+}
+
+private fun calculateBearing(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+    val phi1 = Math.toRadians(lat1)
+    val phi2 = Math.toRadians(lat2)
+    val deltaLambda = Math.toRadians(lon2 - lon1)
+    val y = Math.sin(deltaLambda) * Math.cos(phi2)
+    val x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda)
+    val theta = Math.atan2(y, x)
+    return (Math.toDegrees(theta) + 360.0) % 360.0
+}
+
+@Composable
+private fun OsmMapViewContent(
+    modifier: Modifier = Modifier,
+    isDark: Boolean,
+    isFullscreen: Boolean,
+    currentGeoPoint: GeoPoint?,
+    telemetry: WorkoutTelemetry,
+    isLocationOff: Boolean,
+    effectiveGpsStatus: GpsSignalStatus,
+    hasLocationPermission: Boolean,
+    isGpsEnabled: Boolean,
+    isCameraFollowing: Boolean,
+    onCameraFollowingChange: (Boolean) -> Unit,
+    routeEstimatedDistanceMeters: Float?,
+    targetRoutePoints: List<GeoPoint>,
+    smoothedMarkerHeading: Float,
+    currentMapZoom: Double,
+    onZoomChange: (Double) -> Unit,
+    darkMapColorFilter: ColorMatrixColorFilter,
+    routeGeoPoints: List<GeoPoint>,
+    routePolylineRef: androidx.compose.runtime.MutableState<Polyline?>,
+    targetGuidePolylineRef: androidx.compose.runtime.MutableState<Polyline?>,
+    startMarkerRef: androidx.compose.runtime.MutableState<Marker?>,
+    riderMarkerRef: androidx.compose.runtime.MutableState<Marker?>,
+    targetMarkerRef: androidx.compose.runtime.MutableState<Marker?>,
+    onSelectAndRouteToTarget: (Double, Double) -> Unit,
+    onClearTarget: () -> Unit,
+    onExitFullscreen: (() -> Unit)? = null,
+    onPromptLocation: () -> Unit,
+    onMapViewReady: (MapView) -> Unit
+) {
+    var localMapView by remember { mutableStateOf<MapView?>(null) }
+
+    Box(modifier = modifier) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { ctx ->
+                MapView(ctx).apply {
+                    localMapView = this
+                    setTileSource(TileSourceFactory.MAPNIK)
+                    setMultiTouchControls(true)
+                    setTilesScaledToDpi(true)
+                    setUseDataConnection(true)
+                    setFlingEnabled(true)
+                    minZoomLevel = 12.0
+                    maxZoomLevel = 20.0
+                    zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
+                    controller.setZoom(currentMapZoom)
+                    val initialCenter = currentGeoPoint ?: GeoPoint(13.0827, 80.2707)
+                    controller.setCenter(initialCenter)
+
+                    setOnTouchListener { v, event ->
+                        when (event.actionMasked) {
+                            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                                v.parent?.requestDisallowInterceptTouchEvent(true)
+                                onCameraFollowingChange(false)
+                            }
+                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                v.parent?.requestDisallowInterceptTouchEvent(false)
+                            }
+                        }
+                        false
+                    }
+
+                    val eventsOverlay = MapEventsOverlay(object : MapEventsReceiver {
+                        override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
+                            if (p == null) return false
+                            val hasTarget = telemetry.targetLatitude != null && telemetry.targetLongitude != null
+                            if (hasTarget) {
+                                onClearTarget()
+                            } else {
+                                onSelectAndRouteToTarget(p.latitude, p.longitude)
+                            }
+                            postInvalidate()
+                            return true
+                        }
+
+                        override fun longPressHelper(p: GeoPoint?): Boolean {
+                            if (p != null) {
+                                onSelectAndRouteToTarget(p.latitude, p.longitude)
+                                postInvalidate()
+                                return true
+                            }
+                            return false
+                        }
+                    })
+
+                    val guidePolyline = Polyline(this).apply {
+                        outlinePaint.color = AndroidColor.parseColor("#F97316")
+                        outlinePaint.strokeWidth = 7f
+                        outlinePaint.strokeCap = Paint.Cap.ROUND
+                        outlinePaint.pathEffect = android.graphics.DashPathEffect(floatArrayOf(24f, 16f), 0f)
+                        isVisible = false
+                    }
+                    val polyline = Polyline(this).apply {
+                        outlinePaint.color = AndroidColor.parseColor("#10B981")
+                        outlinePaint.strokeWidth = 10f
+                        outlinePaint.strokeCap = Paint.Cap.ROUND
+                        outlinePaint.strokeJoin = Paint.Join.ROUND
+                    }
+                    val startM = Marker(this).apply {
+                        icon = ContextCompat.getDrawable(ctx, R.drawable.ic_ride_start_marker)
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        setOnMarkerClickListener { _, _ -> true }
+                    }
+                    val targetM = Marker(this).apply {
+                        icon = ContextCompat.getDrawable(ctx, R.drawable.ic_target_destination_marker)
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        setOnMarkerClickListener { _, mv ->
+                            onClearTarget()
+                            mv.invalidate()
+                            true
+                        }
+                    }
+                    val riderM = Marker(this).apply {
+                        icon = ContextCompat.getDrawable(ctx, R.drawable.ic_rider_marker)
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        rotation = smoothedMarkerHeading
+                        setOnMarkerClickListener { _, _ -> true }
+                    }
+
+                    overlays.add(0, eventsOverlay)
+                    overlays.add(guidePolyline)
+                    overlays.add(polyline)
+                    overlays.add(startM)
+                    overlays.add(targetM)
+                    overlays.add(riderM)
+
+                    targetGuidePolylineRef.value = guidePolyline
+                    routePolylineRef.value = polyline
+                    startMarkerRef.value = startM
+                    targetMarkerRef.value = targetM
+                    riderMarkerRef.value = riderM
+
+                    onMapViewReady(this)
+                }
+            },
+            update = { mapView ->
+                mapView.overlayManager.tilesOverlay.setColorFilter(
+                    if (isDark) darkMapColorFilter else null
+                )
+
+                val targetLat = telemetry.targetLatitude
+                val targetLng = telemetry.targetLongitude
+                val targetGeoPoint = if (targetLat != null && targetLng != null) GeoPoint(targetLat, targetLng) else null
+
+                targetGuidePolylineRef.value?.let { guide ->
+                    if (targetGeoPoint != null && currentGeoPoint != null) {
+                        val pts = if (targetRoutePoints.isNotEmpty()) {
+                            targetRoutePoints
+                        } else {
+                            listOf(currentGeoPoint, targetGeoPoint)
+                        }
+                        guide.setPoints(pts)
+                        guide.isVisible = true
+                    } else {
+                        guide.isVisible = false
+                    }
+                }
+
+                targetMarkerRef.value?.let { targetM ->
+                    if (targetGeoPoint != null) {
+                        targetM.position = targetGeoPoint
+                        targetM.icon = ContextCompat.getDrawable(
+                            mapView.context,
+                            R.drawable.ic_target_destination_marker
+                        )
+                        targetM.setVisible(true)
+                        targetM.closeInfoWindow()
+                    } else {
+                        targetM.setVisible(false)
+                    }
+                }
+
+                routePolylineRef.value?.let { polyline ->
+                    if (routeGeoPoints.size > 1) {
+                        polyline.setPoints(routeGeoPoints)
+                        polyline.setVisible(true)
+                    } else {
+                        polyline.setVisible(false)
+                    }
+                }
+
+                startMarkerRef.value?.let { startM ->
+                    if (routeGeoPoints.isNotEmpty()) {
+                        startM.position = routeGeoPoints.first()
+                        startM.setVisible(true)
+                        startM.closeInfoWindow()
+                    } else {
+                        startM.setVisible(false)
+                    }
+                }
+
+                riderMarkerRef.value?.let { riderM ->
+                    if (currentGeoPoint != null) {
+                        riderM.position = currentGeoPoint
+                        riderM.rotation = smoothedMarkerHeading
+                        riderM.setVisible(true)
+                        riderM.closeInfoWindow()
+
+                        if (isCameraFollowing) {
+                            mapView.controller.animateTo(currentGeoPoint)
+                        }
+                    } else {
+                        riderM.setVisible(false)
+                    }
+                }
+
+                mapView.invalidate()
+            }
+        )
+
+        // Radar acquiring overlay if GPS not acquired yet
+        if (currentGeoPoint == null) {
+            GpsAcquiringMapOverlay(isDark = isDark)
+        }
+
+        // Top-Left: In Fullscreen, show Exit Fullscreen button alongside Speed HUD
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (isFullscreen && onExitFullscreen != null) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF))
+                        .border(1.dp, if (isDark) Color(0xFF2A323D) else Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
+                        .clickable { onExitFullscreen() }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        BackArrowIcon(
+                            modifier = Modifier.size(16.dp),
+                            color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                        )
+                        Text(
+                            text = "Exit",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                        )
+                    }
+                }
+            }
+
+            // Live Speed HUD Badge
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF))
+                    .border(1.dp, if (isDark) Color(0xFF10B981) else Color(0xFF0F9F7A), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Speed,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = String.format(Locale.US, "%.1f km/h", if (!isLocationOff) telemetry.currentSpeedKmH else 0.0f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                    )
+                }
+            }
+        }
+
+        // Top-Right: Floating GPS Status Badge
+        val gpsStatusIsLocked = !isLocationOff &&
+            (telemetry.gpsSignalStatus == GpsSignalStatus.LOCKED || telemetry.gpsSignalStatus == GpsSignalStatus.FAIR)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(12.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF))
+                .border(
+                    1.dp,
+                    if (isLocationOff) (if (isDark) Color(0xFFEF4444) else Color(0xFFDC2626))
+                    else if (gpsStatusIsLocked) (if (isDark) Color(0xFF10B981) else Color(0xFF0F9F7A))
+                    else (if (isDark) Color(0xFFF59E0B) else Color(0xFFD97706)),
+                    RoundedCornerShape(10.dp)
+                )
+                .clickable { onPromptLocation() }
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = if (isLocationOff) Icons.Rounded.GpsOff
+                    else if (gpsStatusIsLocked) Icons.Rounded.GpsFixed
+                    else Icons.Rounded.GpsNotFixed,
+                    contentDescription = null,
+                    modifier = Modifier.size(15.dp),
+                    tint = if (isLocationOff) (if (isDark) Color(0xFFF87171) else Color(0xFFDC2626))
+                    else if (gpsStatusIsLocked) (if (isDark) Color(0xFF34D399) else Color(0xFF0F9F7A))
+                    else (if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706))
+                )
+                Spacer(modifier = Modifier.width(5.dp))
+                Text(
+                    text = if (!isGpsEnabled) "Location Off"
+                    else if (!hasLocationPermission) "No Permission"
+                    else if (gpsStatusIsLocked) "GPS Locked"
+                    else "Acquiring...",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                )
+            }
+        }
+
+        // Bottom-Left: Compact Est. Distance badge ONLY (no Est. Time, sleek and compact)
+        if (telemetry.targetLatitude != null && telemetry.targetLongitude != null) {
+            val curDistM = telemetry.distanceToTargetMeters ?: routeEstimatedDistanceMeters
+            val distText = if (curDistM != null && curDistM > 0f) {
+                if (curDistM < 1000f) "${curDistM.roundToInt()} m"
+                else String.format(Locale.US, "%.2f km", curDistM / 1000f)
+            } else {
+                "--"
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 12.dp, bottom = 12.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (isDark) Color(0xEE121619) else Color(0xF5FFFFFF))
+                    .border(
+                        1.dp,
+                        if (isDark) Color(0xFF2A323D) else Color(0xFFCBD5E1),
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 9.dp, vertical = 5.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Navigation,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp),
+                        tint = VitalPrimaryMint
+                    )
+                    Text(
+                        text = "Est. Distance: $distText",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                    )
+                }
+            }
+        }
+
+        // Bottom-Right: Zoom In/Out Controls (+ / -) stacked vertically above Recenter FAB
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 12.dp, bottom = 62.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Zoom In (+)
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF))
+                    .border(1.dp, if (isDark) Color(0xFF2A323D) else Color(0xFFCBD5E1), CircleShape)
+                    .clickable {
+                        localMapView?.let { mv ->
+                            mv.controller.zoomIn()
+                            onZoomChange(mv.zoomLevelDouble)
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                ZoomInIcon(
+                    modifier = Modifier.size(16.dp),
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                )
+            }
+
+            // Zoom Out (-)
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                .background(if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF))
+                .border(1.dp, if (isDark) Color(0xFF2A323D) else Color(0xFFCBD5E1), CircleShape)
+                .clickable {
+                    localMapView?.let { mv ->
+                        mv.controller.zoomOut()
+                        onZoomChange(mv.zoomLevelDouble)
+                    }
+                },
+                contentAlignment = Alignment.Center
+            ) {
+                ZoomOutIcon(
+                    modifier = Modifier.size(16.dp),
+                    color = if (isDark) CarbonDarkTextPrimary else Color(0xFF111827)
+                )
+            }
+        }
+
+        // Floating Re-Center / Follow Me FAB on Bottom-Right
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(12.dp)
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(if (isCameraFollowing) (if (isDark) Color(0xFF10B981) else Color(0xFF0F9F7A)) else (if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF)))
+                .clickable {
+                    onCameraFollowingChange(true)
+                    currentGeoPoint?.let { pt ->
+                        localMapView?.controller?.apply {
+                            setZoom(17.0)
+                            animateTo(pt)
+                        }
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.MyLocation,
+                contentDescription = "Re-center Camera",
+                modifier = Modifier.size(20.dp),
+                tint = if (isCameraFollowing) Color.White else (if (isDark) CarbonDarkTextPrimary else Color(0xFF1F2937))
+            )
+        }
+    }
+}
+
+@Composable
+private fun FullscreenIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color.White
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val corner = w * 0.3f
+        val stroke = 2.dp.toPx()
+        val path = Path().apply {
+            // Top-Left
+            moveTo(0f, corner); lineTo(0f, 0f); lineTo(corner, 0f)
+            // Top-Right
+            moveTo(w - corner, 0f); lineTo(w, 0f); lineTo(w, corner)
+            // Bottom-Right
+            moveTo(w, h - corner); lineTo(w, h); lineTo(w - corner, h)
+            // Bottom-Left
+            moveTo(corner, h); lineTo(0f, h); lineTo(0f, h - corner)
+        }
+        drawPath(path = path, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Composable
+private fun FullscreenExitIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color.White
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val corner = w * 0.3f
+        val stroke = 2.dp.toPx()
+        val path = Path().apply {
+            // Top-Left (pointing inwards)
+            moveTo(0f, corner); lineTo(corner, corner); lineTo(corner, 0f)
+            // Top-Right
+            moveTo(w, corner); lineTo(w - corner, corner); lineTo(w - corner, 0f)
+            // Bottom-Right
+            moveTo(w, h - corner); lineTo(w - corner, h - corner); lineTo(w - corner, h)
+            // Bottom-Left
+            moveTo(0f, h - corner); lineTo(corner, h - corner); lineTo(corner, h)
+        }
+        drawPath(path = path, color = color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Composable
+private fun ZoomInIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color.White
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 2.2.dp.toPx()
+        drawLine(color = color, start = Offset(w * 0.2f, h * 0.5f), end = Offset(w * 0.8f, h * 0.5f), strokeWidth = stroke, cap = StrokeCap.Round)
+        drawLine(color = color, start = Offset(w * 0.5f, h * 0.2f), end = Offset(w * 0.5f, h * 0.8f), strokeWidth = stroke, cap = StrokeCap.Round)
+    }
+}
+
+@Composable
+private fun ZoomOutIcon(
+    modifier: Modifier = Modifier,
+    color: Color = Color.White
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 2.2.dp.toPx()
+        drawLine(color = color, start = Offset(w * 0.2f, h * 0.5f), end = Offset(w * 0.8f, h * 0.5f), strokeWidth = stroke, cap = StrokeCap.Round)
     }
 }

@@ -209,17 +209,27 @@ fun SleepDetailScreen(
 
     // Load live sleep logs from backend (falling back cleanly to local records if offline)
     LaunchedEffect(todayDate, resolvedUserId, resolvedEmail) {
+        // 1. Immediately flush any pending offline sleep logs if connection is available
+        sleepSessionManager.syncPendingSleepLogs(context)
+
+        // 2. Check local record for today; if empty, check the most recent completed sleep session (last night)
         val localToday = repository.getSleepRecord(todayDate)
-        if (localToday != null && localToday.durationMinutes > 0) {
+        val activeLocalRecord = if (localToday != null && localToday.durationMinutes > 0) {
+            localToday
+        } else {
+            repository.getRecentSleepRecords(limit = 1).firstOrNull()?.takeIf { it.durationMinutes > 0 }
+        }
+
+        if (activeLocalRecord != null && activeLocalRecord.durationMinutes > 0) {
             isRecordedSaved = true
-            loggedDurationMinutes = localToday.durationMinutes
-            loggedBedtime = localToday.bedtime
-            loggedWakeTime = localToday.wakeTime
-            parseFormattedTimeToHourMinute(localToday.bedtime)?.let { (h, m) ->
+            loggedDurationMinutes = activeLocalRecord.durationMinutes
+            loggedBedtime = activeLocalRecord.bedtime
+            loggedWakeTime = activeLocalRecord.wakeTime
+            parseFormattedTimeToHourMinute(activeLocalRecord.bedtime)?.let { (h, m) ->
                 bedHour = h
                 bedMinute = m
             }
-            parseFormattedTimeToHourMinute(localToday.wakeTime)?.let { (h, m) ->
+            parseFormattedTimeToHourMinute(activeLocalRecord.wakeTime)?.let { (h, m) ->
                 wakeHour = h
                 wakeMinute = m
             }
@@ -241,7 +251,7 @@ fun SleepDetailScreen(
             }
             val sleepPayload = if (response.isSuccessful) response.body()?.sleep else null
             if (sleepPayload != null) {
-                if (sleepPayload.date == todayDate && sleepPayload.durationMinutes > 0) {
+                if (sleepPayload.durationMinutes > 0) {
                     isRecordedSaved = true
                     loggedDurationMinutes = sleepPayload.durationMinutes
                     loggedBedtime = sleepPayload.bedtime
@@ -255,6 +265,7 @@ fun SleepDetailScreen(
                         wakeMinute = m
                     }
                     val pres = SleepColorStandards.getPresentation(sleepPayload.durationMinutes)
+                    val recordDate = sleepPayload.date.ifBlank { todayDate }
                     repository.saveSleepRecord(
                         SleepRecord(
                             bedtime = sleepPayload.bedtime.ifBlank { formatTime12Hour(bedHour, bedMinute) },
@@ -262,15 +273,31 @@ fun SleepDetailScreen(
                             durationMinutes = sleepPayload.durationMinutes,
                             sleepScore = if (sleepPayload.sleepScore > 0) sleepPayload.sleepScore else SleepColorStandards.deriveSleepScore(sleepPayload.durationMinutes),
                             qualityLabel = pres.qualityLabel,
-                            dateString = todayDate
+                            dateString = recordDate
                         )
                     )
-                } else if (sleepPayload.date == todayDate && sleepPayload.durationMinutes <= 0) {
-                    isRecordedSaved = false
-                    loggedDurationMinutes = 0
-                    loggedBedtime = null
-                    loggedWakeTime = null
-                    repository.clearSleepRecord(todayDate)
+                } else if (sleepPayload.durationMinutes <= 0 && activeLocalRecord != null && activeLocalRecord.durationMinutes > 0) {
+                    // Server has no log yet, but local device has completed session -> preserve local display & upload to server
+                    isRecordedSaved = true
+                    loggedDurationMinutes = activeLocalRecord.durationMinutes
+                    loggedBedtime = activeLocalRecord.bedtime
+                    loggedWakeTime = activeLocalRecord.wakeTime
+                    coroutineScope.launch(Dispatchers.IO) {
+                        try {
+                            RetrofitClient.vitalsApiService.logSleep(
+                                LogSleepRequest(
+                                    userId = resolvedUserId,
+                                    email = resolvedEmail.ifBlank { null },
+                                    dateString = activeLocalRecord.dateString.ifBlank { todayDate },
+                                    bedtime = activeLocalRecord.bedtime,
+                                    wakeTime = activeLocalRecord.wakeTime,
+                                    durationMinutes = activeLocalRecord.durationMinutes,
+                                    sleepScore = activeLocalRecord.sleepScore,
+                                    qualityLabel = activeLocalRecord.qualityLabel
+                                )
+                            )
+                        } catch (_: Exception) {}
+                    }
                 }
                 val remoteHistory = sleepPayload.recentHistory
                     .filter { it.durationMinutes > 0 }

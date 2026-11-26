@@ -1,33 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="36dp"
-    android:height="36dp"
-    android:viewportWidth="36"
-    android:viewportHeight="36">
+    android:width="40dp"
+    android:height="40dp"
+    android:viewportWidth="40"
+    android:viewportHeight="40">
 
     <!-- Layer 1: Ambient Outer Glow Halo -->
     <path
-        android:pathData="M18,18m-16,0a16,16 0 1,1 32,0a16,16 0 1,1 -32,0"
+        android:pathData="M20,20m-18,0a18,18 0 1,1 36,0a18,18 0 1,1 -36,0"
         android:fillColor="#3310B981" />
 
     <!-- Layer 2: Semi-opaque Pulse Ring -->
     <path
-        android:pathData="M18,18m-12,0a12,12 0 1,1 24,0a12,12 0 1,1 -24,0"
-        android:fillColor="#5510B981" />
+        android:pathData="M20,20m-13,0a13,13 0 1,1 26,0a13,13 0 1,1 -26,0"
+        android:fillColor="#4410B981" />
 
-    <!-- Layer 3: Crisp Solid White Border -->
+    <!-- Layer 3: Crisp Solid White Outline / Directional Chevron Border -->
     <path
-        android:pathData="M18,18m-9,0a9,9 0 1,1 18,0a9,9 0 1,1 -18,0"
+        android:pathData="M20,4 L34,33 L20,26 L6,33 Z"
         android:fillColor="#FFFFFF" />
 
-    <!-- Layer 4: Vibrant Mint/Emerald Green Core -->
+    <!-- Layer 4: Left Wing - Shaded Emerald Green for 3D Crease Depth -->
     <path
-        android:pathData="M18,18m-6.5,0a6.5,6.5 0 1,1 13,0a6.5,6.5 0 1,1 -13,0"
+        android:pathData="M20,6.8 L8.2,31.2 L20,25.2 Z"
+        android:fillColor="#059669" />
+
+    <!-- Layer 5: Right Wing - Vibrant Mint/Emerald Green Highlight -->
+    <path
+        android:pathData="M20,6.8 L20,25.2 L31.8,31.2 Z"
         android:fillColor="#10B981" />
 
-    <!-- Layer 5: Crisp Center Pure White Dot -->
+    <!-- Layer 6: Center Location Anchor Ring (Crisp White) -->
     <path
-        android:pathData="M18,18m-2.5,0a2.5,2.5 0 1,1 5,0a2.5,2.5 0 1,1 -5,0"
+        android:pathData="M20,20m-4,0a4,4 0 1,1 8,0a4,4 0 1,1 -8,0"
         android:fillColor="#FFFFFF" />
+
+    <!-- Layer 7: Center Location Anchor Core (Dark Contrast Emerald) -->
+    <path
+        android:pathData="M20,20m-2.2,0a2.2,2.2 0 1,1 4.4,0a2.2,2.2 0 1,1 -4.4,0"
+        android:fillColor="#064E3B" />
 
 </vector>

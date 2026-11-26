@@ -516,7 +516,11 @@ data class LogSleepRequest(
     @SerializedName("quality_label")
     val qualityLabel: String,
     @SerializedName("action")
-    val action: String? = null
+    val action: String? = null,
+    @SerializedName("start_time")
+    val startTime: String? = null,
+    @SerializedName("end_time")
+    val endTime: String? = null
 )
 
 data class LogSleepResponse(
