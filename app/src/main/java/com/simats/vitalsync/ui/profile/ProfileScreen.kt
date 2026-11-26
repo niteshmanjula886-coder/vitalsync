@@ -1,10 +1,18 @@
 package com.simats.vitalsync.ui.profile
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,18 +30,24 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,16 +59,27 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.simats.vitalsync.ui.theme.CarbonDarkAccent
 import com.simats.vitalsync.ui.theme.CarbonDarkBackground
 import com.simats.vitalsync.ui.theme.CarbonDarkSurfaceVariant
 import com.simats.vitalsync.ui.theme.VitalsyncTheme
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
@@ -76,7 +101,9 @@ fun ProfileScreen(
     onLogoutClick: () -> Unit = {}
 ) {
     val isDark = MaterialTheme.colorScheme.background == CarbonDarkBackground
+    val haptic = LocalHapticFeedback.current
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showPhotoViewer by remember { mutableStateOf(false) }
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -121,6 +148,16 @@ fun ProfileScreen(
         )
     }
 
+    if (showPhotoViewer) {
+        FullScreenProfileImageViewer(
+            userPhotoBitmap = userPhotoBitmap,
+            userName = userName,
+            userInitials = userInitials,
+            isDark = isDark,
+            onDismiss = { showPhotoViewer = false }
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -161,31 +198,69 @@ fun ProfileScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Choosable/Editable Avatar Circle
-        Box(
-            modifier = Modifier
-                .size(88.dp)
-                .clip(CircleShape)
-                .background(if (isDark) CarbonDarkSurfaceVariant else MaterialTheme.colorScheme.secondary)
-                .clickable { onPersonalInformationClick() },
-            contentAlignment = Alignment.Center
-        ) {
-            if (userPhotoBitmap != null) {
-                Image(
-                    bitmap = userPhotoBitmap,
-                    contentDescription = "User Profile Photo",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Text(
-                    text = userInitials,
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDark) CarbonDarkAccent else MaterialTheme.colorScheme.primary
-                )
+            // Profile Avatar with Camera Edit Badge
+            Box(
+                modifier = Modifier.size(96.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Avatar Circle (Tap or Long Press opens full-screen photo preview)
+                Box(
+                    modifier = Modifier
+                        .size(88.dp)
+                        .clip(CircleShape)
+                        .background(if (isDark) CarbonDarkSurfaceVariant else MaterialTheme.colorScheme.secondary)
+                        .combinedClickable(
+                            onClick = { showPhotoViewer = true },
+                            onLongClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                showPhotoViewer = true
+                            },
+                            onClickLabel = "View profile photo",
+                            onLongClickLabel = "View profile photo"
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (userPhotoBitmap != null) {
+                        Image(
+                            bitmap = userPhotoBitmap,
+                            contentDescription = "User Profile Photo",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = userInitials,
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) CarbonDarkAccent else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                // Edit Photo Camera Badge (Independent button to edit photo)
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .align(Alignment.BottomEnd)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(2.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable(
+                            onClick = onPersonalInformationClick,
+                            onClickLabel = "Change profile photo"
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PhotoCamera,
+                        contentDescription = "Change profile photo",
+                        tint = if (isDark) CarbonDarkBackground else Color.White,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
             }
-        }
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -513,6 +588,176 @@ private fun HelpIcon(modifier: Modifier = Modifier) {
         val h = size.height
 
         drawCircle(color = mint, radius = w * 0.40f, center = Offset(w * 0.5f, h * 0.5f), style = Stroke(width = 1.6.dp.toPx()))
+    }
+}
+
+@Composable
+private fun FullScreenProfileImageViewer(
+    userPhotoBitmap: ImageBitmap?,
+    userName: String,
+    userInitials: String,
+    isDark: Boolean,
+    onDismiss: () -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xF50A0D10))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    if (scale <= 1.05f) {
+                        onDismiss()
+                    }
+                }
+        ) {
+            // Interactive Image / Fallback Avatar Container
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 72.dp)
+                    .onGloballyPositioned { coordinates ->
+                        containerSize = coordinates.size
+                    }
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onDoubleTap = {
+                                coroutineScope.launch {
+                                    val targetScale = if (scale > 1.05f) 1f else 2.5f
+                                    val startScale = scale
+                                    val startOffset = offset
+                                    animate(
+                                        initialValue = 0f,
+                                        targetValue = 1f,
+                                        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
+                                    ) { progress, _ ->
+                                        scale = startScale + (targetScale - startScale) * progress
+                                        offset = startOffset * (1f - progress)
+                                    }
+                                }
+                            },
+                            onTap = {
+                                if (scale <= 1.05f) {
+                                    onDismiss()
+                                }
+                            }
+                        )
+                    }
+                    .pointerInput(Unit) {
+                        detectTransformGestures { _, pan, zoom, _ ->
+                            val newScale = (scale * zoom).coerceIn(1f, 4f)
+                            scale = newScale
+                            if (newScale > 1f && containerSize.width > 0 && containerSize.height > 0) {
+                                val maxX = (containerSize.width.toFloat() * (newScale - 1f)) / 2f
+                                val maxY = (containerSize.height.toFloat() * (newScale - 1f)) / 2f
+                                offset = Offset(
+                                    x = (offset.x + pan.x).coerceIn(-maxX, maxX),
+                                    y = (offset.y + pan.y).coerceIn(-maxY, maxY)
+                                )
+                            } else {
+                                offset = Offset.Zero
+                            }
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            translationX = offset.x
+                            translationY = offset.y
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (userPhotoBitmap != null) {
+                        Image(
+                            bitmap = userPhotoBitmap,
+                            contentDescription = "Full Profile Photo",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp)),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        // Default Avatar fallback (Large circular badge)
+                        Box(
+                            modifier = Modifier
+                                .size(220.dp)
+                                .clip(CircleShape)
+                                .background(if (isDark) CarbonDarkSurfaceVariant else MaterialTheme.colorScheme.secondary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = userInitials.ifBlank { "--" },
+                                fontSize = 72.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) CarbonDarkAccent else MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Top Bar Overlay (Translucent header bar)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xCC111827))
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = "Close photo viewer",
+                        tint = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = userName.ifBlank { "Profile Photo" },
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = if (userPhotoBitmap != null) "Double-tap or pinch to zoom" else "Default avatar preview",
+                        fontSize = 12.sp,
+                        color = Color(0xFF9CA3AF),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
     }
 }
 

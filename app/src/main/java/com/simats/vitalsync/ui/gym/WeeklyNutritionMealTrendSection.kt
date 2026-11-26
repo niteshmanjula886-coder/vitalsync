@@ -428,24 +428,19 @@ fun WeeklyNutritionMealTrendSection(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Bottom
                         ) {
-                            // Uniform-width Bar Pill with 6.dp minimum height for 0-intake days
-                            BoxWithConstraints(
+                            // Uniform-width Bar Pill with minimum height fraction for 0-intake days (No BoxWithConstraints subcomposition)
+                            Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxWidth(),
                                 contentAlignment = Alignment.BottomCenter
                             ) {
-                                val minBarHeight = 6.dp
-                                val barHeight = if (dayVal <= 0f) {
-                                    minBarHeight
-                                } else {
-                                    (maxHeight * animatedRatio).coerceAtLeast(minBarHeight)
-                                }
+                                val barFraction = if (dayVal <= 0f) 0.04f else animatedRatio.coerceIn(0.04f, 1f)
 
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth(0.62f)
-                                        .height(barHeight)
+                                        .fillMaxHeight(barFraction)
                                         .clip(barShape)
                                         .background(barColor)
                                         .then(

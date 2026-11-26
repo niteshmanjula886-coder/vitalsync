@@ -120,6 +120,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
+import org.osmdroid.events.MapListener
+import org.osmdroid.events.ScrollEvent
+import org.osmdroid.events.ZoomEvent
 import org.osmdroid.tileprovider.modules.SqlTileWriter
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -182,23 +185,15 @@ fun CyclingTrackingScreen(
     // Screen View Tabs: 0 = Live Tracking & Map, 1 = Overall Statistics
     var selectedScreenTab by remember { mutableIntStateOf(0) }
 
-    // Initialize osmdroid configuration once
+    // Initialize osmdroid configuration once with optimized tile caching and multi-threaded fetching
     remember {
-        Configuration.getInstance().load(context, context.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
-        Configuration.getInstance().userAgentValue = context.packageName
-    }
-
-    // Purge stale tile cache on startup so old Carto or warning tiles are refreshed
-    LaunchedEffect(Unit) {
-        try {
-            SqlTileWriter().purgeCache()
-            val cacheDir = Configuration.getInstance().osmdroidTileCache
-            if (cacheDir != null && cacheDir.exists()) {
-                cacheDir.listFiles()?.forEach { file ->
-                    try { file.deleteRecursively() } catch (_: Exception) {}
-                }
-            }
-        } catch (_: Exception) {}
+        val config = Configuration.getInstance()
+        config.load(context, context.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
+        config.userAgentValue = context.packageName
+        config.cacheMapTileCount = 150.toShort()
+        config.cacheMapTileOvershoot = 60.toShort()
+        config.tileDownloadThreads = 4.toShort()
+        config.tileFileSystemThreads = 4.toShort()
     }
 
     // Follow camera mode state & MapView reference
@@ -217,10 +212,11 @@ fun CyclingTrackingScreen(
     var currentMapZoom by remember { mutableDoubleStateOf(17.0) }
 
     // Compass and Rotation Sensor Listener for Directional Heading Marker
+    val currentTelemetry by rememberUpdatedState(telemetry)
     val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager }
-    var deviceCompassHeading by remember { mutableFloatStateOf(0f) }
     var smoothedMarkerHeading by remember { mutableFloatStateOf(0f) }
 
+    // Direct osmdroid marker rotation listener - avoids triggering 60 full-screen recompositions/sec
     DisposableEffect(sensorManager) {
         if (sensorManager == null) return@DisposableEffect onDispose {}
 
@@ -230,8 +226,11 @@ fun CyclingTrackingScreen(
         val listener = object : SensorEventListener {
             private val rotationMatrix = FloatArray(9)
             private val orientationValues = FloatArray(3)
+            private var internalSmoothed = 0f
+            private var lastUpdateMs = 0L
 
             override fun onSensorChanged(event: SensorEvent) {
+                val now = System.currentTimeMillis()
                 val rawAzimuth = if (event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
                     SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
                     SensorManager.getOrientation(rotationMatrix, orientationValues)
@@ -241,7 +240,32 @@ fun CyclingTrackingScreen(
                 } else {
                     event.values[0]
                 }
-                deviceCompassHeading = rawAzimuth
+
+                val tel = currentTelemetry
+                val targetHeading = if (tel.currentSpeedKmH >= 3.0f) {
+                    tel.currentBearing
+                } else {
+                    rawAzimuth
+                }
+
+                var diff = (targetHeading - internalSmoothed) % 360f
+                if (diff > 180f) diff -= 360f
+                if (diff < -180f) diff += 360f
+
+                // Low-pass angular filter, throttled to 50ms (~20fps) with 0.8 degree threshold
+                if (now - lastUpdateMs > 50L && kotlin.math.abs(diff) > 0.8f) {
+                    internalSmoothed = (internalSmoothed + diff * 0.25f + 360f) % 360f
+                    lastUpdateMs = now
+
+                    // Directly update rider marker on osmdroid MapView without recomposing the 2800-line screen
+                    riderMarkerRef.value?.let { riderM ->
+                        riderM.rotation = internalSmoothed
+                        mapViewRef?.invalidate()
+                    }
+                    if (kotlin.math.abs(smoothedMarkerHeading - internalSmoothed) > 4.0f) {
+                        smoothedMarkerHeading = internalSmoothed
+                    }
+                }
             }
 
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
@@ -253,31 +277,6 @@ fun CyclingTrackingScreen(
 
         onDispose {
             sensorManager.unregisterListener(listener)
-        }
-    }
-
-    // Combine GPS bearing (when riding at speed >= 3 km/h) with compass azimuth when slow/stationary
-    val effectiveHeading = if (telemetry.currentSpeedKmH >= 3.0f) {
-        telemetry.currentBearing
-    } else {
-        deviceCompassHeading
-    }
-
-    // Smooth shortest-angular interpolation to eliminate jitter
-    LaunchedEffect(effectiveHeading) {
-        var diff = (effectiveHeading - smoothedMarkerHeading) % 360f
-        if (diff > 180f) diff -= 360f
-        if (diff < -180f) diff += 360f
-        if (kotlin.math.abs(diff) > 0.4f) {
-            smoothedMarkerHeading = (smoothedMarkerHeading + diff * 0.22f + 360f) % 360f
-        }
-    }
-
-    // Update rider marker rotation dynamically
-    LaunchedEffect(smoothedMarkerHeading) {
-        riderMarkerRef.value?.let { riderM ->
-            riderM.rotation = smoothedMarkerHeading
-            mapViewRef?.invalidate()
         }
     }
 
@@ -304,6 +303,7 @@ fun CyclingTrackingScreen(
     }
 
     fun selectAndRouteToTarget(targetLat: Double, targetLng: Double) {
+        isCameraFollowing = false
         workoutEngine.setTargetDestination(targetLat, targetLng)
         searchQuery = ""
         searchResults = emptyList()
@@ -2259,22 +2259,29 @@ private fun BackArrowIcon(
 
 private fun fitMapToPoints(mapView: MapView?, p1: GeoPoint, p2: GeoPoint) {
     if (mapView == null) return
-    try {
-        val minLat = minOf(p1.latitude, p2.latitude)
-        val maxLat = maxOf(p1.latitude, p2.latitude)
-        val minLng = minOf(p1.longitude, p2.longitude)
-        val maxLng = maxOf(p1.longitude, p2.longitude)
-        val deltaLat = (maxLat - minLat).coerceAtLeast(0.005)
-        val deltaLng = (maxLng - minLng).coerceAtLeast(0.005)
-        val box = org.osmdroid.util.BoundingBox(
-            maxLat + deltaLat * 0.25,
-            maxLng + deltaLng * 0.25,
-            minLat - deltaLat * 0.25,
-            minLng - deltaLng * 0.25
-        )
-        mapView.zoomToBoundingBox(box, true, 80)
-    } catch (_: Exception) {
-        mapView.controller.animateTo(p2)
+    val applyFit = {
+        try {
+            val minLat = minOf(p1.latitude, p2.latitude)
+            val maxLat = maxOf(p1.latitude, p2.latitude)
+            val minLng = minOf(p1.longitude, p2.longitude)
+            val maxLng = maxOf(p1.longitude, p2.longitude)
+            val deltaLat = (maxLat - minLat).coerceAtLeast(0.005)
+            val deltaLng = (maxLng - minLng).coerceAtLeast(0.005)
+            val box = org.osmdroid.util.BoundingBox(
+                maxLat + deltaLat * 0.25,
+                maxLng + deltaLng * 0.25,
+                minLat - deltaLat * 0.25,
+                minLng - deltaLng * 0.25
+            )
+            mapView.zoomToBoundingBox(box, true, 80)
+        } catch (_: Exception) {
+            mapView.controller.animateTo(p2)
+        }
+    }
+    if (mapView.width > 0 && mapView.height > 0) {
+        applyFit()
+    } else {
+        mapView.post { applyFit() }
     }
 }
 
@@ -2332,12 +2339,39 @@ private fun OsmMapViewContent(
                     setTilesScaledToDpi(true)
                     setUseDataConnection(true)
                     setFlingEnabled(true)
-                    minZoomLevel = 12.0
+                    minZoomLevel = 2.5
                     maxZoomLevel = 20.0
+                    isHorizontalMapRepetitionEnabled = true
+                    isVerticalMapRepetitionEnabled = false
                     zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
-                    controller.setZoom(currentMapZoom)
+                    setBackgroundColor(if (isDark) AndroidColor.parseColor("#121619") else AndroidColor.parseColor("#F1F5F9"))
+
+                    val initialZoom = currentMapZoom.coerceIn(2.5, 20.0)
+                    controller.setZoom(initialZoom)
                     val initialCenter = currentGeoPoint ?: GeoPoint(13.0827, 80.2707)
                     controller.setCenter(initialCenter)
+
+                    // Layout guard: ensures center and zoom level apply reliably once view is measured
+                    addOnFirstLayoutListener { _, _, _, _, _ ->
+                        controller.setZoom(currentMapZoom.coerceIn(2.5, 20.0))
+                        val center = currentGeoPoint ?: GeoPoint(13.0827, 80.2707)
+                        controller.setCenter(center)
+                    }
+
+                    // Continuous zoom synchronization across pinch-to-zoom, double-tap, and controls
+                    val mapListener = object : MapListener {
+                        override fun onZoom(event: ZoomEvent?): Boolean {
+                            if (event != null) {
+                                onZoomChange(event.zoomLevel.coerceIn(2.5, 20.0))
+                            }
+                            return false
+                        }
+
+                        override fun onScroll(event: ScrollEvent?): Boolean {
+                            return false
+                        }
+                    }
+                    addMapListener(mapListener)
 
                     setOnTouchListener { v, event ->
                         when (event.actionMasked) {
@@ -2668,6 +2702,7 @@ private fun OsmMapViewContent(
                     .background(if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF))
                     .border(1.dp, if (isDark) Color(0xFF2A323D) else Color(0xFFCBD5E1), CircleShape)
                     .clickable {
+                        onCameraFollowingChange(false)
                         localMapView?.let { mv ->
                             mv.controller.zoomIn()
                             onZoomChange(mv.zoomLevelDouble)
@@ -2686,14 +2721,15 @@ private fun OsmMapViewContent(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                .background(if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF))
-                .border(1.dp, if (isDark) Color(0xFF2A323D) else Color(0xFFCBD5E1), CircleShape)
-                .clickable {
-                    localMapView?.let { mv ->
-                        mv.controller.zoomOut()
-                        onZoomChange(mv.zoomLevelDouble)
-                    }
-                },
+                    .background(if (isDark) Color(0xDD121619) else Color(0xEEFFFFFF))
+                    .border(1.dp, if (isDark) Color(0xFF2A323D) else Color(0xFFCBD5E1), CircleShape)
+                    .clickable {
+                        onCameraFollowingChange(false)
+                        localMapView?.let { mv ->
+                            mv.controller.zoomOut()
+                            onZoomChange(mv.zoomLevelDouble)
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 ZoomOutIcon(
@@ -2718,6 +2754,7 @@ private fun OsmMapViewContent(
                             setZoom(17.0)
                             animateTo(pt)
                         }
+                        onZoomChange(17.0)
                     }
                 },
             contentAlignment = Alignment.Center

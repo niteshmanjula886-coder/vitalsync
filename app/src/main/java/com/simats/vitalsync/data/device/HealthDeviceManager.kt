@@ -40,6 +40,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -838,9 +839,9 @@ class HealthDeviceManager private constructor(private val context: Context) {
         }
     }
 
-    // Health Connect Sync
-    suspend fun syncHealthConnectData() {
-        val client = healthConnectClient ?: return
+    // Health Connect Sync - Offloaded cleanly to Dispatchers.IO to prevent UI thread binder jank
+    suspend fun syncHealthConnectData() = withContext(Dispatchers.IO) {
+        val client = healthConnectClient ?: return@withContext
         try {
             val now = Instant.now()
             val startOfDay = now.truncatedTo(ChronoUnit.DAYS)

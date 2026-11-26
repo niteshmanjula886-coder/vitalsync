@@ -269,7 +269,7 @@ fun BlePairingBottomSheet(
                         .height(260.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(discoveredDevices) { device ->
+                    items(discoveredDevices, key = { it.address }) { device ->
                         DeviceItemRow(
                             device = device,
                             isConnecting = (connectionStatus == DeviceConnectionStatus.CONNECTING),

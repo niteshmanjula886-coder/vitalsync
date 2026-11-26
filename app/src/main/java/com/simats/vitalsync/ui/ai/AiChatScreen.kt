@@ -69,6 +69,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -445,7 +446,8 @@ fun AiChatScreen(
 
                 // Dynamic Chat Messages List
                 uiState.messages.forEachIndexed { index, msg ->
-                    if (msg.sender == "USER") {
+                    key(msg.id) {
+                        if (msg.sender == "USER") {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -598,6 +600,7 @@ fun AiChatScreen(
                         }
                     }
                 }
+            }
 
                 // Dedicated AI Thinking / Typing Bubble
                 if (uiState.isAiThinking || uiState.isSending) {

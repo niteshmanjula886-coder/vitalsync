@@ -42,11 +42,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -78,12 +81,15 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.Lifecycle
+import kotlin.math.roundToInt
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.delay
@@ -394,6 +400,70 @@ private fun getGreetingForCurrentTime(): String {
 }
 
 @Composable
+private fun WellnessScoreGauge(
+    wellnessScore: Int,
+    isDarkTheme: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val targetAngle = remember(wellnessScore) {
+        if (wellnessScore > 0) (wellnessScore / 100f) * 260f else 0f
+    }
+    val animatedSweepAngle by animateFloatAsState(
+        targetValue = targetAngle,
+        animationSpec = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
+        label = "GaugeSweepAnimation"
+    )
+
+    Box(
+        modifier = modifier.size(90.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokePx = 9.dp.toPx()
+            val arcSize = Size(size.width - strokePx, size.height - strokePx)
+            val topLeft = Offset(strokePx / 2f, strokePx / 2f)
+
+            // Track
+            drawArc(
+                color = if (isDarkTheme) Color(0xFF342E4F) else Color(0xFFC4B5FD),
+                startAngle = -220f,
+                sweepAngle = 260f,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = strokePx, cap = StrokeCap.Round)
+            )
+            // Smoothly Animated Active Progress Sweep
+            drawArc(
+                color = if (isDarkTheme) Color(0xFFC084FC) else Color(0xFF7C3AED),
+                startAngle = -220f,
+                sweepAngle = animatedSweepAngle,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = strokePx, cap = StrokeCap.Round)
+            )
+        }
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = if (wellnessScore > 0) "$wellnessScore" else "--",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "/ 100",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
 private fun HomeDashboardContent(
     userName: String,
     heartRateValue: String = "-- BPM",
@@ -439,15 +509,6 @@ private fun HomeDashboardContent(
     onDismissNetworkError: () -> Unit = {},
     onAskAiClick: () -> Unit = {}
 ) {
-    var targetAngle by remember(wellnessScore) {
-        mutableFloatStateOf(if (wellnessScore > 0) (wellnessScore / 100f) * 260f else 0f)
-    }
-    val animatedSweepAngle by animateFloatAsState(
-        targetValue = targetAngle,
-        animationSpec = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
-        label = "GaugeSweepAnimation"
-    )
-
     val greeting = rememberDynamicGreeting()
 
     Column(
@@ -534,54 +595,11 @@ private fun HomeDashboardContent(
                     .padding(20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Animated Dark Purple Gauge Progress Ring
-                Box(
-                    modifier = Modifier.size(90.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val strokePx = 9.dp.toPx()
-                        val arcSize = Size(size.width - strokePx, size.height - strokePx)
-                        val topLeft = Offset(strokePx / 2f, strokePx / 2f)
-
-                        // Track
-                        drawArc(
-                            color = if (isDarkTheme) Color(0xFF342E4F) else Color(0xFFC4B5FD),
-                            startAngle = -220f,
-                            sweepAngle = 260f,
-                            useCenter = false,
-                            topLeft = topLeft,
-                            size = arcSize,
-                            style = Stroke(width = strokePx, cap = StrokeCap.Round)
-                        )
-                        // Smoothly Animated Active Progress Sweep
-                        drawArc(
-                            color = if (isDarkTheme) Color(0xFFC084FC) else Color(0xFF7C3AED),
-                            startAngle = -220f,
-                            sweepAngle = animatedSweepAngle,
-                            useCenter = false,
-                            topLeft = topLeft,
-                            size = arcSize,
-                            style = Stroke(width = strokePx, cap = StrokeCap.Round)
-                        )
-                    }
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = if (wellnessScore > 0) "$wellnessScore" else "--",
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Text(
-                            text = "/ 100",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                // Animated Dark Purple Gauge Progress Ring (Isolated composable to avoid parent recomposition)
+                WellnessScoreGauge(
+                    wellnessScore = wellnessScore,
+                    isDarkTheme = isDarkTheme
+                )
 
                 Spacer(modifier = Modifier.width(20.dp))
 
@@ -1015,13 +1033,6 @@ private fun HomeBottomNavigationBar(
         label = "JumpingBubbleHorizontal"
     )
 
-    val totalDistance = abs(targetTabPos - startTabPos)
-    val traveled = abs(animatedTabPos - startTabPos)
-    val jumpFraction = if (totalDistance > 0.05f) (traveled / totalDistance).coerceIn(0f, 1f) else 0f
-
-    val jumpArcYDp = (-18.dp) * sin(jumpFraction * Math.PI.toFloat())
-    val bubbleScale = (1.0f + 0.12f * sin(jumpFraction * Math.PI.toFloat()))
-
     val density = LocalDensity.current
 
     Box(
@@ -1084,15 +1095,27 @@ private fun HomeBottomNavigationBar(
                             )
                         }
                 ) {
-                    // Active Selected Circular Bubble
+                    // Active Selected Circular Bubble (Optimized with deferred layout & draw state reads)
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .offset(
-                                x = (tabWidth * animatedTabPos) + (tabWidth / 2f) - 20.dp,
-                                y = jumpArcYDp + 6.dp
-                            )
-                            .scale(bubbleScale)
+                            .offset {
+                                val totalDistance = abs(targetTabPos - startTabPos)
+                                val traveled = abs(animatedTabPos - startTabPos)
+                                val jumpFraction = if (totalDistance > 0.05f) (traveled / totalDistance).coerceIn(0f, 1f) else 0f
+                                val jumpArcYPx = with(density) { (-18.dp).toPx() } * sin(jumpFraction * Math.PI.toFloat())
+                                val xPx = with(density) { ((tabWidth * animatedTabPos) + (tabWidth / 2f) - 20.dp).toPx() }
+                                val yPx = with(density) { 6.dp.toPx() } + jumpArcYPx
+                                IntOffset(xPx.roundToInt(), yPx.roundToInt())
+                            }
+                            .graphicsLayer {
+                                val totalDistance = abs(targetTabPos - startTabPos)
+                                val traveled = abs(animatedTabPos - startTabPos)
+                                val jumpFraction = if (totalDistance > 0.05f) (traveled / totalDistance).coerceIn(0f, 1f) else 0f
+                                val scale = (1.0f + 0.12f * sin(jumpFraction * Math.PI.toFloat()))
+                                scaleX = scale
+                                scaleY = scale
+                            }
                             .shadow(
                                 elevation = 4.dp,
                                 shape = CircleShape,
@@ -1222,103 +1245,19 @@ private fun AnimatedVitalsNavIcon(
     }
 }
 
-// Flexed Biceps Vector Structure Component for Gym Navigation
+// Dumbbell Material Icon Component for Gym Navigation
 @Composable
 private fun AnimatedGymNavIcon(
     isSelected: Boolean,
     modifier: Modifier = Modifier,
     color: Color = Color.Gray
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "GymBicepFlexAnim")
-
-    val flexProgress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(550, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "BicepFlexProgress"
-    )
-
-    val activeGymColor = if (isSelected) Color(0xFF10B981) else color
-    val surfaceColor = MaterialTheme.colorScheme.surface
-
-    Canvas(
+    Icon(
+        imageVector = Icons.Rounded.FitnessCenter,
+        contentDescription = "Gym",
+        tint = color,
         modifier = modifier.scale(if (isSelected) 1.15f else 1.0f)
-    ) {
-        val w = size.width
-        val h = size.height
-
-        val flexHeight = if (isSelected) (flexProgress * 4.0.dp.toPx()) else 0f
-
-        // 1. Flexed Bicep Arm Main Outline (Matching Bicep Emoji Structure)
-        val bicepOutline = Path().apply {
-            moveTo(w * 0.28f, h * 0.16f)
-            cubicTo(w * 0.12f, h * 0.16f, w * 0.08f, h * 0.32f, w * 0.12f, h * 0.45f)
-            lineTo(w * 0.16f, h * 0.76f)
-            quadraticTo(w * 0.18f, h * 0.90f, w * 0.35f, h * 0.88f)
-            quadraticTo(w * 0.62f, h * 0.82f, w * 0.88f, h * 0.65f)
-            lineTo(w * 0.82f, h * 0.36f)
-            quadraticTo(w * 0.68f, h * 0.45f, w * 0.60f, h * 0.50f)
-            cubicTo(
-                w * 0.52f, h * 0.30f - flexHeight,
-                w * 0.38f, h * 0.28f - flexHeight,
-                w * 0.30f, h * 0.42f
-            )
-            quadraticTo(w * 0.28f, h * 0.28f, w * 0.28f, h * 0.16f)
-            close()
-        }
-
-        drawPath(
-            path = bicepOutline,
-            color = activeGymColor
-        )
-
-        // 2. Inner Bicep Muscle Definition Crease Line
-        val muscleLine = Path().apply {
-            moveTo(w * 0.38f, h * 0.56f)
-            quadraticTo(w * 0.55f, h * 0.42f - (flexHeight * 0.5f), w * 0.72f, h * 0.46f)
-        }
-        drawPath(
-            path = muscleLine,
-            color = surfaceColor,
-            style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
-        )
-
-        // 3. Knuckle Joint Lines on Clenched Fist (Top Left)
-        val knuckleLine = Path().apply {
-            moveTo(w * 0.20f, h * 0.20f)
-            lineTo(w * 0.26f, h * 0.25f)
-            moveTo(w * 0.18f, h * 0.26f)
-            lineTo(w * 0.24f, h * 0.31f)
-            moveTo(w * 0.18f, h * 0.32f)
-            lineTo(w * 0.24f, h * 0.37f)
-        }
-        drawPath(
-            path = knuckleLine,
-            color = surfaceColor,
-            style = Stroke(width = 1.2.dp.toPx(), cap = StrokeCap.Round)
-        )
-
-        // 4. Power Burst Rays
-        if (isSelected) {
-            val peakX = w * 0.46f
-            val peakY = h * 0.26f - flexHeight
-
-            val ray1Start = Offset(peakX - 5.dp.toPx(), peakY - 2.dp.toPx())
-            val ray1End = Offset(peakX - 8.dp.toPx(), peakY - 7.dp.toPx())
-            drawLine(color = activeGymColor, start = ray1Start, end = ray1End, strokeWidth = 1.6.dp.toPx(), cap = StrokeCap.Round)
-
-            val ray2Start = Offset(peakX, peakY - 3.dp.toPx())
-            val ray2End = Offset(peakX, peakY - 9.dp.toPx())
-            drawLine(color = activeGymColor, start = ray2Start, end = ray2End, strokeWidth = 1.8.dp.toPx(), cap = StrokeCap.Round)
-
-            val ray3Start = Offset(peakX + 5.dp.toPx(), peakY - 2.dp.toPx())
-            val ray3End = Offset(peakX + 8.dp.toPx(), peakY - 7.dp.toPx())
-            drawLine(color = activeGymColor, start = ray3Start, end = ray3End, strokeWidth = 1.6.dp.toPx(), cap = StrokeCap.Round)
-        }
-    }
+    )
 }
 
 // Person Vector Structure Waving "Hi!" Component for Navigation Bar

@@ -2067,11 +2067,16 @@ class MainActivity : ComponentActivity() {
                                                 userId = currentUser?.id,
                                                 email = currentEmail
                                             )
-                                            try {
-                                                android.graphics.BitmapFactory.decodeFile(avatarFile.absolutePath)?.let {
-                                                    globalProfilePhotoBitmap = it.asImageBitmap()
-                                                }
-                                            } catch (_: Exception) {}
+                                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                                try {
+                                                    val decoded = android.graphics.BitmapFactory.decodeFile(avatarFile.absolutePath)?.asImageBitmap()
+                                                    if (decoded != null) {
+                                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                            globalProfilePhotoBitmap = decoded
+                                                        }
+                                                    }
+                                                } catch (_: Exception) {}
+                                            }
                                         } else if (cleared) {
                                             globalProfilePhotoBitmap = null
                                         }

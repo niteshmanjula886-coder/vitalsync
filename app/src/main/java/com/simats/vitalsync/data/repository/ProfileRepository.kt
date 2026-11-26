@@ -30,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -158,12 +159,12 @@ class ProfileRepository(
         }
     }.flowOn(Dispatchers.IO)
 
-    suspend fun fetchAvatarBitmap(user: User?): ImageBitmap? {
+    suspend fun fetchAvatarBitmap(user: User?): ImageBitmap? = withContext(Dispatchers.IO) {
         val rawUrl = user?.imageUrl?.takeIf { it.isNotBlank() }
             ?: user?.profileImage?.takeIf { it.isNotBlank() }
-            ?: return null
-        val bytes = RetrofitClient.downloadImageBytes(rawUrl) ?: return null
-        return try {
+            ?: return@withContext null
+        val bytes = RetrofitClient.downloadImageBytes(rawUrl) ?: return@withContext null
+        try {
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
         } catch (_: Exception) {
             null
